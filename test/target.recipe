@@ -1,0 +1,3 @@
+# recipe for target
+T libc.so printf
+

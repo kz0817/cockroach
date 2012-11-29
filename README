@@ -1,11 +1,28 @@
 Cockroach
 ====
 
-A probe utility.
-It can measure execution time of functions or a part of programs. It also can
-insert userdefined probes.
+Cockroach is a probe utility. It can measure execution time of functions
+or a part of programs. It also can insert userdefined probes dynamically.
+
+==============================
+How to build
+==============================
+$ ./autogen.sh
+$ ./configure
+$ make
+$ sudo make install
 
 ==============================
 How to run
 ==============================
 $ LDPRELOAD=cockroach.so COCKROACH_RECIPE=<path>/recipe_file program args
+
+==============================
+Format of recipe file
+==============================
+# Meausre execution time: T dll_name symbol|offset(hex)
+T libc.so memset
+T libc.so 0000000000053840
+
+# Probes: P dll_name symbol|offset(hex) probe_so probe_name
+P libc.so printf myprobe.so my_probe
