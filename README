@@ -1,0 +1,6 @@
+Cockroach
+====
+
+A probe utility.
+It can measure execution time of functions or a part of programs. It also can
+insert userdefined probes.
