@@ -46,6 +46,8 @@ cockroach::cockroach(void)
 		exit(EXIT_FAILURE);
 	}
 	parse_recipe(recipe_file);
+
+	// install probes for libraries that have already been mapped.
 }
 
 void cockroach::parse_time_measurement(vector<string> &tokens)

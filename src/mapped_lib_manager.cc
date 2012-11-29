@@ -40,14 +40,15 @@ void mapped_lib_manager::parse_mapped_lib_line(const char *line)
 		return;
 
 	// parse start address
+	unsigned long start_addr, end_addr;
 	string &addr_range = tokens[0];
-	vector<string> addrs = utils::split(addr_range.c_str(), '-');
-	if (addrs.size() != 2)
+	int ret = sscanf(addr_range.c_str(), "%lx-%lx", &start_addr, &end_addr);
+	if (ret != 2)
 		return;
-	unsigned long start_addr = 0;
 
-	//m_shared_lib_map.insert(pair<string, unsigned long>(path, start_addr));
-	printf("line: %s", line);
+	unsigned long length = end_addr - start_addr;
+	mapped_lib_info lib_info(path.c_str(), start_addr, length);
+	m_lib_info_set.insert(lib_info);
 }
 
 // --------------------------------------------------------------------------
