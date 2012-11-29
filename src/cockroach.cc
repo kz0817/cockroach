@@ -10,6 +10,7 @@ using namespace std;
 
 #include "utils.h"
 #include "mapped_lib_manager.h"
+#include "probe_info.h"
 
 static void *(*g_orig_dlopen)(const char *, int) = NULL;
 static int (*g_orig_dlclose)(void *) = NULL;
