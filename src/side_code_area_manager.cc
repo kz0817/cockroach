@@ -57,5 +57,8 @@ uint8_t *side_code_area_manager::alloc(size_t size)
 	side_code_area *area = new side_code_area(addr, map_size);
 	get_side_code_area_set().insert(area);
 	m_curr_area = area;
-	return NULL;
+
+	ret = m_curr_area->get_head_addr();
+	m_curr_area->idx += size;
+	return ret;
 }

@@ -5,6 +5,7 @@ using namespace std;
 #include <sys/mman.h>
 #include <unistd.h>
 #include <errno.h>
+#include <dlfcn.h>
 
 #include "utils.h"
 #include "probe_info.h"
@@ -52,6 +53,7 @@ void probe_info::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
 		abort();
 	}
 	uint8_t *code = reinterpret_cast<uint8_t*>(target_addr);
+	printf("code  : %p\n", code);
 
 	// push $rax
 	*code = OPCODE_PUSH_RAX;
@@ -139,6 +141,7 @@ void probe_info::install(const mapped_lib_info *lib_info)
 	// check if the patch for the same address has already been registered.
 	uint8_t *side_code_area
 	  = side_code_area_manager::alloc(SIDE_CODE_AREA_LENGTH);
+	printf("side_code_area: %p\n", side_code_area);
 	/*
 	uint8_t *intrude_addr = (uint8_t *)addr + m_dl_map_offset;
 	patch_func_map_itr it = m_patch_func_map.find(intrude_addr);

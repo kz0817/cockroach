@@ -1,3 +1,6 @@
 # recipe for target
-# printf
-T libc-2.15.so 0000000000053840 14
+# printf: __printf_chk
+T libc-2.15.so 0000000000108df0 14
+# funcX
+#T target 0000006c0 13
+
