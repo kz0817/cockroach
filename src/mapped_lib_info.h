@@ -2,7 +2,7 @@
 #define mapped_lib_info_h
 
 #include <string>
-#include <set>
+#include <map>
 using namespace std;
 
 class mapped_lib_info {
@@ -14,10 +14,12 @@ class mapped_lib_info {
 public:
 	mapped_lib_info(const char *path,
 	                unsigned long start_addr, unsigned long length);
-	bool operator<(const mapped_lib_info &lib_info) const;
+	const char *get_path(void) const;
+	const char *get_filename(void) const;
+	unsigned long get_addr(void) const;
 };
 
-typedef set<mapped_lib_info> mapped_lib_info_set_t;
-typedef mapped_lib_info_set_t::iterator mapped_lib_info_set_itr;
+typedef map<string, mapped_lib_info*> mapped_lib_info_map_t;
+typedef mapped_lib_info_map_t::iterator mapped_lib_info_map_itr;
 
 #endif

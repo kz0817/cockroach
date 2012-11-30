@@ -47,8 +47,13 @@ void mapped_lib_manager::parse_mapped_lib_line(const char *line)
 		return;
 
 	unsigned long length = end_addr - start_addr;
-	mapped_lib_info lib_info(path.c_str(), start_addr, length);
-	m_lib_info_set.insert(lib_info);
+
+	// add to the maps
+	mapped_lib_info *lib_info
+	  = new mapped_lib_info(path.c_str(), start_addr, length);
+
+	m_lib_info_path_map[lib_info->get_path()] = lib_info;
+	m_lib_info_filename_map[lib_info->get_filename()] = lib_info;
 }
 
 void mapped_lib_manager::_parse_mapped_lib_line(const char *line, void *arg)
@@ -75,10 +80,15 @@ mapped_lib_manager::mapped_lib_manager()
 
 const mapped_lib_info *mapped_lib_manager::get_lib_info(const char *name)
 {
-	mapped_lib_info search_info(name, 0, 0);
-	mapped_lib_info_set_itr it;
-	it = m_lib_info_set.find(search_info);
-	if (it == m_lib_info_set.end())
-		return NULL;
-	return &(*it);
+	mapped_lib_info_map_itr it;
+	if (utils::is_absolute_path(name)) {
+		it = m_lib_info_path_map.find(name);
+		if (it == m_lib_info_path_map.end())
+			return NULL;
+	} else {
+		it = m_lib_info_filename_map.find(name);
+		if (it == m_lib_info_filename_map.end())
+			return NULL;
+	}
+	return it->second;
 }

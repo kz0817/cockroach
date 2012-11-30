@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstring>
 #include "utils.h"
 #include "mapped_lib_info.h"
 
@@ -14,8 +15,17 @@ mapped_lib_info::mapped_lib_info(const char *path, unsigned long start_addr,
 	m_filename = utils::get_basename(path);
 }
 
-bool mapped_lib_info::operator<(const mapped_lib_info &lib_info) const
+const char *mapped_lib_info::get_path(void) const
 {
-	printf("%s\n", __func__);
-	return true;
+	return m_path.c_str();
+}
+
+const char *mapped_lib_info::get_filename(void) const
+{
+	return m_filename.c_str();
+}
+
+unsigned long mapped_lib_info::get_addr(void) const
+{
+	return m_start_addr;
 }

@@ -1,3 +1,6 @@
+#include <cstdio>
+using namespace std;
+
 #include "utils.h"
 #include "probe_info.h"
 
@@ -35,4 +38,10 @@ void probe_info::set_ret_probe(probe_func_t probe)
 const char *probe_info::get_target_lib_path(void)
 {
 	return m_target_lib_path.c_str();
+}
+
+void probe_info::install(const mapped_lib_info *lib_info)
+{
+	printf("install: %s: %08lx, @ %016lx\n",
+	       lib_info->get_path(), m_offset_addr, lib_info->get_addr());
 }

@@ -4,7 +4,8 @@
 #include "mapped_lib_info.h"
 
 class mapped_lib_manager {
-	mapped_lib_info_set_t m_lib_info_set;
+	mapped_lib_info_map_t m_lib_info_path_map;
+	mapped_lib_info_map_t m_lib_info_filename_map;
 
 	static void _parse_mapped_lib_line(const char *line, void *arg);
 	void parse_mapped_lib_line(const char *line);

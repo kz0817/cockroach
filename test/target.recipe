@@ -1,3 +1,3 @@
 # recipe for target
 #printf
-T libc.so 0000000000053840
+T libc-2.15.so 0000000000053840
