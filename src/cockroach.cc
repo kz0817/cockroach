@@ -55,6 +55,15 @@ cockroach::cockroach(void)
 	parse_recipe(recipe_file);
 
 	// install probes for libraries that have already been mapped.
+	probe_info_list_itr probe = m_probe_list.begin();
+	for (; probe != m_probe_list.end(); ++probe) {
+		const char *target_name = probe->get_target_lib_path();
+		const mapped_lib_info* lib_info;
+		lib_info = m_mapped_lib_mgr.get_lib_info(target_name);
+		if (!lib_info)
+			continue;
+		probe->install(lib_info);
+	}
 }
 
 void cockroach::parse_time_measurement(vector<string> &tokens)

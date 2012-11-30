@@ -9,12 +9,12 @@ probe_info::probe_info(probe_type type)
 {
 }
 
-void probe_info::set_target_address(const char *shared_lib_path, unsigned long addr)
+void probe_info::set_target_address(const char *target_lib_path, unsigned long addr)
 {
-	if (shared_lib_path)
-		m_shared_lib_path = shared_lib_path;
+	if (target_lib_path)
+		m_target_lib_path = target_lib_path;
 	else
-		m_shared_lib_path.erase();
+		m_target_lib_path.erase();
 	m_offset_addr = addr;
 }
 
@@ -30,4 +30,9 @@ void probe_info::set_probe(const char *probe_lib_path, probe_func_t probe)
 void probe_info::set_ret_probe(probe_func_t probe)
 {
 	m_ret_probe = probe;
+}
+
+const char *probe_info::get_target_lib_path(void)
+{
+	return m_target_lib_path.c_str();
 }

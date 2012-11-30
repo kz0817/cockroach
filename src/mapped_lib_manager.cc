@@ -73,3 +73,12 @@ mapped_lib_manager::mapped_lib_manager()
 	}
 }
 
+const mapped_lib_info *mapped_lib_manager::get_lib_info(const char *name)
+{
+	mapped_lib_info search_info(name, 0, 0);
+	mapped_lib_info_set_itr it;
+	it = m_lib_info_set.find(search_info);
+	if (it == m_lib_info_set.end())
+		return NULL;
+	return &(*it);
+}
