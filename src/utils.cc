@@ -1,6 +1,7 @@
 #include <cstdio>
 using namespace std;
 
+#include <stdarg.h>
 #include <unistd.h>
 #include "utils.h"
 
@@ -92,3 +93,11 @@ int utils::get_page_size(void)
 	return s_page_size;
 }
 
+void utils::message(const char *file, int line, const char *header,
+                    const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt); 
+	vprintf(fmt, ap);
+	va_end(ap);
+}

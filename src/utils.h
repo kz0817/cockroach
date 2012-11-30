@@ -5,6 +5,9 @@
 #include <string>
 using namespace std;
 
+#define ROACH_ERR(fmt, ...) \
+utils::message(__FILE__, __LINE__, "ERR", fmt, ##__VA_ARGS__)
+
 typedef void (*one_line_parser_t)(const char *line, void *arg);
 
 class utils {
@@ -17,6 +20,8 @@ public:
 	static bool read_one_line_loop(const char *path,
 	                               one_line_parser_t parser, void *arg);
 	static int get_page_size(void);
+	static void message(const char *file, int line, const char *header,
+	                    const char *fmt, ...);
 };
 
 #endif

@@ -8,7 +8,17 @@ using namespace std;
 #include "mapped_lib_info.h"
 
 #ifdef __x86_64__
-#define JUMP_OP_LEN   13 // push %rax; mov $adrr,%rax; push %rax; ret;
+
+#define SIDE_CODE_AREA_LENGTH      100
+
+// push %rax (1); mov $adrr,%rax (10); push %rax (1); ret (1);
+#define OPCODES_LEN_OVERWRITE_JUMP 13
+
+#define OPCODE_NOP        0x90
+#define OPCODE_RET        0xc3
+#define OPCODE_PUSH_RAX   0x50
+#define OPCODE_MOVQ_0     0x48
+#define OPCODE_MOVQ_1     0xb8
 
 struct probe_arg_t {
 	unsigned long      ret_addr; // absolute
@@ -35,7 +45,7 @@ class probe_info {
 	// methods
 	void change_page_permission(void *addr);
 	void change_page_permission_all(void *addr, int len);
-	void overwrite_jump_code(uint8_t *intrude_addr, uint8_t *jump_abs_addr,
+	void overwrite_jump_code(void *intrude_addr, void *jump_abs_addr,
 	                         int copy_code_size);
 public:
 	probe_info(probe_type type);

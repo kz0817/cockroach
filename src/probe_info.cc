@@ -1,11 +1,14 @@
 #include <cstdio>
+#include <cstdlib>
 using namespace std;
 
 #include <sys/mman.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "utils.h"
 #include "probe_info.h"
+#include "side_code_area_manager.h"
 
 // --------------------------------------------------------------------------
 // private functions
@@ -15,11 +18,9 @@ void probe_info::change_page_permission(void *addr)
 	int page_size = utils::get_page_size();
 	int prot =  PROT_READ | PROT_WRITE | PROT_EXEC;
 	if (mprotect(addr, page_size, prot) == -1) {
-		/*
-		EMPL_P(ERR, "Failed to mprotect: %p, %d, %x (%d)\n",
-		       addr, page_size, prot, errno);
+		ROACH_ERR("Failed to mprotect: %p, %d, %x (%d)\n",
+		          addr, page_size, prot, errno);
 		abort();
-		*/
 	}
 }
 
@@ -37,48 +38,46 @@ void probe_info::change_page_permission_all(void *addr, int len)
 }
 
 #ifdef __x86_64__
-void probe_info::overwrite_jump_code(uint8_t *intrude_addr,
-                                     uint8_t *jump_abs_addr,
+void probe_info::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
                                      int copy_code_size)
 {
-	change_page_permission_all(intrude_addr, copy_code_size);
+	change_page_permission_all(target_addr, copy_code_size);
 
 	// calculate the count of nop, which should be filled
 	int idx;
-	int len_nops = copy_code_size - JUMP_OP_LEN;
+	int len_nops = copy_code_size - OPCODES_LEN_OVERWRITE_JUMP;;
 	if (len_nops < 0) {
-		/*
-		EMPL_P(BUG, "len_nops is negaitve: %d, %d\n",
-		       copy_code_size, LenRelCall);
+		ROACH_ERR("len_nops is negaitve: %d, %d\n",
+		          copy_code_size, OPCODES_LEN_OVERWRITE_JUMP);
 		abort();
-		*/
 	}
-	uint8_t *code = intrude_addr;
+	uint8_t *code = reinterpret_cast<uint8_t*>(target_addr);
 
 	// push $rax
-	*code = 0x50;
+	*code = OPCODE_PUSH_RAX;
 	code++;
 
 	// mov $jump_abs_addr, $rax
-	*code = 0x48;
+	*code = OPCODE_MOVQ_0;
 	code++;
-	*code = 0xb8;
+	*code = OPCODE_MOVQ_1;
 	code++;
 
-	//*((uint64_t *)code) = jump_abs_addr;
+	uint64_t jump_addr64 = reinterpret_cast<uint64_t>(jump_abs_addr);
+	*(reinterpret_cast<uint64_t *>(code)) = jump_addr64;
 	code += 8;
 
 	// push %rax
-	*code = 0x50;
+	*code = OPCODE_PUSH_RAX;
 	code++;
 
 	// ret
-	*code = 0xc3;
+	*code = OPCODE_RET;
 	code++;
 
 	// fill NOP instructions
 	for (idx = 0; idx < len_nops; idx++, code++)
-		*code = 0x90;  // nop
+		*code = OPCODE_NOP;
 }
 #endif // __x86_64__
 
@@ -127,5 +126,77 @@ void probe_info::install(const mapped_lib_info *lib_info)
 	printf("install: %s: %08lx, @ %016lx, %d\n",
 	       lib_info->get_path(), m_offset_addr, lib_info->get_addr(),
 	       m_overwrite_length);
-	
+
+	// --------------------------------------------------------------------
+	// [Side Code Area Layout]
+	// (1) save registers
+	// (2) call probe
+	// (3) restore registers
+	// (4) original code
+	// (5) return to original position
+	// --------------------------------------------------------------------
+
+	// check if the patch for the same address has already been registered.
+	uint8_t *side_code_area
+	  = side_code_area_manager::alloc(SIDE_CODE_AREA_LENGTH);
+	/*
+	uint8_t *intrude_addr = (uint8_t *)addr + m_dl_map_offset;
+	patch_func_map_itr it = m_patch_func_map.find(intrude_addr);
+	if (it != m_patch_func_map.end()) {
+		EMPL_P(INFO, "Patch: %p is already registered\n",
+		       intrude_addr);
+		return;
+	}
+	m_patch_func_map[intrude_addr] = func; // regist this patch to the map
+
+	// allocate the program area
+	unsigned long bridge_templ_code_size;
+	bridge_templ_code_size = CALC_LENGTH(bridge_begin, bridge_end);
+	int side_code_size = save_code_length + bridge_templ_code_size;
+	int side_data_size = sizeof(func);
+
+	uint8_t *code_area = m_side_code_area_mgr.allocate(side_code_size);
+	uint8_t *data_area = m_side_data_area_mgr.allocate(side_data_size,
+	                                                   sizeof(long));
+
+	// copy orignal code
+	memcpy(code_area, intrude_addr, save_code_length);
+
+	// copy bridge template
+	uint8_t *bridge_area = code_area + save_code_length;
+	memcpy(bridge_area, (void *)bridge_begin, bridge_templ_code_size);
+
+	long index;
+	unsigned long *ptr;
+
+	// set return address
+	index = CALC_LENGTH(bridge_begin, bridge_push_ret_addr);
+	ptr = (unsigned long *)(bridge_area + index + LenPushOpCode);
+	*ptr = (unsigned long)intrude_addr + save_code_length;
+
+	// set pointer of member function pointer of the patch
+	index = CALC_LENGTH(bridge_begin, bridge_push_patch_func_ptr_addr);
+	ptr = (unsigned long *)(bridge_area + index + LenPushOpCode);
+	*ptr = (unsigned long)data_area;
+	memcpy((void *)data_area, &func, sizeof(func));
+
+	// set object address
+	index = CALC_LENGTH(bridge_begin, bridge_push_runner_addr);
+	ptr = (unsigned long *)(bridge_area + index + LenPushOpCode);
+	*ptr = (unsigned long)this;
+
+	// set relative address to bridge_cbind()
+	index = CALC_LENGTH(bridge_begin, bridge_call);
+	ptr = (unsigned long *)(bridge_area + index + LenRelCallOpCode);
+	long rel_addr_to_bridge_cbind =
+	    CALC_LENGTH(bridge_area + index + LenRelCall, bridge_cbind);
+	*ptr = rel_addr_to_bridge_cbind;
+	*/
+
+	// overwrite jump code
+	unsigned long target_addr = lib_info->get_addr() +  m_offset_addr;
+	void *target_addr_ptr = reinterpret_cast<void *>(target_addr);
+	overwrite_jump_code(target_addr_ptr, 
+	                    side_code_area,
+	                    m_overwrite_length);
 }
