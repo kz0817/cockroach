@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 using namespace std;
 
 #include <sys/mman.h>
@@ -16,36 +17,69 @@ void _bridge_template(void)
 {
 	asm volatile("bridge_begin:");
 	asm volatile("pop %rax");
-	asm volatile("bridge_push_ret_addr:");
-	asm volatile("push $0x78654321");    // the return address
-	asm volatile("push $0x78654321");    // the return address
-	asm volatile("pushf");               // 0x4 Bytes
-	//asm volatile("pusha");               // 0x20 Bytes
 
-	asm volatile("bridge_push_patch_func_ptr_addr:");
-	asm volatile("push $0x78654321");    // addr of patch func member ptr.
+	asm volatile("bridge_push_probe_ret_addr:");
+	// the return address of the probe
+	asm volatile("sub $8,%rsp");
+	asm volatile("movl $0xfedcba98,(%rsp)");
+	asm volatile("movl $0xf0e1d2c3,0x4(%rsp)");
 
-	asm volatile("bridge_push_runner_addr:");
-	asm volatile("push $0x78654321");    // workaround_runner object address
+	// save registers
+	asm volatile("pushf");
+	asm volatile("push %rdi");
+	asm volatile("push %rsi");
+	asm volatile("push %rdx");
+	asm volatile("push %rcx");
+	asm volatile("push %rax");
+	asm volatile("push %r8");
+	asm volatile("push %r9");
+	asm volatile("push %r10");
+	asm volatile("push %r11");
+	asm volatile("push %rbx");
+	asm volatile("push %rbp");
+	asm volatile("push %r12");
+	asm volatile("push %r13");
+	asm volatile("push %r14");
+	asm volatile("push %r15");
 
-	asm volatile("push %rsp");           // set an argument
-	asm volatile("bridge_call:");
-	//asm volatile("call 0x87654321");     // bridge_cbind()
+	// set an argument
+	asm volatile("push %rsp");
 
-	asm volatile("add $0xc,%esp");
-	//asm volatile("popa");
+	asm volatile("probe_call:");
+	asm volatile("mov $0xfedcba9876543210,%rax");
+	asm volatile("call *%rax");
+
+	// restore stack for the argument
+	asm volatile("add $0x8,%rsp");
+
+	// restore registers
+	asm volatile("push %r15");
+	asm volatile("push %r14");
+	asm volatile("push %r13");
+	asm volatile("push %r12");
+	asm volatile("push %rbp");
+	asm volatile("push %rbx");
+	asm volatile("push %r11");
+	asm volatile("push %r10");
+	asm volatile("push %r9");
+	asm volatile("push %r8");
+	asm volatile("push %rax");
+	asm volatile("push %rcx");
+	asm volatile("push %rdx");
+	asm volatile("push %rsi");
+	asm volatile("push %rdi");
 	asm volatile("popf");
 
-	// go back to the orignal path or the specifed address written in
+	// go back to the saved orignal path or the specifed address written in
 	// the patch function.
+	asm volatile("mov $0,%rax");    // debug
+	asm volatile("movl $0,(%rax)");  // debug
 	asm volatile("ret");
 	asm volatile("bridge_end:");
 }
 extern "C" void bridge_begin(void);
-extern "C" void bridge_push_ret_addr(void);
-extern "C" void bridge_push_patch_func_ptr_addr(void);
-extern "C" void bridge_push_runner_addr(void);
-extern "C" void bridge_call(void);
+extern "C" void bridge_push_probe_ret_addr(void);
+extern "C" void probe_call(void);
 extern "C" void bridge_end(void);
 #endif // __x86_64__
 
@@ -107,12 +141,10 @@ void probe_info::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
 	*(reinterpret_cast<uint64_t *>(code)) = jump_addr64;
 	code += 8;
 
-	// push %rax
-	*code = OPCODE_PUSH_RAX;
+	// jmp *%rax
+	*code = OPCODE_JMP_ABS_RAX_0;
 	code++;
-
-	// ret
-	*code = OPCODE_RET;
+	*code = OPCODE_JMP_ABS_RAX_1;
 	code++;
 
 	// fill NOP instructions
@@ -177,9 +209,16 @@ void probe_info::install(const mapped_lib_info *lib_info)
 	// --------------------------------------------------------------------
 
 	// check if the patch for the same address has already been registered.
-	int code_length = (unsigned long)bridge_end - (unsigned long)bridge_begin;
-	uint8_t *side_code_area = side_code_area_manager::alloc(code_length);
+	static const int BRIDGE_LENGTH =
+	  utils::calc_func_distance(bridge_begin, bridge_end);
+	uint8_t *side_code_area = side_code_area_manager::alloc(BRIDGE_LENGTH);
 	printf("side_code_area: %p\n", side_code_area);
+
+	// copy bridge code
+	static const int LEN_RESTORE_RAX = 
+	  utils::calc_func_distance(bridge_begin, bridge_push_probe_ret_addr);
+	memcpy(side_code_area, (void*)bridge_begin, LEN_RESTORE_RAX);
+
 	/*
 	uint8_t *intrude_addr = (uint8_t *)addr + m_dl_map_offset;
 	patch_func_map_itr it = m_patch_func_map.find(intrude_addr);
@@ -199,7 +238,6 @@ void probe_info::install(const mapped_lib_info *lib_info)
 	uint8_t *code_area = m_side_code_area_mgr.allocate(side_code_size);
 	uint8_t *data_area = m_side_data_area_mgr.allocate(side_data_size,
 	                                                   sizeof(long));
-
 	// copy orignal code
 	memcpy(code_area, intrude_addr, save_code_length);
 

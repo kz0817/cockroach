@@ -22,6 +22,8 @@ public:
 	static int get_page_size(void);
 	static void message(const char *file, int line, const char *header,
 	                    const char *fmt, ...);
+	static unsigned long calc_func_distance(void (*func0)(void),
+	                                        void (*func1)(void));
 };
 
 #endif

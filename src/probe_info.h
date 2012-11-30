@@ -9,7 +9,7 @@ using namespace std;
 
 #ifdef __x86_64__
 
-// push %rax (1); mov $adrr,%rax (10); push %rax (1); ret (1);
+// push %rax (1); mov $adrr,%rax (10); push *%rax (2);
 #define OPCODES_LEN_OVERWRITE_JUMP 13
 
 #define OPCODE_NOP        0x90
@@ -17,9 +17,28 @@ using namespace std;
 #define OPCODE_PUSH_RAX   0x50
 #define OPCODE_MOVQ_0     0x48
 #define OPCODE_MOVQ_1     0xb8
+#define OPCODE_JMP_ABS_RAX_0 0xff
+#define OPCODE_JMP_ABS_RAX_1 0xe0
 
 struct probe_arg_t {
-	unsigned long      ret_addr; // absolute
+	unsigned long r15;
+	unsigned long r14;
+	unsigned long r13;
+	unsigned long r12;
+	unsigned long rbp;
+	unsigned long rbx;
+	unsigned long r11;
+	unsigned long r10;
+	unsigned long r9;
+	unsigned long r8;
+	unsigned long rax;
+	unsigned long rcx;
+	unsigned long rdx;
+	unsigned long rsi;
+	unsigned long rdi;
+	unsigned long flags;
+	unsigned long probe_ret_addr;
+	unsigned long func_ret_addr;
 };
 #endif // __x86_64__
 

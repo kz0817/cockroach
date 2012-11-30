@@ -101,3 +101,9 @@ void utils::message(const char *file, int line, const char *header,
 	vprintf(fmt, ap);
 	va_end(ap);
 }
+
+unsigned long
+utils::calc_func_distance(void (*func0)(void), void (*func1)(void))
+{
+	return (unsigned long)func1 - (unsigned long)func0;
+}
