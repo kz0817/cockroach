@@ -69,3 +69,16 @@ bool utils::read_one_line_loop(const char *path,
 	fclose(fp);
 	return true;
 }
+
+bool utils::is_hex_number(const char *word)
+{
+	for (const char *ptr = word; *ptr; ptr++) {
+		if (*ptr < '0')
+			return false;
+		if (*ptr > 'f')
+			return false;
+		if (*ptr > '9' && *ptr < 'a')
+			return false;
+	}
+	return true;
+}

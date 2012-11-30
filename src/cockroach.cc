@@ -11,6 +11,7 @@ using namespace std;
 #include "utils.h"
 #include "mapped_lib_manager.h"
 #include "probe_info.h"
+#include "time_measure_probe.h"
 
 static void *(*g_orig_dlopen)(const char *, int) = NULL;
 static int (*g_orig_dlclose)(void *) = NULL;
@@ -19,8 +20,8 @@ typedef list<probe_info> probe_info_list_t;
 typedef probe_info_list_t::iterator  probe_info_list_itr;
 
 class cockroach {
-	mapped_lib_manager mapped_lib_mgr;
-	probe_info_list_t probe_list;
+	mapped_lib_manager m_mapped_lib_mgr;
+	probe_info_list_t m_probe_list;
 
 	static void _parse_one_recipe(const char *line, void *arg);
 	void parse_recipe(const char *recipe_file);
@@ -83,6 +84,31 @@ void cockroach::parse_one_recipe(const char *line)
 		printf("Unknown command: '%s' : %s\n", tokens[0].c_str(), line);
 		exit(EXIT_FAILURE);
 	}
+
+	// target address
+	string &target_lib = tokens[1];
+	string &sym_or_addr = tokens[2];
+	unsigned long target_addr = 0;
+	if (utils::is_hex_number(sym_or_addr.c_str())) {
+		if (sscanf(sym_or_addr.c_str(), "%lx", &target_addr) != 1) {
+			printf("Failed to parse address: %s: %s", 
+			       target_lib.c_str(), sym_or_addr.c_str());
+			exit(EXIT_FAILURE);
+		}
+	} else {
+		printf("Currently symbol is not implemented. "
+		       "Please specify address. %s: %s\n",
+		       target_lib.c_str(), sym_or_addr.c_str());
+		exit(EXIT_FAILURE);
+	}
+
+	// register probe
+	probe_info probe(PROBE_TYPE_OVERWRITE_JUMP);
+	probe.set_target_address(target_lib.c_str(), target_addr);
+	probe.set_probe(NULL, roach_time_measure_probe);
+	probe.set_ret_probe(roach_time_mesure_ret_probe);
+
+	m_probe_list.push_back(probe);
 }
 
 void cockroach::_parse_one_recipe(const char *line, void *arg)

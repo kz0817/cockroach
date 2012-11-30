@@ -27,9 +27,9 @@ class probe_info {
 	probe_func_t m_ret_probe;
 public:
 	probe_info(probe_type type);
-	void set_target_address(char *shared_lib_path, unsigned long addr);
-	void set_prove(char *probe_lib_path, probe_func_t probe);
-	void set_ret_prove(probe_func_t probe);
+	void set_target_address(const char *shared_lib_path, unsigned long addr);
+	void set_probe(const char *probe_lib_path, probe_func_t probe);
+	void set_ret_probe(probe_func_t probe);
 };
 
 #endif
