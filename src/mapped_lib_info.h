@@ -18,6 +18,6 @@ public:
 };
 
 typedef set<mapped_lib_info> mapped_lib_info_set_t;
-typedef set<mapped_lib_info> mapped_lib_info_set_itr;
+typedef mapped_lib_info_set_t::iterator mapped_lib_info_set_itr;
 
 #endif

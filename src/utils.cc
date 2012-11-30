@@ -1,3 +1,6 @@
+#include <cstdio>
+using namespace std;
+
 #include "utils.h"
 
 vector<string> utils::split(const char *line, const char separator)
@@ -38,4 +41,31 @@ string utils::get_basename(string &path)
 	if (pos == string::npos)
 		return path;
 	return path.substr(pos+1);
+}
+
+bool utils::is_absolute_path(const char *path)
+{
+	if (!path)
+		return false;
+	return (path[0] == '/');
+}
+
+bool utils::read_one_line_loop(const char *path,
+                               one_line_parser_t parser, void *arg)
+{
+	FILE *fp = fopen(path, "r");
+	if (!fp) {
+		return false;
+	}
+
+	static const int MAX_CHARS_ONE_LINE = 4096;
+	char line[MAX_CHARS_ONE_LINE];
+	while (true) {
+		char *ret = fgets(line, MAX_CHARS_ONE_LINE, fp);
+		if (!ret)
+			break;
+		(*parser)(line, arg);
+	}
+	fclose(fp);
+	return true;
 }

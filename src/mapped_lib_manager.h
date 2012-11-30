@@ -6,6 +6,7 @@
 class mapped_lib_manager {
 	mapped_lib_info_set_t m_lib_info_set;
 
+	static void _parse_mapped_lib_line(const char *line, void *arg);
 	void parse_mapped_lib_line(const char *line);
 public:
 	mapped_lib_manager();

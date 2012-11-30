@@ -1,7 +1,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
-#include <set>
+#include <list>
 #include <string>
 using namespace std;
 
@@ -15,9 +15,14 @@ using namespace std;
 static void *(*g_orig_dlopen)(const char *, int) = NULL;
 static int (*g_orig_dlclose)(void *) = NULL;
 
+typedef list<probe_info> probe_info_list_t;
+typedef probe_info_list_t::iterator  probe_info_list_itr;
+
 class cockroach {
 	mapped_lib_manager mapped_lib_mgr;
+	probe_info_list_t probe_list;
 
+	static void _parse_one_recipe(const char *line, void *arg);
 	void parse_recipe(const char *recipe_file);
 	void parse_one_recipe(const char *line);
 	void parse_time_measurement(vector<string> &tokens);
@@ -80,24 +85,22 @@ void cockroach::parse_one_recipe(const char *line)
 	}
 }
 
+void cockroach::_parse_one_recipe(const char *line, void *arg)
+{
+	cockroach *obj = static_cast<cockroach *>(arg);
+	obj->parse_one_recipe(line);
+}
+
 void cockroach::parse_recipe(const char *recipe_file)
 {
-	FILE *fp = fopen(recipe_file, "r");
-	if (!fp) {
-		printf("Failed to open recipe file: %s (%d)\n", recipe_file,
+	bool ret = utils::read_one_line_loop(recipe_file,
+	                                     cockroach::_parse_one_recipe,
+	                                     this);
+	if (!ret) {
+		printf("Failed to parse recipe file: %s (%d)\n", recipe_file,
 		       errno);
 		exit(EXIT_FAILURE);
 	}
-
-	static const int MAX_CHARS_ONE_LINE = 4096;
-	char buf[MAX_CHARS_ONE_LINE];
-	while (true) {
-		char *ret = fgets(buf, MAX_CHARS_ONE_LINE, fp);
-		if (!ret)
-			break;
-		parse_one_recipe(buf);
-	}
-	fclose(fp);
 }
 
 // make instance

@@ -51,26 +51,25 @@ void mapped_lib_manager::parse_mapped_lib_line(const char *line)
 	m_lib_info_set.insert(lib_info);
 }
 
+void mapped_lib_manager::_parse_mapped_lib_line(const char *line, void *arg)
+{
+	mapped_lib_manager *obj = static_cast<mapped_lib_manager *>(arg);
+	obj->parse_mapped_lib_line(line);
+}
+
 // --------------------------------------------------------------------------
 // public functions
 // --------------------------------------------------------------------------
 mapped_lib_manager::mapped_lib_manager()
 {
 	const char *map_file_path = "/proc/self/maps";
-	FILE *fp = fopen(map_file_path, "r");
-	if (!fp) {
-		printf("Failed to open: %s (%d)\n", map_file_path, errno);
+	bool ret = utils::read_one_line_loop(map_file_path,
+	                                     mapped_lib_manager::_parse_mapped_lib_line,
+	                                     this);
+	if (!ret) {
+		printf("Failed to parse recipe file: %s (%d)\n", map_file_path,
+		       errno);
 		exit(EXIT_FAILURE);
-
 	}
-	static const int MAX_CHARS_ONE_LINE = 4096;
-	char buf[MAX_CHARS_ONE_LINE];
-	while (true) {
-		char *ret = fgets(buf, MAX_CHARS_ONE_LINE, fp);
-		if (!ret)
-			break;
-		parse_mapped_lib_line(buf);
-	}
-	fclose(fp);
 }
 
