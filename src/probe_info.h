@@ -9,8 +9,6 @@ using namespace std;
 
 #ifdef __x86_64__
 
-#define SIDE_CODE_AREA_LENGTH      100
-
 // push %rax (1); mov $adrr,%rax (10); push %rax (1); ret (1);
 #define OPCODES_LEN_OVERWRITE_JUMP 13
 

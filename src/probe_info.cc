@@ -11,6 +11,44 @@ using namespace std;
 #include "probe_info.h"
 #include "side_code_area_manager.h"
 
+#ifdef __x86_64__
+void _bridge_template(void)
+{
+	asm volatile("bridge_begin:");
+	asm volatile("pop %rax");
+	asm volatile("bridge_push_ret_addr:");
+	asm volatile("push $0x78654321");    // the return address
+	asm volatile("push $0x78654321");    // the return address
+	asm volatile("pushf");               // 0x4 Bytes
+	//asm volatile("pusha");               // 0x20 Bytes
+
+	asm volatile("bridge_push_patch_func_ptr_addr:");
+	asm volatile("push $0x78654321");    // addr of patch func member ptr.
+
+	asm volatile("bridge_push_runner_addr:");
+	asm volatile("push $0x78654321");    // workaround_runner object address
+
+	asm volatile("push %rsp");           // set an argument
+	asm volatile("bridge_call:");
+	//asm volatile("call 0x87654321");     // bridge_cbind()
+
+	asm volatile("add $0xc,%esp");
+	//asm volatile("popa");
+	asm volatile("popf");
+
+	// go back to the orignal path or the specifed address written in
+	// the patch function.
+	asm volatile("ret");
+	asm volatile("bridge_end:");
+}
+extern "C" void bridge_begin(void);
+extern "C" void bridge_push_ret_addr(void);
+extern "C" void bridge_push_patch_func_ptr_addr(void);
+extern "C" void bridge_push_runner_addr(void);
+extern "C" void bridge_call(void);
+extern "C" void bridge_end(void);
+#endif // __x86_64__
+
 // --------------------------------------------------------------------------
 // private functions
 // --------------------------------------------------------------------------
@@ -139,8 +177,8 @@ void probe_info::install(const mapped_lib_info *lib_info)
 	// --------------------------------------------------------------------
 
 	// check if the patch for the same address has already been registered.
-	uint8_t *side_code_area
-	  = side_code_area_manager::alloc(SIDE_CODE_AREA_LENGTH);
+	int code_length = (unsigned long)bridge_end - (unsigned long)bridge_begin;
+	uint8_t *side_code_area = side_code_area_manager::alloc(code_length);
 	printf("side_code_area: %p\n", side_code_area);
 	/*
 	uint8_t *intrude_addr = (uint8_t *)addr + m_dl_map_offset;
@@ -203,3 +241,4 @@ void probe_info::install(const mapped_lib_info *lib_info)
 	                    side_code_area,
 	                    m_overwrite_length);
 }
+
