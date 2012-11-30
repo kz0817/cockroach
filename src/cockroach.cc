@@ -5,8 +5,8 @@
 #include <string>
 using namespace std;
 
-#include <errno.h> 
-#include <dlfcn.h> 
+#include <errno.h>
+#include <dlfcn.h>
 
 #include "utils.h"
 #include "mapped_lib_manager.h"
@@ -68,7 +68,7 @@ cockroach::cockroach(void)
 
 void cockroach::parse_time_measurement(vector<string> &tokens)
 {
-	if (tokens.size() != 3) {
+	if (tokens.size() != 4) {
 		printf("Invalid format: tokens(%zd) != 3\n", tokens.size());
 		for (int i = 0; i < tokens.size(); i++) {
 			printf("[%d] %s\n", i, tokens[i].c_str());
@@ -111,9 +111,12 @@ void cockroach::parse_one_recipe(const char *line)
 		exit(EXIT_FAILURE);
 	}
 
+	int overwrite_length = atoi(tokens[3].c_str());
+
 	// register probe
 	probe_info probe(PROBE_TYPE_OVERWRITE_JUMP);
-	probe.set_target_address(target_lib.c_str(), target_addr);
+	probe.set_target_address(target_lib.c_str(), target_addr,
+	                         overwrite_length);
 	probe.set_probe(NULL, roach_time_measure_probe);
 	probe.set_ret_probe(roach_time_mesure_ret_probe);
 

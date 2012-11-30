@@ -1,6 +1,7 @@
 #include <cstdio>
 using namespace std;
 
+#include <unistd.h>
 #include "utils.h"
 
 vector<string> utils::split(const char *line, const char separator)
@@ -82,3 +83,12 @@ bool utils::is_hex_number(const char *word)
 	}
 	return true;
 }
+
+int utils::get_page_size(void)
+{
+	static int s_page_size = 0;
+	if (!s_page_size)
+		s_page_size = sysconf(_SC_PAGESIZE);
+	return s_page_size;
+}
+
