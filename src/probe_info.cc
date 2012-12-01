@@ -49,7 +49,7 @@ void _bridge_template(void)
 	asm volatile("movl $0x01234567,0x4(%rsp)");
 
 	// push argument for the probe
-	asm volatile("push %rsp");
+	asm volatile("mov %rsp,%rdi");
 
 	// push return address
 	asm volatile("probe_call_set_ret_addr:");
@@ -65,7 +65,7 @@ void _bridge_template(void)
 
 	// restore stack for the argument
 	asm volatile("probe_ret_point:");
-	asm volatile("add $0x10,%rsp");
+	asm volatile("add $0x8,%rsp");
 
 	// restore registers
 	asm volatile("pop %r15");
@@ -156,7 +156,6 @@ void probe_info::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
 		abort();
 	}
 	uint8_t *code = reinterpret_cast<uint8_t*>(target_addr);
-	printf("code  : %p\n", code);
 
 	// push $rax
 	*code = OPCODE_PUSH_RAX;
