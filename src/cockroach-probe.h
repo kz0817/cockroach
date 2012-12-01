@@ -1,6 +1,10 @@
 #ifndef cockroach_probe_h
 #define cockroach_probe_h
 
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
 #ifdef __x86_64__
 struct probe_arg_t {
 	void *priv_data;
@@ -20,7 +24,10 @@ struct probe_arg_t {
 	unsigned long rsi;
 	unsigned long rdi;
 	unsigned long flags;
+
 	unsigned long probe_ret_addr;
+
+	// Not valid in a return probe
 	unsigned long func_ret_addr;
 };
 #endif // __x86_64__
@@ -31,6 +38,12 @@ struct probe_init_arg_t {
 
 typedef void (*probe_init_func_t)(probe_init_arg_t *t);
 typedef void (*probe_func_t)(probe_arg_t *t);
+
+void cockroach_set_return_probe(probe_func_t probe, probe_arg_t *arg);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif
 

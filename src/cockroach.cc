@@ -10,18 +10,18 @@ using namespace std;
 
 #include "utils.h"
 #include "mapped_lib_manager.h"
-#include "probe_info.h"
+#include "probe.h"
 #include "time_measure_probe.h"
 
 static void *(*g_orig_dlopen)(const char *, int) = NULL;
 static int (*g_orig_dlclose)(void *) = NULL;
 
-typedef list<probe_info> probe_info_list_t;
-typedef probe_info_list_t::iterator  probe_info_list_itr;
+typedef list<probe> probe_list_t;
+typedef probe_list_t::iterator  probe_list_itr;
 
 class cockroach {
 	mapped_lib_manager m_mapped_lib_mgr;
-	probe_info_list_t m_probe_list;
+	probe_list_t m_probe_list;
 
 	static void _parse_one_recipe(const char *line, void *arg);
 	void parse_recipe(const char *recipe_file);
@@ -55,7 +55,7 @@ cockroach::cockroach(void)
 	parse_recipe(recipe_file);
 
 	// install probes for libraries that have already been mapped.
-	probe_info_list_itr probe = m_probe_list.begin();
+	probe_list_itr probe = m_probe_list.begin();
 	for (; probe != m_probe_list.end(); ++probe) {
 		const char *target_name = probe->get_target_lib_path();
 		const mapped_lib_info* lib_info;
@@ -114,7 +114,7 @@ void cockroach::parse_one_recipe(const char *line)
 	int overwrite_length = atoi(tokens[3].c_str());
 
 	// register probe
-	probe_info probe(PROBE_TYPE_OVERWRITE_JUMP);
+	probe probe(PROBE_TYPE_OVERWRITE_JUMP);
 	probe.set_target_address(target_lib.c_str(), target_addr,
 	                         overwrite_length);
 	probe.set_probe(NULL, roach_time_measure_probe,

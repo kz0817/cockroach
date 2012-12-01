@@ -34,6 +34,6 @@ void roach_time_measure_probe(probe_arg_t *arg)
 	printf("arg->func_ret_addr: %lx\n", arg->func_ret_addr);
 	gettimeofday(&data->t0, NULL);
 	data->func_ret_addr = arg->func_ret_addr;
-	//data->cockroach_set_return_probe(roach_time_measure_ret_probe);
+	cockroach_set_return_probe(roach_time_measure_ret_probe, arg);
 }
 

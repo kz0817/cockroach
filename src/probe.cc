@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <queue>
 using namespace std;
 
 #include <sys/mman.h>
@@ -9,7 +10,7 @@ using namespace std;
 #include <dlfcn.h>
 
 #include "utils.h"
-#include "probe_info.h"
+#include "probe.h"
 #include "side_code_area_manager.h"
 
 #ifdef __x86_64__
@@ -81,7 +82,6 @@ void _bridge_template(void)
 
 	// push return address
 	PSEUDO_PUSH("probe_call_set_ret_addr:");
-
 	PSEUDO_PUSH("probe_call_set_probe_addr:");
 	asm volatile("ret"); // use 'ret' instread of 'call'
 
@@ -117,12 +117,42 @@ extern "C" void resume_end(void);
 
 #define OFFSET_BRIDGE(label) utils::calc_func_distance(bridge_begin, label);
 
+void _ret_probe_bridge_template(void)
+{
+	asm volatile("ret_probe_bridge_begin:");
+	PSEUDO_PUSH("ret_probe_return_addr:"); // original caller's point
+	PUSH_ALL_REGS();
+	PSEUDO_PUSH("ret_probe_set_private_data:");
+	asm volatile("mov $0x0123456789abcdef,%rsi"); // 2nd argument
+	asm volatile("mov %rsp,%rdi");              // 1st argument
+	PSEUDO_PUSH("ret_probe_call_set_ret_addr:");
+	PSEUDO_PUSH("ret_probe_call_set_dispatcher_addr:");
+	asm volatile("ret"); // use 'ret' instread of 'call'
+	asm volatile("ret_probe_bridge_end:");
+}
+extern "C" void ret_probe_bridge_begin(void);
+extern "C" void ret_probe_return_addr(void);
+extern "C" void ret_probe_set_private_data(void);
+extern "C" void ret_probe_call_set_ret_addr(void);
+extern "C" void ret_probe_call_set_dispatcher_addr(void);
+extern "C" void ret_probe_bridge_end(void);
+
+void _return_ret_probe_bridge(void)
+{
+	// NOTE: function is not template, it is actually used as it is.
+	asm volatile("return_ret_probe_bridge:");
+	asm volatile("add $0x8,%rsp");
+	POP_ALL_REGS();
+	asm volatile("ret");
+}
+extern "C" void return_ret_probe_bridge(void);
+
 #endif // __x86_64__
 
 // --------------------------------------------------------------------------
 // private functions
 // --------------------------------------------------------------------------
-void probe_info::change_page_permission(void *addr)
+void probe::change_page_permission(void *addr)
 {
 	int page_size = utils::get_page_size();
 	int prot =  PROT_READ | PROT_WRITE | PROT_EXEC;
@@ -133,7 +163,7 @@ void probe_info::change_page_permission(void *addr)
 	}
 }
 
-void probe_info::change_page_permission_all(void *addr, int len)
+void probe::change_page_permission_all(void *addr, int len)
 {
 	int page_size = utils::get_page_size();
 	unsigned long mask = ~(page_size - 1);
@@ -147,7 +177,7 @@ void probe_info::change_page_permission_all(void *addr, int len)
 }
 
 #ifdef __x86_64__
-void probe_info::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
+void probe::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
                                      int copy_code_size)
 {
 	change_page_permission_all(target_addr, copy_code_size);
@@ -187,7 +217,7 @@ void probe_info::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
 		*code = OPCODE_NOP;
 }
 
-void probe_info::set_pseudo_push_parameter(uint8_t *code_addr,
+void probe::set_pseudo_push_parameter(uint8_t *code_addr,
                                            unsigned long param)
 {
 	// We assume the pseudo push as the followin form.
@@ -212,7 +242,7 @@ void probe_info::set_pseudo_push_parameter(uint8_t *code_addr,
 // --------------------------------------------------------------------------
 // public functions
 // --------------------------------------------------------------------------
-probe_info::probe_info(probe_type type)
+probe::probe(probe_type type)
 : m_type(type),
   m_offset_addr(0),
   m_probe_init(NULL),
@@ -221,7 +251,7 @@ probe_info::probe_info(probe_type type)
 {
 }
 
-void probe_info::set_target_address(const char *target_lib_path, unsigned long addr, int overwrite_length)
+void probe::set_target_address(const char *target_lib_path, unsigned long addr, int overwrite_length)
 {
 	if (target_lib_path)
 		m_target_lib_path = target_lib_path;
@@ -231,7 +261,7 @@ void probe_info::set_target_address(const char *target_lib_path, unsigned long a
 	m_overwrite_length = overwrite_length;
 }
 
-void probe_info::set_probe(const char *probe_lib_path, probe_func_t probe,
+void probe::set_probe(const char *probe_lib_path, probe_func_t probe,
                            probe_init_func_t probe_init)
 {
 	if (probe_lib_path)
@@ -242,12 +272,12 @@ void probe_info::set_probe(const char *probe_lib_path, probe_func_t probe,
 	m_probe_init =  probe_init;
 }
 
-const char *probe_info::get_target_lib_path(void)
+const char *probe::get_target_lib_path(void)
 {
 	return m_target_lib_path.c_str();
 }
 
-void probe_info::install(const mapped_lib_info *lib_info)
+void probe::install(const mapped_lib_info *lib_info)
 {
 	printf("install: %s: %08lx, @ %016lx, %d\n",
 	       lib_info->get_path(), m_offset_addr, lib_info->get_addr(),
@@ -319,3 +349,30 @@ void probe_info::install(const mapped_lib_info *lib_info)
 	                    side_code_area, m_overwrite_length);
 }
 
+// ---------------------------------------------------------------------------
+// functions for a return probe 
+// ---------------------------------------------------------------------------
+static queue<uint8_t *> g_ret_probe_bridge_queue;
+static uint8_t *get_ret_probe_bridge(void)
+{
+	// TODO: should be MT
+	if (g_ret_probe_bridge_queue.empty())
+		return NULL;
+	uint8_t *ret = g_ret_probe_bridge_queue.front();
+	g_ret_probe_bridge_queue.pop();
+	return ret;
+}
+
+static uint8_t *create_ret_probe_bridge(void)
+{
+	return NULL;
+}
+
+void cockroach_set_return_probe(probe_func_t probe, probe_arg_t *arg)
+{
+	printf("%s: probe: %p\n", __PRETTY_FUNCTION__, probe);
+	// fist, try to retrive from the pool
+	uint8_t *ret_probe_bridge = get_ret_probe_bridge();
+	if (!ret_probe_bridge)
+		ret_probe_bridge = create_ret_probe_bridge();
+}

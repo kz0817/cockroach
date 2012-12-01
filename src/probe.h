@@ -1,5 +1,5 @@
-#ifndef probe_info_h
-#define probe_info_h
+#ifndef probe_h
+#define probe_h
 
 #include <string>
 using namespace std;
@@ -26,7 +26,7 @@ enum probe_type {
 	PROBE_TYPE_REPLACE_JUMP_ADDR,
 };
 
-class probe_info {
+class probe {
 	probe_type m_type;
 	string m_target_lib_path;
 	string m_symbol_name;
@@ -45,7 +45,7 @@ class probe_info {
 	                         int copy_code_size);
 	void set_pseudo_push_parameter(uint8_t *code_addr, unsigned long param);
 public:
-	probe_info(probe_type type);
+	probe(probe_type type);
 	void set_target_address(const char *target_lib_path, unsigned long addr,
 	                        int overwrite_length = 0);
 	void set_probe(const char *probe_lib_path, probe_func_t probe,
