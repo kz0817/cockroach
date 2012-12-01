@@ -5,10 +5,10 @@
 using namespace std;
 
 #include <stdint.h>
+#include "cockroach-probe.h"
 #include "mapped_lib_info.h"
 
 #ifdef __x86_64__
-
 // push %rax (1); mov $adrr,%rax (10); push *%rax (2);
 #define OPCODES_LEN_OVERWRITE_JUMP 13
 
@@ -19,36 +19,7 @@ using namespace std;
 #define OPCODE_MOVQ_1     0xb8
 #define OPCODE_JMP_ABS_RAX_0 0xff
 #define OPCODE_JMP_ABS_RAX_1 0xe0
-
-struct probe_arg_t {
-	void *priv_data;
-	unsigned long r15;
-	unsigned long r14;
-	unsigned long r13;
-	unsigned long r12;
-	unsigned long rbp;
-	unsigned long rbx;
-	unsigned long r11;
-	unsigned long r10;
-	unsigned long r9;
-	unsigned long r8;
-	unsigned long rax;
-	unsigned long rcx;
-	unsigned long rdx;
-	unsigned long rsi;
-	unsigned long rdi;
-	unsigned long flags;
-	unsigned long probe_ret_addr;
-	unsigned long func_ret_addr;
-};
 #endif // __x86_64__
-
-struct probe_init_arg_t {
-	void *priv_data; // set in init probe if needed.
-};
-
-typedef void (*probe_init_func_t)(probe_init_arg_t *t);
-typedef void (*probe_func_t)(probe_arg_t *t);
 
 enum probe_type {
 	PROBE_TYPE_OVERWRITE_JUMP,

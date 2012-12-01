@@ -1,7 +1,7 @@
 #ifndef time_measure_probe_h
 #define time_measure_probe_h
 
-#include "probe_info.h"
+#include "cockroach-probe.h"
 
 extern "C"
 void roach_time_measure_probe_init(probe_init_arg_t *arg);

@@ -13,54 +13,76 @@ using namespace std;
 #include "side_code_area_manager.h"
 
 #ifdef __x86_64__
+
+#define PUSH_ALL_REGS() \
+do { \
+	asm volatile("pushf"); \
+	asm volatile("push %rdi"); \
+	asm volatile("push %rsi"); \
+	asm volatile("push %rdx"); \
+	asm volatile("push %rcx"); \
+	asm volatile("push %rax"); \
+	asm volatile("push %r8"); \
+	asm volatile("push %r9"); \
+	asm volatile("push %r10"); \
+	asm volatile("push %r11"); \
+	asm volatile("push %rbx"); \
+	asm volatile("push %rbp"); \
+	asm volatile("push %r12"); \
+	asm volatile("push %r13"); \
+	asm volatile("push %r14"); \
+	asm volatile("push %r15"); \
+} while(0)
+
+#define POP_ALL_REGS() \
+do { \
+	asm volatile("pop %r15"); \
+	asm volatile("pop %r14"); \
+	asm volatile("pop %r13"); \
+	asm volatile("pop %r12"); \
+	asm volatile("pop %rbp"); \
+	asm volatile("pop %rbx"); \
+	asm volatile("pop %r11"); \
+	asm volatile("pop %r10"); \
+	asm volatile("pop %r9"); \
+	asm volatile("pop %r8"); \
+	asm volatile("pop %rax"); \
+	asm volatile("pop %rcx"); \
+	asm volatile("pop %rdx"); \
+	asm volatile("pop %rsi"); \
+	asm volatile("pop %rdi"); \
+	asm volatile("popf"); \
+} while(0)
+
+#define PSEUDO_PUSH(label) \
+do { \
+	asm volatile(label); \
+	asm volatile("sub $8,%rsp"); \
+	asm volatile("movl $0x89abcdef,(%rsp)"); \
+	asm volatile("movl $0x01234567,0x4(%rsp)"); \
+} while(0)
+
 void _bridge_template(void)
 {
 	asm volatile("bridge_begin:");
 	asm volatile("pop %rax");
 
-	asm volatile("bridge_set_post_probe_addr:");
 	// the return address of the probe
-	asm volatile("sub $8,%rsp");
-	asm volatile("movl $0x89abcdef,(%rsp)");
-	asm volatile("movl $0x01234567,0x4(%rsp)");
+	PSEUDO_PUSH("bridge_set_post_probe_addr:");
 
 	// save registers
-	asm volatile("pushf");
-	asm volatile("push %rdi");
-	asm volatile("push %rsi");
-	asm volatile("push %rdx");
-	asm volatile("push %rcx");
-	asm volatile("push %rax");
-	asm volatile("push %r8");
-	asm volatile("push %r9");
-	asm volatile("push %r10");
-	asm volatile("push %r11");
-	asm volatile("push %rbx");
-	asm volatile("push %rbp");
-	asm volatile("push %r12");
-	asm volatile("push %r13");
-	asm volatile("push %r14");
-	asm volatile("push %r15");
+	PUSH_ALL_REGS();
 
 	// private data
-	asm volatile("bridge_set_private_data:");
-	asm volatile("sub $8,%rsp");
-	asm volatile("movl $0x89abcdef,(%rsp)");
-	asm volatile("movl $0x01234567,0x4(%rsp)");
+	PSEUDO_PUSH("bridge_set_private_data:");
 
 	// set an argument for the probe
 	asm volatile("mov %rsp,%rdi");
 
 	// push return address
-	asm volatile("probe_call_set_ret_addr:");
-	asm volatile("sub $8,%rsp");
-	asm volatile("movl $0x89abcdef,(%rsp)");
-	asm volatile("movl $0x01234567,0x4(%rsp)");
+	PSEUDO_PUSH("probe_call_set_ret_addr:");
 
-	asm volatile("probe_call_set_probe_addr:");
-	asm volatile("sub $8,%rsp");
-	asm volatile("movl $0x89abcdef,(%rsp)");
-	asm volatile("movl $0x01234567,0x4(%rsp)");
+	PSEUDO_PUSH("probe_call_set_probe_addr:");
 	asm volatile("ret"); // use 'ret' instread of 'call'
 
 	// restore stack
@@ -68,22 +90,7 @@ void _bridge_template(void)
 	asm volatile("add $0x8,%rsp");
 
 	// restore registers
-	asm volatile("pop %r15");
-	asm volatile("pop %r14");
-	asm volatile("pop %r13");
-	asm volatile("pop %r12");
-	asm volatile("pop %rbp");
-	asm volatile("pop %rbx");
-	asm volatile("pop %r11");
-	asm volatile("pop %r10");
-	asm volatile("pop %r9");
-	asm volatile("pop %r8");
-	asm volatile("pop %rax");
-	asm volatile("pop %rcx");
-	asm volatile("pop %rdx");
-	asm volatile("pop %rsi");
-	asm volatile("pop %rdi");
-	asm volatile("popf");
+	POP_ALL_REGS();
 
 	// go to the saved orignal code (actually placed soon after here)
 	// or the specifed address written in the probe.
@@ -101,10 +108,7 @@ extern "C" void bridge_end(void);
 
 void _resume_template(void)
 {
-	asm volatile("resume_begin:");
-	asm volatile("sub $8,%rsp");
-	asm volatile("movl $0x89abcdef,(%rsp)");
-	asm volatile("movl $0x01234567,0x4(%rsp)");
+	PSEUDO_PUSH("resume_begin:");
 	asm volatile("ret"); // use 'ret' instread of 'call'
 	asm volatile("resume_end:");
 }
@@ -271,9 +275,8 @@ void probe_info::install(const mapped_lib_info *lib_info)
 	  utils::calc_func_distance(bridge_begin, bridge_end);
 	static const int RET_BRIDGE_LENGTH =
 	  utils::calc_func_distance(resume_begin, resume_end);
-	int code_length = BRIDGE_LENGTH + m_overwrite_length + RET_BRIDGE_LENGTH;
-	uint8_t *side_code_area = side_code_area_manager::alloc(code_length);
-	printf("side_code_area: %p (%d)\n", side_code_area, code_length);
+	int code_len = BRIDGE_LENGTH + m_overwrite_length + RET_BRIDGE_LENGTH;
+	uint8_t *side_code_area = side_code_area_manager::alloc(code_len);
 
 	// copy bridge code, orignal code and resume code
 	uint8_t *side_code_ptr = side_code_area;
