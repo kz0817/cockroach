@@ -4,6 +4,7 @@
 #include <queue>
 using namespace std;
 
+#include <pthread.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <errno.h>
@@ -360,21 +361,56 @@ void probe::install(const mapped_lib_info *lib_info)
 // ---------------------------------------------------------------------------
 // functions for a return probe 
 // ---------------------------------------------------------------------------
-static void ret_probe_dispatcher(probe_arg_t *arg, void *ret_probe_bridge_addr)
-{
-	printf("%s, arg: %p, addr: %p\n", __PRETTY_FUNCTION__, arg, ret_probe_bridge_addr);
-	asm volatile("int $3");
-}
+typedef map<uint8_t *, probe_func_t> ret_probe_func_map_t;
+typedef ret_probe_func_map_t::iterator ret_probe_func_map_itr;
 
+static pthread_mutex_t
+  g_ret_probe_bridge_queue_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t
+  g_ret_probe_func_map_mutex = PTHREAD_MUTEX_INITIALIZER;
 static queue<uint8_t *> g_ret_probe_bridge_queue;
+static ret_probe_func_map_t g_ret_probe_func_map;
+
 static uint8_t *get_ret_probe_bridge(void)
 {
-	// TODO: should be MT
-	if (g_ret_probe_bridge_queue.empty())
-		return NULL;
-	uint8_t *ret = g_ret_probe_bridge_queue.front();
-	g_ret_probe_bridge_queue.pop();
+	uint8_t *ret = NULL;
+	pthread_mutex_lock(&g_ret_probe_bridge_queue_mutex);
+	if (!g_ret_probe_bridge_queue.empty()) {
+		ret = g_ret_probe_bridge_queue.front();
+		g_ret_probe_bridge_queue.pop();
+	}
+	pthread_mutex_unlock(&g_ret_probe_bridge_queue_mutex);
 	return ret;
+}
+
+static void release_ret_probe_bridge(uint8_t *ret_probe_bridge)
+{
+	pthread_mutex_lock(&g_ret_probe_bridge_queue_mutex);
+	g_ret_probe_bridge_queue.push(ret_probe_bridge);
+	pthread_mutex_unlock(&g_ret_probe_bridge_queue_mutex);
+}
+
+static void ret_probe_dispatcher(probe_arg_t *arg,
+                                 uint8_t *ret_probe_bridge)
+{
+	printf("%s, arg: %p, addr: %p\n", __PRETTY_FUNCTION__, arg, ret_probe_bridge);
+	ret_probe_func_map_itr it;
+	pthread_mutex_lock(&g_ret_probe_func_map_mutex);
+	it = g_ret_probe_func_map.find(ret_probe_bridge);
+	if (it == g_ret_probe_func_map.end()) {
+		ROACH_ERR("Not found : ret_probe_bridge: %p\n",
+		          ret_probe_bridge);
+		abort();
+	}
+	probe_func_t probe = it->second;
+	g_ret_probe_func_map.erase(it);
+	pthread_mutex_unlock(&g_ret_probe_func_map_mutex);
+
+	// execute the return probe
+	(*probe)(arg);
+
+	// release ret_probe_bridge
+	release_ret_probe_bridge(ret_probe_bridge);
 }
 
 #ifdef __x86_64__
@@ -411,17 +447,15 @@ static uint8_t *create_ret_probe_bridge(void)
 
 	return side_code_area;
 }
-#endif // __x86_64__
 
 void cockroach_set_return_probe(probe_func_t probe, probe_arg_t *arg)
 {
-	printf("%s: probe: %p\n", __PRETTY_FUNCTION__, probe);
 	// fist, try to retrive from the pool
 	uint8_t *ret_probe_bridge = get_ret_probe_bridge();
 	if (!ret_probe_bridge)
 		ret_probe_bridge = create_ret_probe_bridge();
 
-	// set the original caller's addres
+	// set the original caller's return point address
 	uint8_t *side_code_ptr =
 	  ret_probe_bridge + OFFSET_RET_BRIDGE(ret_probe_return_addr);
 	set_pseudo_push_parameter(side_code_ptr, arg->func_ret_addr);
@@ -433,5 +467,17 @@ void cockroach_set_return_probe(probe_func_t probe, probe_arg_t *arg)
 
 	// overwrite the return address to the orignal function
 	arg->func_ret_addr = (unsigned long)ret_probe_bridge;
-}
 
+	// regist the return probe information to the map
+	ret_probe_func_map_itr it;
+	pthread_mutex_lock(&g_ret_probe_func_map_mutex);
+	it = g_ret_probe_func_map.find(ret_probe_bridge);
+	if (it != g_ret_probe_func_map.end()) {
+		ROACH_ERR("Already registered: ret_probe_bridge: %p\n",
+		          ret_probe_bridge);
+		abort();
+	}
+	g_ret_probe_func_map[ret_probe_bridge] = probe;
+	pthread_mutex_unlock(&g_ret_probe_func_map_mutex);
+}
+#endif // __x86_64__

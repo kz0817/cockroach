@@ -6,7 +6,7 @@ cockroach_la_SOURCES = \
 
 cockroach_la_CXFLAGS = -Wall -g
 cockroach_la_LDFLAGS = \
-  -ldl \
+  -ldl -lpthread \
   -avoid-version \
   -module -no-undefined \
   -export-dynamic

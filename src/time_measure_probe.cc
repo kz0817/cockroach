@@ -12,7 +12,8 @@ struct time_measure_data {
 
 void roach_time_measure_ret_probe(probe_arg_t *arg)
 {
-	printf("%s\n", __PRETTY_FUNCTION__);
+	printf("%s: arg: %p, priv: %p, ret: %p\n", __PRETTY_FUNCTION__, arg,
+	       arg->priv_data, arg->probe_ret_addr);
 	time_measure_data *data =
 	  static_cast<time_measure_data*>(arg->priv_data);
 }
