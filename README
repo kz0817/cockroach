@@ -26,3 +26,11 @@ T libc.so 0000000000053840
 
 # Probes: P dll_name symbol|offset(hex) probe_so probe_name
 P libc.so printf myprobe.so my_probe
+
+==============================
+Recipe command
+==============================
+T: Time Measurement [64bit aboslute jumper (overwrite 13B)]
+t: Time Measurement [32bit relative jumper (overwrite 5B). rarely fails] <Not implemented>
+P: User define probe [64bit aboslute jumper (overwrite 13B)] <Not implemented>
+p: User define probe [32bit relative jumper (overwrite 5B). rarely fails] <Not implemented>
