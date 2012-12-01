@@ -21,6 +21,7 @@ using namespace std;
 #define OPCODE_JMP_ABS_RAX_1 0xe0
 
 struct probe_arg_t {
+	void *priv_data;
 	unsigned long r15;
 	unsigned long r14;
 	unsigned long r13;
@@ -64,6 +65,7 @@ class probe_info {
 	void change_page_permission_all(void *addr, int len);
 	void overwrite_jump_code(void *intrude_addr, void *jump_abs_addr,
 	                         int copy_code_size);
+	void set_pseudo_push_parameter(uint8_t *code_addr, unsigned long param);
 public:
 	probe_info(probe_type type);
 	void set_target_address(const char *target_lib_path, unsigned long addr,

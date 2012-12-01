@@ -18,11 +18,11 @@ void _bridge_template(void)
 	asm volatile("bridge_begin:");
 	asm volatile("pop %rax");
 
-	asm volatile("bridge_push_probe_ret_addr:");
+	asm volatile("bridge_set_post_probe_addr:");
 	// the return address of the probe
 	asm volatile("sub $8,%rsp");
-	asm volatile("movl $0xfedcba98,(%rsp)");
-	asm volatile("movl $0xf0e1d2c3,0x4(%rsp)");
+	asm volatile("movl $0x89abcdef,(%rsp)");
+	asm volatile("movl $0x01234567,0x4(%rsp)");
 
 	// save registers
 	asm volatile("pushf");
@@ -42,45 +42,76 @@ void _bridge_template(void)
 	asm volatile("push %r14");
 	asm volatile("push %r15");
 
-	// set an argument
+	// private data
+	asm volatile("bridge_set_private_data:");
+	asm volatile("sub $8,%rsp");
+	asm volatile("movl $0x89abcdef,(%rsp)");
+	asm volatile("movl $0x01234567,0x4(%rsp)");
+
+	// push argument for the probe
 	asm volatile("push %rsp");
 
-	asm volatile("probe_call:");
-	asm volatile("mov $0xfedcba9876543210,%rax");
-	asm volatile("call *%rax");
+	// push return address
+	asm volatile("probe_call_set_ret_addr:");
+	asm volatile("sub $8,%rsp");
+	asm volatile("movl $0x89abcdef,(%rsp)");
+	asm volatile("movl $0x01234567,0x4(%rsp)");
+
+	asm volatile("probe_call_set_probe_addr:");
+	asm volatile("sub $8,%rsp");
+	asm volatile("movl $0x89abcdef,(%rsp)");
+	asm volatile("movl $0x01234567,0x4(%rsp)");
+	asm volatile("ret"); // use 'ret' instread of 'call'
 
 	// restore stack for the argument
-	asm volatile("add $0x8,%rsp");
+	asm volatile("probe_ret_point:");
+	asm volatile("add $0x10,%rsp");
 
 	// restore registers
-	asm volatile("push %r15");
-	asm volatile("push %r14");
-	asm volatile("push %r13");
-	asm volatile("push %r12");
-	asm volatile("push %rbp");
-	asm volatile("push %rbx");
-	asm volatile("push %r11");
-	asm volatile("push %r10");
-	asm volatile("push %r9");
-	asm volatile("push %r8");
-	asm volatile("push %rax");
-	asm volatile("push %rcx");
-	asm volatile("push %rdx");
-	asm volatile("push %rsi");
-	asm volatile("push %rdi");
+	asm volatile("pop %r15");
+	asm volatile("pop %r14");
+	asm volatile("pop %r13");
+	asm volatile("pop %r12");
+	asm volatile("pop %rbp");
+	asm volatile("pop %rbx");
+	asm volatile("pop %r11");
+	asm volatile("pop %r10");
+	asm volatile("pop %r9");
+	asm volatile("pop %r8");
+	asm volatile("pop %rax");
+	asm volatile("pop %rcx");
+	asm volatile("pop %rdx");
+	asm volatile("pop %rsi");
+	asm volatile("pop %rdi");
 	asm volatile("popf");
 
 	// go back to the saved orignal path or the specifed address written in
 	// the patch function.
-	asm volatile("mov $0,%rax");    // debug
-	asm volatile("movl $0,(%rax)");  // debug
 	asm volatile("ret");
 	asm volatile("bridge_end:");
 }
 extern "C" void bridge_begin(void);
-extern "C" void bridge_push_probe_ret_addr(void);
+extern "C" void bridge_set_post_probe_addr(void);
+extern "C" void probe_call_set_ret_addr(void);
+extern "C" void probe_call_set_probe_addr(void);
+extern "C" void probe_ret_point(void);
 extern "C" void probe_call(void);
 extern "C" void bridge_end(void);
+
+void _ret_bridge_template(void)
+{
+	asm volatile("ret_bridge_begin:");
+	asm volatile("sub $8,%rsp");
+	asm volatile("movl $0x89abcdef,(%rsp)");
+	asm volatile("movl $0x01234567,0x4(%rsp)");
+	asm volatile("ret"); // use 'ret' instread of 'call'
+	asm volatile("ret_bridge_end:");
+}
+extern "C" void ret_bridge_begin(void);
+extern "C" void ret_bridge_end(void);
+
+#define OFFSET_BRIDGE(label) utils::calc_func_distance(bridge_begin, label);
+
 #endif // __x86_64__
 
 // --------------------------------------------------------------------------
@@ -151,6 +182,27 @@ void probe_info::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
 	for (idx = 0; idx < len_nops; idx++, code++)
 		*code = OPCODE_NOP;
 }
+
+void probe_info::set_pseudo_push_parameter(uint8_t *code_addr,
+                                           unsigned long param)
+{
+	// We assume the pseudo push as the followin form.
+	//   sub  $8,%rsp
+	//   movl $0x89abcdef,(%rsp)
+	//   movl $0x01234567,0x4(%rsp)
+	// *** assembler code ***
+	//   48 83 ec 08               sub    $0x8,%rsp
+	//   c7 04 24 ef cd ab 89      movl   $0x89abcdef,(%rsp)
+	//   c7 44 24 04 67 45 23 01   movl   $0x01234567,0x4(%rsp)
+	static const int OFFSET_ADDR_LSB32 = 7;
+	static const int OFFSET_ADDR_MSB32 = 15;
+	uint32_t param_lsb32 = param & 0xffffffff;
+	uint32_t param_msb32 = param >> 32;
+	uint32_t *code_addr_lsb32 = (uint32_t *)(code_addr + OFFSET_ADDR_LSB32);
+	uint32_t *code_addr_msb32 = (uint32_t *)(code_addr + OFFSET_ADDR_MSB32);
+	*code_addr_lsb32 = param_lsb32;
+	*code_addr_msb32 = param_msb32;
+}
 #endif // __x86_64__
 
 // --------------------------------------------------------------------------
@@ -199,84 +251,60 @@ void probe_info::install(const mapped_lib_info *lib_info)
 	       lib_info->get_path(), m_offset_addr, lib_info->get_addr(),
 	       m_overwrite_length);
 
+	unsigned long target_addr = lib_info->get_addr() +  m_offset_addr;
+	void *target_addr_ptr = (void *)target_addr;
+
 	// --------------------------------------------------------------------
 	// [Side Code Area Layout]
-	// (1) save registers
-	// (2) call probe
-	// (3) restore registers
+	// (1) code to save registers
+	// (2) code to call probe
+	// (3) code to restore registers
 	// (4) original code
-	// (5) return to original position
+	// (5) code to return to the original position
 	// --------------------------------------------------------------------
 
 	// check if the patch for the same address has already been registered.
 	static const int BRIDGE_LENGTH =
 	  utils::calc_func_distance(bridge_begin, bridge_end);
-	uint8_t *side_code_area = side_code_area_manager::alloc(BRIDGE_LENGTH);
-	printf("side_code_area: %p\n", side_code_area);
+	static const int RET_BRIDGE_LENGTH =
+	  utils::calc_func_distance(ret_bridge_begin, ret_bridge_end);
+	int code_length = BRIDGE_LENGTH + m_overwrite_length + RET_BRIDGE_LENGTH;
+	uint8_t *side_code_area = side_code_area_manager::alloc(code_length);
+	printf("side_code_area: %p (%d)\n", side_code_area, code_length);
 
-	// copy bridge code
-	static const int LEN_RESTORE_RAX = 
-	  utils::calc_func_distance(bridge_begin, bridge_push_probe_ret_addr);
-	memcpy(side_code_area, (void*)bridge_begin, LEN_RESTORE_RAX);
+	// copy bridge code, orignal code and return bridge code
+	uint8_t *side_code_ptr = side_code_area;
+	memcpy(side_code_ptr, (void *)bridge_begin, BRIDGE_LENGTH);
+	side_code_ptr += BRIDGE_LENGTH;
+	memcpy(side_code_ptr, target_addr_ptr, m_overwrite_length);
+	side_code_ptr += m_overwrite_length;
+	memcpy(side_code_ptr, (void *)ret_bridge_begin, RET_BRIDGE_LENGTH);
 
-	/*
-	uint8_t *intrude_addr = (uint8_t *)addr + m_dl_map_offset;
-	patch_func_map_itr it = m_patch_func_map.find(intrude_addr);
-	if (it != m_patch_func_map.end()) {
-		EMPL_P(INFO, "Patch: %p is already registered\n",
-		       intrude_addr);
-		return;
-	}
-	m_patch_func_map[intrude_addr] = func; // regist this patch to the map
+	// set the address to be executed after the probe is returned.
+	// By default, we set to execute the saved orignal code.
+	// The probe can changed the address by set probe_arg_t::probe_ret_addr.
+	side_code_ptr =
+	  side_code_area + OFFSET_BRIDGE(bridge_set_post_probe_addr);
+	uint8_t *saved_orig_code = side_code_area + OFFSET_BRIDGE(bridge_end);
+	set_pseudo_push_parameter(side_code_ptr, (unsigned long)saved_orig_code);
 
-	// allocate the program area
-	unsigned long bridge_templ_code_size;
-	bridge_templ_code_size = CALC_LENGTH(bridge_begin, bridge_end);
-	int side_code_size = save_code_length + bridge_templ_code_size;
-	int side_data_size = sizeof(func);
+	// set probe return address
+	side_code_ptr = side_code_area + OFFSET_BRIDGE(probe_call_set_ret_addr);
+	uint8_t *ret_addr = side_code_area + OFFSET_BRIDGE(probe_ret_point);
+	set_pseudo_push_parameter(side_code_ptr, (unsigned long)ret_addr);
 
-	uint8_t *code_area = m_side_code_area_mgr.allocate(side_code_size);
-	uint8_t *data_area = m_side_data_area_mgr.allocate(side_data_size,
-	                                                   sizeof(long));
-	// copy orignal code
-	memcpy(code_area, intrude_addr, save_code_length);
+	// set probe address
+	side_code_ptr =
+	  side_code_area + OFFSET_BRIDGE(probe_call_set_probe_addr);
+	set_pseudo_push_parameter(side_code_ptr, (unsigned long)m_probe);
 
-	// copy bridge template
-	uint8_t *bridge_area = code_area + save_code_length;
-	memcpy(bridge_area, (void *)bridge_begin, bridge_templ_code_size);
-
-	long index;
-	unsigned long *ptr;
-
-	// set return address
-	index = CALC_LENGTH(bridge_begin, bridge_push_ret_addr);
-	ptr = (unsigned long *)(bridge_area + index + LenPushOpCode);
-	*ptr = (unsigned long)intrude_addr + save_code_length;
-
-	// set pointer of member function pointer of the patch
-	index = CALC_LENGTH(bridge_begin, bridge_push_patch_func_ptr_addr);
-	ptr = (unsigned long *)(bridge_area + index + LenPushOpCode);
-	*ptr = (unsigned long)data_area;
-	memcpy((void *)data_area, &func, sizeof(func));
-
-	// set object address
-	index = CALC_LENGTH(bridge_begin, bridge_push_runner_addr);
-	ptr = (unsigned long *)(bridge_area + index + LenPushOpCode);
-	*ptr = (unsigned long)this;
-
-	// set relative address to bridge_cbind()
-	index = CALC_LENGTH(bridge_begin, bridge_call);
-	ptr = (unsigned long *)(bridge_area + index + LenRelCallOpCode);
-	long rel_addr_to_bridge_cbind =
-	    CALC_LENGTH(bridge_area + index + LenRelCall, bridge_cbind);
-	*ptr = rel_addr_to_bridge_cbind;
-	*/
+	// set address to the original path
+	side_code_ptr = side_code_area + BRIDGE_LENGTH + m_overwrite_length;
+	uint8_t *dest_addr = (uint8_t *)target_addr_ptr + m_overwrite_length;
+	set_pseudo_push_parameter(side_code_ptr, (unsigned long)dest_addr);
 
 	// overwrite jump code
-	unsigned long target_addr = lib_info->get_addr() +  m_offset_addr;
-	void *target_addr_ptr = reinterpret_cast<void *>(target_addr);
 	overwrite_jump_code(target_addr_ptr, 
-	                    side_code_area,
-	                    m_overwrite_length);
+	                    side_code_area, m_overwrite_length);
 }
 
