@@ -85,8 +85,8 @@ void _bridge_template(void)
 	asm volatile("pop %rdi");
 	asm volatile("popf");
 
-	// go back to the saved orignal path or the specifed address written in
-	// the patch function.
+	// go to the saved orignal code (actually placed soon after here)
+	// or the specifed address written in the probe.
 	asm volatile("ret");
 	asm volatile("bridge_end:");
 }
@@ -98,17 +98,17 @@ extern "C" void probe_ret_point(void);
 extern "C" void probe_call(void);
 extern "C" void bridge_end(void);
 
-void _ret_bridge_template(void)
+void _resume_template(void)
 {
-	asm volatile("ret_bridge_begin:");
+	asm volatile("resume_begin:");
 	asm volatile("sub $8,%rsp");
 	asm volatile("movl $0x89abcdef,(%rsp)");
 	asm volatile("movl $0x01234567,0x4(%rsp)");
 	asm volatile("ret"); // use 'ret' instread of 'call'
-	asm volatile("ret_bridge_end:");
+	asm volatile("resume_end:");
 }
-extern "C" void ret_bridge_begin(void);
-extern "C" void ret_bridge_end(void);
+extern "C" void resume_begin(void);
+extern "C" void resume_end(void);
 
 #define OFFSET_BRIDGE(label) utils::calc_func_distance(bridge_begin, label);
 
@@ -256,29 +256,30 @@ void probe_info::install(const mapped_lib_info *lib_info)
 
 	// --------------------------------------------------------------------
 	// [Side Code Area Layout]
+	// (0) restore rax that is used to jump to here
 	// (1) code to save registers
 	// (2) code to call probe
 	// (3) code to restore registers
 	// (4) original code
-	// (5) code to return to the original position
+	// (6) code to resume the original code
 	// --------------------------------------------------------------------
 
 	// check if the patch for the same address has already been registered.
 	static const int BRIDGE_LENGTH =
 	  utils::calc_func_distance(bridge_begin, bridge_end);
 	static const int RET_BRIDGE_LENGTH =
-	  utils::calc_func_distance(ret_bridge_begin, ret_bridge_end);
+	  utils::calc_func_distance(resume_begin, resume_end);
 	int code_length = BRIDGE_LENGTH + m_overwrite_length + RET_BRIDGE_LENGTH;
 	uint8_t *side_code_area = side_code_area_manager::alloc(code_length);
 	printf("side_code_area: %p (%d)\n", side_code_area, code_length);
 
-	// copy bridge code, orignal code and return bridge code
+	// copy bridge code, orignal code and resume code
 	uint8_t *side_code_ptr = side_code_area;
 	memcpy(side_code_ptr, (void *)bridge_begin, BRIDGE_LENGTH);
 	side_code_ptr += BRIDGE_LENGTH;
 	memcpy(side_code_ptr, target_addr_ptr, m_overwrite_length);
 	side_code_ptr += m_overwrite_length;
-	memcpy(side_code_ptr, (void *)ret_bridge_begin, RET_BRIDGE_LENGTH);
+	memcpy(side_code_ptr, (void *)resume_begin, RET_BRIDGE_LENGTH);
 
 	// set the address to be executed after the probe is returned.
 	// By default, we set to execute the saved orignal code.
