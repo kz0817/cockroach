@@ -121,14 +121,28 @@ extern "C" void resume_end(void);
 void _ret_probe_bridge_template(void)
 {
 	asm volatile("ret_probe_bridge_begin:");
-	PSEUDO_PUSH("ret_probe_return_addr:"); // original caller's point
+
+	// set original caller's return point
+	PSEUDO_PUSH("ret_probe_return_addr:");
+
+	// save registers
 	PUSH_ALL_REGS();
+
+	// set private data
 	PSEUDO_PUSH("ret_probe_set_private_data:");
 
-	asm volatile("ret_probe_set_bridge_addr:"); // 2nd argument
-	asm volatile("mov $0x0123456789abcdef,%rsi"); // 2nd argument
-	asm volatile("mov %rsp,%rdi");              // 1st argument
+	// 2nd argument: address of the return probe bridge block
+	// The address is used as an identifier.
+	asm volatile("ret_probe_set_bridge_addr:");
+	asm volatile("mov $0x0123456789abcdef,%rsi");
+
+	// 1st argument: probe_arg_t *arg
+	asm volatile("mov %rsp,%rdi");
+
+	// set the return address for the dispacher (return_ret_probe_bridge)
 	PSEUDO_PUSH("ret_probe_call_set_ret_addr:");
+
+	// call the dispacher
 	PSEUDO_PUSH("ret_probe_call_set_dispatcher_addr:");
 	asm volatile("ret"); // use 'ret' instread of 'call'
 	asm volatile("ret_probe_bridge_end:");
@@ -368,6 +382,7 @@ static pthread_mutex_t
   g_ret_probe_bridge_queue_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t
   g_ret_probe_func_map_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 static queue<uint8_t *> g_ret_probe_bridge_queue;
 static ret_probe_func_map_t g_ret_probe_func_map;
 
@@ -393,7 +408,6 @@ static void release_ret_probe_bridge(uint8_t *ret_probe_bridge)
 static void ret_probe_dispatcher(probe_arg_t *arg,
                                  uint8_t *ret_probe_bridge)
 {
-	printf("%s, arg: %p, addr: %p\n", __PRETTY_FUNCTION__, arg, ret_probe_bridge);
 	ret_probe_func_map_itr it;
 	pthread_mutex_lock(&g_ret_probe_func_map_mutex);
 	it = g_ret_probe_func_map.find(ret_probe_bridge);
