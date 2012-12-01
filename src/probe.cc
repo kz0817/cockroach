@@ -115,7 +115,7 @@ void _resume_template(void)
 extern "C" void resume_begin(void);
 extern "C" void resume_end(void);
 
-#define OFFSET_BRIDGE(label) utils::calc_func_distance(bridge_begin, label);
+#define OFFSET_BRIDGE(label) utils::calc_func_distance(bridge_begin, label)
 
 void _ret_probe_bridge_template(void)
 {
@@ -123,6 +123,8 @@ void _ret_probe_bridge_template(void)
 	PSEUDO_PUSH("ret_probe_return_addr:"); // original caller's point
 	PUSH_ALL_REGS();
 	PSEUDO_PUSH("ret_probe_set_private_data:");
+
+	asm volatile("ret_probe_set_bridge_addr:"); // 2nd argument
 	asm volatile("mov $0x0123456789abcdef,%rsi"); // 2nd argument
 	asm volatile("mov %rsp,%rdi");              // 1st argument
 	PSEUDO_PUSH("ret_probe_call_set_ret_addr:");
@@ -133,9 +135,13 @@ void _ret_probe_bridge_template(void)
 extern "C" void ret_probe_bridge_begin(void);
 extern "C" void ret_probe_return_addr(void);
 extern "C" void ret_probe_set_private_data(void);
+extern "C" void ret_probe_set_bridge_addr(void);
 extern "C" void ret_probe_call_set_ret_addr(void);
 extern "C" void ret_probe_call_set_dispatcher_addr(void);
 extern "C" void ret_probe_bridge_end(void);
+
+#define OFFSET_RET_BRIDGE(label) \
+utils::calc_func_distance(ret_probe_bridge_begin, label)
 
 void _return_ret_probe_bridge(void)
 {
@@ -146,6 +152,26 @@ void _return_ret_probe_bridge(void)
 	asm volatile("ret");
 }
 extern "C" void return_ret_probe_bridge(void);
+
+static void set_pseudo_push_parameter(uint8_t *code_addr, unsigned long param)
+{
+	// We assume the pseudo push as the followin form.
+	//   sub  $8,%rsp
+	//   movl $0x89abcdef,(%rsp)
+	//   movl $0x01234567,0x4(%rsp)
+	// *** assembler code ***
+	//   48 83 ec 08               sub    $0x8,%rsp
+	//   c7 04 24 ef cd ab 89      movl   $0x89abcdef,(%rsp)
+	//   c7 44 24 04 67 45 23 01   movl   $0x01234567,0x4(%rsp)
+	static const int OFFSET_ADDR_LSB32 = 7;
+	static const int OFFSET_ADDR_MSB32 = 15;
+	uint32_t param_lsb32 = param & 0xffffffff;
+	uint32_t param_msb32 = param >> 32;
+	uint32_t *code_addr_lsb32 = (uint32_t *)(code_addr + OFFSET_ADDR_LSB32);
+	uint32_t *code_addr_msb32 = (uint32_t *)(code_addr + OFFSET_ADDR_MSB32);
+	*code_addr_lsb32 = param_lsb32;
+	*code_addr_msb32 = param_msb32;
+}
 
 #endif // __x86_64__
 
@@ -217,26 +243,6 @@ void probe::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
 		*code = OPCODE_NOP;
 }
 
-void probe::set_pseudo_push_parameter(uint8_t *code_addr,
-                                           unsigned long param)
-{
-	// We assume the pseudo push as the followin form.
-	//   sub  $8,%rsp
-	//   movl $0x89abcdef,(%rsp)
-	//   movl $0x01234567,0x4(%rsp)
-	// *** assembler code ***
-	//   48 83 ec 08               sub    $0x8,%rsp
-	//   c7 04 24 ef cd ab 89      movl   $0x89abcdef,(%rsp)
-	//   c7 44 24 04 67 45 23 01   movl   $0x01234567,0x4(%rsp)
-	static const int OFFSET_ADDR_LSB32 = 7;
-	static const int OFFSET_ADDR_MSB32 = 15;
-	uint32_t param_lsb32 = param & 0xffffffff;
-	uint32_t param_msb32 = param >> 32;
-	uint32_t *code_addr_lsb32 = (uint32_t *)(code_addr + OFFSET_ADDR_LSB32);
-	uint32_t *code_addr_msb32 = (uint32_t *)(code_addr + OFFSET_ADDR_MSB32);
-	*code_addr_lsb32 = param_lsb32;
-	*code_addr_msb32 = param_msb32;
-}
 #endif // __x86_64__
 
 // --------------------------------------------------------------------------
@@ -277,6 +283,7 @@ const char *probe::get_target_lib_path(void)
 	return m_target_lib_path.c_str();
 }
 
+#ifdef __x86_64__
 void probe::install(const mapped_lib_info *lib_info)
 {
 	printf("install: %s: %08lx, @ %016lx, %d\n",
@@ -348,10 +355,17 @@ void probe::install(const mapped_lib_info *lib_info)
 	overwrite_jump_code(target_addr_ptr, 
 	                    side_code_area, m_overwrite_length);
 }
+#endif // __x86_64__
 
 // ---------------------------------------------------------------------------
 // functions for a return probe 
 // ---------------------------------------------------------------------------
+static void ret_probe_dispatcher(probe_arg_t *arg, void *ret_probe_bridge_addr)
+{
+	printf("%s, arg: %p, addr: %p\n", __PRETTY_FUNCTION__, arg, ret_probe_bridge_addr);
+	asm volatile("int $3");
+}
+
 static queue<uint8_t *> g_ret_probe_bridge_queue;
 static uint8_t *get_ret_probe_bridge(void)
 {
@@ -363,10 +377,41 @@ static uint8_t *get_ret_probe_bridge(void)
 	return ret;
 }
 
+#ifdef __x86_64__
 static uint8_t *create_ret_probe_bridge(void)
 {
-	return NULL;
+	static const int RET_PROBE_BRIDGE_LENGTH =
+	  utils::calc_func_distance(ret_probe_bridge_begin,
+	                            ret_probe_bridge_end);
+	uint8_t *side_code_area =
+	  side_code_area_manager::alloc(RET_PROBE_BRIDGE_LENGTH);
+
+	// copy return probe bridge code
+	uint8_t *side_code_ptr = side_code_area;
+	memcpy(side_code_ptr, (void *)ret_probe_bridge_begin,
+	       RET_PROBE_BRIDGE_LENGTH);
+
+	// set the head address of this area (2nd arguemnt of dispatcher)
+	//   48 be ef cd ab 89 67 45 23 01 movabs $0x123456789abcdef,%rsi
+	side_code_ptr = 
+	  side_code_area + OFFSET_RET_BRIDGE(ret_probe_set_bridge_addr) + 2;
+	*((unsigned long *)side_code_ptr) = (unsigned long)side_code_area;
+
+	// set the address to the 'retrun_ret_probe_bridge'
+	side_code_ptr =
+	  side_code_area + OFFSET_RET_BRIDGE(ret_probe_call_set_ret_addr);
+	set_pseudo_push_parameter(side_code_ptr,
+	                          (unsigned long)return_ret_probe_bridge);
+
+	// set the address of the dispatcher
+	side_code_ptr = side_code_area +
+	                OFFSET_RET_BRIDGE(ret_probe_call_set_dispatcher_addr);
+	set_pseudo_push_parameter(side_code_ptr,
+	                          (unsigned long)ret_probe_dispatcher);
+
+	return side_code_area;
 }
+#endif // __x86_64__
 
 void cockroach_set_return_probe(probe_func_t probe, probe_arg_t *arg)
 {
@@ -375,4 +420,18 @@ void cockroach_set_return_probe(probe_func_t probe, probe_arg_t *arg)
 	uint8_t *ret_probe_bridge = get_ret_probe_bridge();
 	if (!ret_probe_bridge)
 		ret_probe_bridge = create_ret_probe_bridge();
+
+	// set the original caller's addres
+	uint8_t *side_code_ptr =
+	  ret_probe_bridge + OFFSET_RET_BRIDGE(ret_probe_return_addr);
+	set_pseudo_push_parameter(side_code_ptr, arg->func_ret_addr);
+
+	// set the private data
+	side_code_ptr =
+	  ret_probe_bridge + OFFSET_RET_BRIDGE(ret_probe_set_private_data);
+	set_pseudo_push_parameter(side_code_ptr, (unsigned long)arg->priv_data);
+
+	// overwrite the return address to the orignal function
+	arg->func_ret_addr = (unsigned long)ret_probe_bridge;
 }
+

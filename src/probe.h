@@ -43,7 +43,6 @@ class probe {
 	void change_page_permission_all(void *addr, int len);
 	void overwrite_jump_code(void *intrude_addr, void *jump_abs_addr,
 	                         int copy_code_size);
-	void set_pseudo_push_parameter(uint8_t *code_addr, unsigned long param);
 public:
 	probe(probe_type type);
 	void set_target_address(const char *target_lib_path, unsigned long addr,
