@@ -4,6 +4,13 @@ using namespace std;
 #include "time_measure_probe.h"
 
 extern "C"
+void roach_time_measure_probe_init(probe_init_arg_t *arg)
+{
+	printf("%s\n", __PRETTY_FUNCTION__);
+	arg->priv_data = NULL;
+}
+
+extern "C"
 void roach_time_measure_probe(probe_arg_t *arg)
 {
 	printf("%s\n", __PRETTY_FUNCTION__);

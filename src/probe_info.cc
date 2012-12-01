@@ -48,7 +48,7 @@ void _bridge_template(void)
 	asm volatile("movl $0x89abcdef,(%rsp)");
 	asm volatile("movl $0x01234567,0x4(%rsp)");
 
-	// push argument for the probe
+	// set an argument for the probe
 	asm volatile("mov %rsp,%rdi");
 
 	// push return address
@@ -63,7 +63,7 @@ void _bridge_template(void)
 	asm volatile("movl $0x01234567,0x4(%rsp)");
 	asm volatile("ret"); // use 'ret' instread of 'call'
 
-	// restore stack for the argument
+	// restore stack
 	asm volatile("probe_ret_point:");
 	asm volatile("add $0x8,%rsp");
 
@@ -92,6 +92,7 @@ void _bridge_template(void)
 }
 extern "C" void bridge_begin(void);
 extern "C" void bridge_set_post_probe_addr(void);
+extern "C" void bridge_set_private_data(void);
 extern "C" void probe_call_set_ret_addr(void);
 extern "C" void probe_call_set_probe_addr(void);
 extern "C" void probe_ret_point(void);
@@ -210,8 +211,9 @@ void probe_info::set_pseudo_push_parameter(uint8_t *code_addr,
 probe_info::probe_info(probe_type type)
 : m_type(type),
   m_offset_addr(0),
+  m_probe_init(NULL),
   m_probe(NULL),
-  m_ret_probe(NULL)
+  m_probe_priv_data(NULL)
 {
 }
 
@@ -225,18 +227,15 @@ void probe_info::set_target_address(const char *target_lib_path, unsigned long a
 	m_overwrite_length = overwrite_length;
 }
 
-void probe_info::set_probe(const char *probe_lib_path, probe_func_t probe)
+void probe_info::set_probe(const char *probe_lib_path, probe_func_t probe,
+                           probe_init_func_t probe_init)
 {
 	if (probe_lib_path)
 		m_probe_lib_path = probe_lib_path;
 	else
 		m_probe_lib_path.erase();
 	m_probe =  probe;
-}
-
-void probe_info::set_ret_probe(probe_func_t probe)
-{
-	m_ret_probe = probe;
+	m_probe_init =  probe_init;
 }
 
 const char *probe_info::get_target_lib_path(void)
@@ -249,9 +248,11 @@ void probe_info::install(const mapped_lib_info *lib_info)
 	printf("install: %s: %08lx, @ %016lx, %d\n",
 	       lib_info->get_path(), m_offset_addr, lib_info->get_addr(),
 	       m_overwrite_length);
-
-	unsigned long target_addr = lib_info->get_addr() +  m_offset_addr;
-	void *target_addr_ptr = (void *)target_addr;
+	
+	// run the probe initializer that creates private data if needed.
+	probe_init_arg_t arg;
+	(*m_probe_init)(&arg);
+	m_probe_priv_data = arg.priv_data;
 
 	// --------------------------------------------------------------------
 	// [Side Code Area Layout]
@@ -262,6 +263,8 @@ void probe_info::install(const mapped_lib_info *lib_info)
 	// (4) original code
 	// (6) code to resume the original code
 	// --------------------------------------------------------------------
+	unsigned long target_addr = lib_info->get_addr() +  m_offset_addr;
+	void *target_addr_ptr = (void *)target_addr;
 
 	// check if the patch for the same address has already been registered.
 	static const int BRIDGE_LENGTH =
@@ -292,6 +295,11 @@ void probe_info::install(const mapped_lib_info *lib_info)
 	side_code_ptr = side_code_area + OFFSET_BRIDGE(probe_call_set_ret_addr);
 	uint8_t *ret_addr = side_code_area + OFFSET_BRIDGE(probe_ret_point);
 	set_pseudo_push_parameter(side_code_ptr, (unsigned long)ret_addr);
+
+	// set probe private address
+	side_code_ptr = side_code_area + OFFSET_BRIDGE(bridge_set_private_data);
+	set_pseudo_push_parameter(side_code_ptr,
+	                          (unsigned long)m_probe_priv_data);
 
 	// set probe address
 	side_code_ptr =

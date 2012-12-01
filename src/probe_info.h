@@ -43,6 +43,11 @@ struct probe_arg_t {
 };
 #endif // __x86_64__
 
+struct probe_init_arg_t {
+	void *priv_data; // set in init probe if needed.
+};
+
+typedef void (*probe_init_func_t)(probe_init_arg_t *t);
 typedef void (*probe_func_t)(probe_arg_t *t);
 
 enum probe_type {
@@ -56,9 +61,11 @@ class probe_info {
 	string m_symbol_name;
 	unsigned long m_offset_addr;
 	int m_overwrite_length;
-	string m_probe_lib_path;
-	probe_func_t m_probe;
-	probe_func_t m_ret_probe;
+
+	string            m_probe_lib_path;
+	probe_init_func_t m_probe_init;
+	probe_func_t      m_probe;
+	void             *m_probe_priv_data;
 
 	// methods
 	void change_page_permission(void *addr);
@@ -70,8 +77,8 @@ public:
 	probe_info(probe_type type);
 	void set_target_address(const char *target_lib_path, unsigned long addr,
 	                        int overwrite_length = 0);
-	void set_probe(const char *probe_lib_path, probe_func_t probe);
-	void set_ret_probe(probe_func_t probe);
+	void set_probe(const char *probe_lib_path, probe_func_t probe,
+	               probe_init_func_t probe_init = NULL);
 
 	const char *get_target_lib_path(void);
 	void install(const mapped_lib_info *lib_info);

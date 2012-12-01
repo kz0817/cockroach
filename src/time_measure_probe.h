@@ -4,6 +4,9 @@
 #include "probe_info.h"
 
 extern "C"
+void roach_time_measure_probe_init(probe_init_arg_t *arg);
+
+extern "C"
 void roach_time_measure_probe(probe_arg_t *arg);
 
 extern "C"

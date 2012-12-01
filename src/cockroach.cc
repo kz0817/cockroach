@@ -117,8 +117,8 @@ void cockroach::parse_one_recipe(const char *line)
 	probe_info probe(PROBE_TYPE_OVERWRITE_JUMP);
 	probe.set_target_address(target_lib.c_str(), target_addr,
 	                         overwrite_length);
-	probe.set_probe(NULL, roach_time_measure_probe);
-	probe.set_ret_probe(roach_time_mesure_ret_probe);
+	probe.set_probe(NULL, roach_time_measure_probe,
+	                      roach_time_measure_probe_init);
 
 	m_probe_list.push_back(probe);
 }
