@@ -23,6 +23,7 @@ src/.libs/
 src/*.swp
 src/Makefile
 src/Makefile.in
+src/*.o
 src/*.la
 src/*.lo
 .deps/
@@ -30,4 +31,4 @@ Makefile
 Makefile.in
 test/target
 test/*.o
-get-target.*
+test/*.swp
