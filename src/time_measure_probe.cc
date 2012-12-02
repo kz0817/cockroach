@@ -18,7 +18,6 @@ using namespace std;
 #define SHM_ADD_UNIT_SIZE (1024*1024) // 1MiB
 #define SHM_WINDOW_SIZE   SHM_ADD_UNIT_SIZE
 
-
 static int g_shm_fd = 0;
 static measured_time_shm_header *g_shm_header = NULL;
 static void *g_shm_window_addr = NULL;
