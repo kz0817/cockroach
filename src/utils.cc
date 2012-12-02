@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstdlib>
 using namespace std;
 
 #include <stdarg.h>
@@ -106,4 +107,13 @@ unsigned long
 utils::calc_func_distance(void (*func0)(void), void (*func1)(void))
 {
 	return (unsigned long)func1 - (unsigned long)func0;
+}
+
+void utils::abort(void)
+{
+#if defined(__x86_64__)
+	asm volatile("int $3");
+#else
+#error "Not implemented"
+#endif
 }

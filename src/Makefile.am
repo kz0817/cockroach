@@ -6,7 +6,12 @@ cockroach_la_SOURCES = \
 
 cockroach_la_CXFLAGS = -Wall -g
 cockroach_la_LDFLAGS = \
-  -ldl -lpthread \
+  -ldl -lpthread -lrt \
   -avoid-version \
   -module -no-undefined \
   -export-dynamic
+
+bin_PROGRAMS = cockroach-time-measure-tool
+cockroach_time_measure_tool_SOURCES = \
+  cockroach-time-measure-tool.cc
+

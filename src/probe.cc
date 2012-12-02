@@ -219,7 +219,7 @@ void probe::change_page_permission_all(void *addr, int len)
 
 #ifdef __x86_64__
 void probe::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
-                                     int copy_code_size)
+                                int copy_code_size)
 {
 	change_page_permission_all(target_addr, copy_code_size);
 
@@ -256,6 +256,11 @@ void probe::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
 	// fill NOP instructions
 	for (idx = 0; idx < len_nops; idx++, code++)
 		*code = OPCODE_NOP;
+}
+
+void overwrite_rel32_jump_code(void *target_addr, void *jump_abs_addr,
+                               int copy_code_size)
+{
 }
 
 #endif // __x86_64__

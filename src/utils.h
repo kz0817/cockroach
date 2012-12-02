@@ -8,6 +8,8 @@ using namespace std;
 #define ROACH_ERR(fmt, ...) \
 utils::message(__FILE__, __LINE__, "ERR", fmt, ##__VA_ARGS__)
 
+#define ROACH_ABORT() utils::abort()
+
 typedef void (*one_line_parser_t)(const char *line, void *arg);
 
 class utils {
@@ -24,6 +26,7 @@ public:
 	                    const char *fmt, ...);
 	static unsigned long calc_func_distance(void (*func0)(void),
 	                                        void (*func1)(void));
+	static void abort(void);
 };
 
 #endif
