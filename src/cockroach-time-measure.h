@@ -6,6 +6,7 @@
 
 struct measured_time_shm_header
 {
+	int format_version;
 	sem_t sem;
 	uint64_t shm_size; // in bytes
 	uint64_t count;
@@ -23,6 +24,8 @@ struct measured_time_shm_slot
 
 #define MEASURED_TIME_SHM_HEADER_SIZE sizeof(struct measured_time_shm_header)
 #define MEASURED_TIME_SHM_SLOT_SIZE sizeof(struct measured_time_shm_slot)
+
+#define MEASURED_TIME_SHM_FORMAT_VERSION 1
 
 #define COCKROACH_TIME_MEASURE_SHM_NAME "/cockroach_time_measure"
 
