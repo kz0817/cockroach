@@ -22,27 +22,6 @@ typedef bool (*command_func_t)(vector<string> &args);
 typedef map<string, command_func_t> command_map_t;
 typedef command_map_t::iterator command_map_itr;
 
-static bool lock_shm(measured_time_shm_header *header)
-{
-top:
-	int ret = sem_wait(&header->sem);
-	if (ret == 0)
-		return true;
-	if (errno == EINTR)
-		goto top;
-	printf("Failed: sem_wait: %d\n", errno);
-	return false;
-}
-
-static bool unlock_shm(measured_time_shm_header *header)
-{
-	int ret = sem_post(&header->sem);
-	if (ret == 0)
-		return true;
-	printf("Failed: sem_post: %d\n", errno);
-	return false;
-}
-
 static bool command_reset(vector<string> &args)
 {
 	static const int FIRST_ALLOC_SHM_SIZE = 1024*1024;
@@ -92,13 +71,18 @@ static bool command_info(vector<string> &args)
 	}
 	measured_time_shm_header *header = (measured_time_shm_header *)ptr;
 
-	if (!lock_shm(header))
+	if (cockroach_lock_shm(header) == -1) {
+		printf("Failed to lock shm: %d\n", errno);
 		return false;
+	}
 	int format_version = header->format_version;
 	uint64_t shm_size = header->shm_size;
 	uint64_t count = header->count;
 	uint64_t next_index = header->next_index;
-	unlock_shm(header);
+	if (cockroach_unlock_shm(header) == -1) {
+		printf("Failed to unlock shm: %d\n", errno);
+		return false;
+	}
 
 	printf("ver. : %d\n", format_version);
 	printf("size : %"PRIu64"\n", shm_size);
@@ -110,6 +94,40 @@ static bool command_info(vector<string> &args)
 
 static bool command_list(vector<string> &args)
 {
+	int shm_fd;
+	measured_time_shm_header *header
+	  = cockroach_map_measured_time_header(&shm_fd);
+	if (header == NULL) {
+		printf("Failed to map header: %d\n", errno);
+		return false;
+	}
+
+	if (cockroach_lock_shm(header) == -1) {
+		printf("Failed to lock shm: %d\n", errno);
+		return false;
+	}
+	uint64_t shm_size = header->shm_size;
+	uint64_t count = header->count;
+	if (cockroach_unlock_shm(header) == -1) {
+		printf("Failed to unlock shm: %d\n", errno);
+		return false;
+	}
+
+	// map entire shm
+	void *ptr = mmap(NULL, shm_size, PROT_READ, MAP_SHARED, shm_fd, 0);
+	if (ptr == MAP_FAILED) {
+		printf("Failed to map shm (entire): %d\n", errno);
+		return false;
+	}
+
+	// print data
+	measured_time_shm_slot *slot = (measured_time_shm_slot*)(header + 1);
+	for (uint64_t i = 0; i < count; i++, slot++) {
+		printf("%.15e %016lx %016lx %d %d\n",
+		       slot->dt, slot->target_addr, slot->func_ret_addr,
+		       slot->pid, slot->tid);
+	}
+
 	return true;
 }
 
