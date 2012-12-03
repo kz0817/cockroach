@@ -70,8 +70,8 @@ void cockroach::parse_time_measurement(vector<string> &tokens)
 {
 	if (tokens.size() != 4) {
 		printf("Invalid format: tokens(%zd) != 3\n", tokens.size());
-		for (int i = 0; i < tokens.size(); i++) {
-			printf("[%d] %s\n", i, tokens[i].c_str());
+		for (size_t i = 0; i < tokens.size(); i++) {
+			printf("[%zd] %s\n", i, tokens[i].c_str());
 		}
 		exit(EXIT_FAILURE);
 	}
