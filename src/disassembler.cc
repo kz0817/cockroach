@@ -52,6 +52,10 @@ int disassembler::parse(uint8_t *code_start)
 {
 	uint8_t *code = code_start;
 	instr_info *info = first_byte_instr_array[*code];
+	if (info == NULL) {
+		ROACH_ERR("Failed to parse 1st byte: %p\n", code);
+		ROACH_ABORT();
+	}
 	//if (info->length == 1)
 	return info->length;
 }

@@ -99,6 +99,7 @@ int utils::get_page_size(void)
 void utils::message(const char *file, int line, const char *header,
                     const char *fmt, ...)
 {
+	printf("[%s] <%s:%d> ", header, file, line);
 	va_list ap;
 	va_start(ap, fmt); 
 	vprintf(fmt, ap);

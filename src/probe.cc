@@ -241,7 +241,7 @@ void probe::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
 	int idx;
 	int len_nops = copy_code_size - OPCODES_LEN_OVERWRITE_JUMP;;
 	if (len_nops < 0) {
-		ROACH_ERR("len_nops is negaitve: %d, %d\n",
+		ROACH_ERR("len_nops is zero or negaitve: %d (%d)\n",
 		          copy_code_size, OPCODES_LEN_OVERWRITE_JUMP);
 		abort();
 	}
@@ -359,7 +359,7 @@ void probe::install(const mapped_lib_info *lib_info)
 	unsigned long target_addr = lib_info->get_addr() +  m_offset_addr;
 	void *target_addr_ptr = (void *)target_addr;
 
-	// try to detect overwrite length if needed
+	// detect overwrite length if needed
 	if (m_overwrite_length_auto_detect) {
 		uint8_t *code_ptr = (uint8_t *)target_addr;
 		int parsed_length = 0;
