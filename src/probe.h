@@ -11,6 +11,7 @@ using namespace std;
 #ifdef __x86_64__
 // push %rax (1); mov $adrr,%rax (10); push *%rax (2);
 #define OPCODES_LEN_OVERWRITE_JUMP 13
+#define LEN_OPCODE_JMP_REL 5
 
 #define OPCODE_NOP        0x90
 #define OPCODE_RET        0xc3
@@ -19,6 +20,7 @@ using namespace std;
 #define OPCODE_MOVQ_1     0xb8
 #define OPCODE_JMP_ABS_RAX_0 0xff
 #define OPCODE_JMP_ABS_RAX_1 0xe0
+#define OPCODE_JMP_REL    0xe9
 #endif // __x86_64__
 
 enum probe_type {

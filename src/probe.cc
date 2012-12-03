@@ -218,6 +218,19 @@ void probe::change_page_permission_all(void *addr, int len)
 }
 
 #ifdef __x86_64__
+/*
+void overwrite_rel32_jump_code(uint8_t *code, void *jump_abs_addr)
+{
+	// fill jump instruction
+	*code = OPCODE_JMP_REL;
+	code++;
+
+	// fill address
+	uint32_t rel_addr = jump_abs_addr - (code + LEN_OPCODE_JMP_REL);
+	*((uint32_t *)code) = rel_addr;
+	code += sizeof(uint32_t);
+}*/
+
 void probe::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
                                 int copy_code_size)
 {
@@ -258,10 +271,27 @@ void probe::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
 		*code = OPCODE_NOP;
 }
 
+/*
 void overwrite_rel32_jump_code(void *target_addr, void *jump_abs_addr,
                                int copy_code_size)
 {
-}
+	change_page_permission_all(target_addr, copy_code_size);
+
+	// calculate the count of nop, which should be filled
+	int idx;
+	int len_nops = copy_code_size - LEN_OPCODE_JMP_REL;
+	if (len_nops < 0) {
+		EMPL_P(BUG, "len_nops is negaitve: %d, %d\n",
+		       overwrite_code_size, LenRelCall);
+		abort();
+	}
+	uint8_t *code = reinterpret_cast<uint8_t*>(target_addr);
+
+
+	// fill NOP instructions
+	for (idx = 0; idx < len_nops; idx++, code++)
+		*code = OPCODE_NOP;
+}*/
 
 #endif // __x86_64__
 
