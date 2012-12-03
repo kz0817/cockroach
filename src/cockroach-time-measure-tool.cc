@@ -57,20 +57,9 @@ static bool command_reset(vector<string> &args)
 
 static bool command_info(vector<string> &args)
 {
-	int shm_fd = shm_open(COCKROACH_TIME_MEASURE_SHM_NAME, O_RDWR, 0666);
-	if (shm_fd == -1) {
-		printf("Failed to open shm: %d\n", errno);
-		return false;
-	}
-
-	void *ptr = mmap(NULL, MEASURED_TIME_SHM_HEADER_SIZE,
-	                 PROT_READ|PROT_WRITE, MAP_SHARED, shm_fd, 0);
-	if (ptr == MAP_FAILED) {
-		printf("Failed to map shm: %d\n", errno);
-		return false;
-	}
-	measured_time_shm_header *header = (measured_time_shm_header *)ptr;
-
+	int shm_fd;
+	measured_time_shm_header *header
+	  = cockroach_map_measured_time_header(&shm_fd);
 	if (cockroach_lock_shm(header) == -1) {
 		printf("Failed to lock shm: %d\n", errno);
 		return false;
