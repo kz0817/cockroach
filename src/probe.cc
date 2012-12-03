@@ -324,8 +324,8 @@ void probe::set_probe(const char *probe_lib_path, probe_func_t probe,
 		m_probe_lib_path = probe_lib_path;
 	else
 		m_probe_lib_path.erase();
-	m_probe =  probe;
-	m_probe_init =  probe_init;
+	m_probe = probe;
+	m_probe_init = probe_init;
 }
 
 const char *probe::get_target_lib_path(void)
@@ -339,9 +339,14 @@ void probe::install(const mapped_lib_info *lib_info)
 	printf("install: %s: %08lx, @ %016lx, %d\n",
 	       lib_info->get_path(), m_offset_addr, lib_info->get_addr(),
 	       m_overwrite_length);
+
+	// basic variables
+	unsigned long target_addr = lib_info->get_addr() +  m_offset_addr;
+	void *target_addr_ptr = (void *)target_addr;
 	
 	// run the probe initializer that creates private data if needed.
 	probe_init_arg_t arg;
+	arg.target_addr = target_addr;
 	(*m_probe_init)(&arg);
 	m_probe_priv_data = arg.priv_data;
 
@@ -354,8 +359,6 @@ void probe::install(const mapped_lib_info *lib_info)
 	// (4) original code
 	// (6) code to resume the original code
 	// --------------------------------------------------------------------
-	unsigned long target_addr = lib_info->get_addr() +  m_offset_addr;
-	void *target_addr_ptr = (void *)target_addr;
 
 	// check if the patch for the same address has already been registered.
 	static const int BRIDGE_LENGTH =

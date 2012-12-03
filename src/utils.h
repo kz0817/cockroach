@@ -27,6 +27,7 @@ public:
 	static unsigned long calc_func_distance(void (*func0)(void),
 	                                        void (*func1)(void));
 	static void abort(void);
+	static pid_t get_tid(void);
 };
 
 #endif

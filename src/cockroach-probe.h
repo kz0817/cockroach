@@ -33,6 +33,7 @@ struct probe_arg_t {
 #endif // __x86_64__
 
 struct probe_init_arg_t {
+	unsigned long target_addr;
 	void *priv_data; // set in init probe if needed.
 };
 

@@ -25,25 +25,27 @@ static size_t g_shm_window_size = 0;
 static off_t g_shm_window_offset = 0;
 static pthread_mutex_t g_shm_window_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+struct time_measure_data {
+	struct timeval t0;
+	unsigned long target_addr;
+	unsigned long func_ret_addr;
+	pid_t pid;
+};
+
 static void lock_shm(void)
 {
-top:
-	int ret = sem_wait(&g_shm_header->sem);
-	if (ret == 0)
-		return;
-	if (errno == EINTR)
-		goto top;
-	ROACH_ERR("Failed: sem_wait: %d\n", errno);
-	ROACH_ABORT();
+	if (cockroach_lock_shm(g_shm_header) == -1) {
+		ROACH_ERR("Failed: cockroach_lock_shm: %d\n", errno);
+		ROACH_ABORT();
+	}
 }
 
 static void unlock_shm(void)
 {
-	int ret = sem_post(&g_shm_header->sem);
-	if (ret == 0)
-		return;
-	ROACH_ERR("Failed: sem_post: %d\n", errno);
-	ROACH_ABORT();
+	if (cockroach_unlock_shm(g_shm_header) == -1) {
+		ROACH_ERR("Failed: cockroach_unlock_shm: %d\n", errno);
+		ROACH_ABORT();
+	}
 }
 
 /**
@@ -111,12 +113,7 @@ static void open_shm_if_needed(void)
 	pthread_mutex_unlock(&g_shm_window_mutex);
 }
 
-struct time_measure_data {
-	struct timeval t0;
-	unsigned long func_ret_addr;
-};
-
-static void write_data_to_shm(double dt)
+static measured_time_shm_slot *get_shm_data_slot(void)
 {
 	open_shm_if_needed();
 
@@ -149,7 +146,7 @@ static void write_data_to_shm(double dt)
 	}
 	measured_time_shm_slot *slot = get_shm_slot(shm_index);
 	pthread_mutex_unlock(&g_shm_window_mutex);
-	slot->dt = dt;
+	return slot;
 }
 
 static double calc_diff_time(timeval *tv0, timeval *tv1)
@@ -161,19 +158,26 @@ static double calc_diff_time(timeval *tv0, timeval *tv1)
 
 static void roach_time_measure_ret_probe(probe_arg_t *arg)
 {
-	time_measure_data *data =
+	time_measure_data *priv =
 	   static_cast<time_measure_data*>(arg->priv_data);
 	timeval t1;
 	gettimeofday(&t1, NULL);
-	double dt = calc_diff_time(&data->t0, &t1);
-	printf("dT: %.3f (ms)\n", dt*1000);
-	write_data_to_shm(dt);
+	double dt = calc_diff_time(&priv->t0, &t1);
+	measured_time_shm_slot *slot = get_shm_data_slot();
+	slot->dt = dt;
+	slot->target_addr = priv->target_addr;
+	slot->func_ret_addr = priv->func_ret_addr;
+	slot->pid = priv->pid;
+	slot->tid = utils::get_tid();
 }
 
 extern "C"
 void roach_time_measure_probe_init(probe_init_arg_t *arg)
 {
-	arg->priv_data = new time_measure_data();
+	time_measure_data *priv =new time_measure_data();
+	priv->target_addr = arg->target_addr;
+	priv->pid = getpid();
+	arg->priv_data = priv;
 }
 
 extern "C"

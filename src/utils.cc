@@ -4,6 +4,8 @@ using namespace std;
 
 #include <stdarg.h>
 #include <unistd.h>
+#include <sys/types.h> 
+#include <syscall.h>
 #include "utils.h"
 
 vector<string> utils::split(const char *line, const char separator)
@@ -117,3 +119,12 @@ void utils::abort(void)
 #error "Not implemented"
 #endif
 }
+
+pid_t utils::get_tid(void)
+{
+	static __thread pid_t g_tls_thread_id = 0;
+	if (g_tls_thread_id ==  0)
+		g_tls_thread_id = syscall(SYS_gettid);
+	return g_tls_thread_id;
+}
+

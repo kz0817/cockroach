@@ -25,6 +25,7 @@ using namespace std;
 
 enum probe_type {
 	PROBE_TYPE_OVERWRITE_JUMP,
+	PROBE_TYPE_OVERWRITE_RE32_JUMP,
 	PROBE_TYPE_REPLACE_JUMP_ADDR,
 };
 
