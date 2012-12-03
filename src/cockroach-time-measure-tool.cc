@@ -70,6 +70,11 @@ static bool command_info(vector<string> &args)
 	int shm_fd;
 	measured_time_shm_header *header
 	  = cockroach_map_measured_time_header(&shm_fd);
+	if (header == NULL) {
+		printf("Failed to map header: %d\n", errno);
+		return false;
+	}
+
 	if (cockroach_lock_shm(header) == -1) {
 		printf("Failed to lock shm: %d\n", errno);
 		return false;
