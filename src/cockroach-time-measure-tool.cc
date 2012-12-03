@@ -55,6 +55,16 @@ static bool command_reset(vector<string> &args)
 	return true;
 }
 
+static bool command_remove(vector<string> &args)
+{
+	if (shm_unlink(COCKROACH_TIME_MEASURE_SHM_NAME) == -1) {
+		printf("Failed to unlink shm: %d\n", errno);
+		return false;
+	}
+	printf("remove shm: success\n");
+	return true;
+}
+
 static bool command_info(vector<string> &args)
 {
 	int shm_fd;
@@ -128,6 +138,7 @@ static void print_usage(void)
 	printf("\n");
 	printf("*** Commands ***\n");
 	printf("reset\n");
+	printf("remove\n");
 	printf("info\n");
 	printf("list\n");
 	printf("\n");
@@ -143,6 +154,7 @@ int main(int argc, char *argv[])
 	command_map["reset"] = command_reset;
 	command_map["info"] = command_info;
 	command_map["list"] = command_list;
+	command_map["remove"] = command_remove;
 
 	string command = argv[1];
 	command_map_itr it = command_map.find(command);
