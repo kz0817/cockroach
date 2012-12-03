@@ -1,7 +1,7 @@
 lib_LTLIBRARIES = cockroach.la
 cockroach_la_SOURCES = \
   cockroach.cc utils.cc mapped_lib_manager.cc mapped_lib_info.cc \
-  probe.cc side_code_area_manager.cc disassembler.cc \
+  probe.cc side_code_area_manager.cc disassembler.cc opecode.cc \
   cockroach-time-measure.cc time_measure_probe.cc
 
 cockroach_la_CXXFLAGS = -Wall -g

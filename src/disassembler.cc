@@ -2,6 +2,7 @@
 #include <cstring>
 #include "disassembler.h"
 #include "utils.h"
+#include "opecode.h"
 
 #ifdef __x86_64__
 
@@ -26,24 +27,24 @@ struct instr_info {
 
 static void parse_operand(uint8_t *code)
 {
-	mod =   (code[0] & 0xc0) >> 6;
-	digit = (code[0] & 0x38) >> 3;
-	r_m =   (code[0] & 0x07);
+	int mod = (code[0] & 0xc0) >> 6;
+	int reg = (code[0] & 0x38) >> 3;
+	int r_m = (code[0] & 0x07);
 }
 
-// 0x48
+// 0x48 REX.W Prefix
 static instr_info instr_info_rex_w = {
 	1,
 	PREFIX_REX_W,
 };
 
-// 0x89
+// 0x89 MOV
 static void parser_mov_ev_gv(code_parser_arg_t *arg)
 {
 	uint8_t *code = arg->code;
 	printf("%s, code: %p\n", __func__, code);
 	printf("code: %02x %02x %02x\n", code[0], code[1], code[2]);
-	parser_operand(arg->code);
+	parse_operand(arg->code);
 	ROACH_ABORT();
 }
 
@@ -54,12 +55,11 @@ static instr_info instr_info_mov_ev_gv = {
 };
 
 
-// 0xc3
+// 0xc3 RET
 static instr_info instr_info_ret = {
 	1,
 	0,
 };
-
 
 static instr_info *first_byte_instr_array[0x100] = 
 {
