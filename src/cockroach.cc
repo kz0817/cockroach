@@ -114,7 +114,7 @@ void cockroach::parse_one_recipe(const char *line)
 	int overwrite_length = atoi(tokens[3].c_str());
 
 	// register probe
-	probe probe(PROBE_TYPE_OVERWRITE_JUMP);
+	probe probe(PROBE_TYPE_OVERWRITE_ABS64_JUMP);
 	probe.set_target_address(target_lib.c_str(), target_addr,
 	                         overwrite_length);
 	probe.set_probe(NULL, roach_time_measure_probe,

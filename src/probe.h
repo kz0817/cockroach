@@ -11,7 +11,7 @@ using namespace std;
 #ifdef __x86_64__
 // push %rax (1); mov $adrr,%rax (10); push *%rax (2);
 #define OPCODES_LEN_OVERWRITE_JUMP 13
-#define LEN_OPCODE_JMP_REL 5
+#define LEN_OPCODE_JMP_REL32 5
 
 #define OPCODE_NOP        0x90
 #define OPCODE_RET        0xc3
@@ -24,8 +24,8 @@ using namespace std;
 #endif // __x86_64__
 
 enum probe_type {
-	PROBE_TYPE_OVERWRITE_JUMP,
-	PROBE_TYPE_OVERWRITE_RE32_JUMP,
+	PROBE_TYPE_OVERWRITE_ABS64_JUMP,
+	PROBE_TYPE_OVERWRITE_REL32_JUMP,
 	PROBE_TYPE_REPLACE_JUMP_ADDR,
 };
 
@@ -35,6 +35,7 @@ class probe {
 	string m_symbol_name;
 	unsigned long m_offset_addr;
 	int m_overwrite_length;
+	bool m_overwrite_length_auto_detect;
 
 	string            m_probe_lib_path;
 	probe_init_func_t m_probe_init;
@@ -46,6 +47,7 @@ class probe {
 	void change_page_permission_all(void *addr, int len);
 	void overwrite_jump_code(void *intrude_addr, void *jump_abs_addr,
 	                         int copy_code_size);
+	int get_minimum_overwrite_length(void);
 public:
 	probe(probe_type type);
 	void set_target_address(const char *target_lib_path, unsigned long addr,

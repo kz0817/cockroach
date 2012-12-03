@@ -13,6 +13,7 @@ using namespace std;
 #include "utils.h"
 #include "probe.h"
 #include "side_code_area_manager.h"
+#include "disassembler.h"
 
 #ifdef __x86_64__
 
@@ -295,12 +296,25 @@ void overwrite_rel32_jump_code(void *target_addr, void *jump_abs_addr,
 
 #endif // __x86_64__
 
+int probe::get_minimum_overwrite_length(void)
+{
+	if (m_type == PROBE_TYPE_OVERWRITE_ABS64_JUMP)
+		return OPCODES_LEN_OVERWRITE_JUMP;
+	else if (m_type == PROBE_TYPE_OVERWRITE_REL32_JUMP)
+		return LEN_OPCODE_JMP_REL32;
+	ROACH_ERR("Unknown m_type: %d\n", m_type);
+	ROACH_ABORT();
+	return -1;
+}
+
 // --------------------------------------------------------------------------
 // public functions
 // --------------------------------------------------------------------------
 probe::probe(probe_type type)
 : m_type(type),
   m_offset_addr(0),
+  m_overwrite_length(0),
+  m_overwrite_length_auto_detect(false),
   m_probe_init(NULL),
   m_probe(NULL),
   m_probe_priv_data(NULL)
@@ -315,6 +329,8 @@ void probe::set_target_address(const char *target_lib_path, unsigned long addr, 
 		m_target_lib_path.erase();
 	m_offset_addr = addr;
 	m_overwrite_length = overwrite_length;
+	if (m_overwrite_length == 0)
+		m_overwrite_length_auto_detect = true;
 }
 
 void probe::set_probe(const char *probe_lib_path, probe_func_t probe,
@@ -339,11 +355,22 @@ void probe::install(const mapped_lib_info *lib_info)
 	printf("install: %s: %08lx, @ %016lx, %d\n",
 	       lib_info->get_path(), m_offset_addr, lib_info->get_addr(),
 	       m_overwrite_length);
-
 	// basic variables
 	unsigned long target_addr = lib_info->get_addr() +  m_offset_addr;
 	void *target_addr_ptr = (void *)target_addr;
-	
+
+	// try to detect overwrite length if needed
+	if (m_overwrite_length_auto_detect) {
+		uint8_t *code_ptr = (uint8_t *)target_addr;
+		int parsed_length = 0;
+		while (parsed_length >= get_minimum_overwrite_length()) {
+			int length = disassembler::parse(code_ptr);
+			parsed_length += length;
+			code_ptr += length;
+		}
+		m_overwrite_length = parsed_length;
+	}
+
 	// run the probe initializer that creates private data if needed.
 	probe_init_arg_t arg;
 	arg.target_addr = target_addr;
