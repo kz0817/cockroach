@@ -115,7 +115,7 @@ static const mod_rm_info_t *parse_mod_rm(uint8_t mod_rm, opecode *op)
 	if (mod_rm_info == NULL)
 		ROACH_BUG("mod_rm: mod: %d, r_m: %d, NULL (not implemented)\n",
 		          mod, r_m);
-	op->set_mod_rm_reg(reg);
+	op->set_mod_rm(mod, reg, r_m);
 	op->inc_length();
 	return mod_rm_info;
 }
@@ -507,7 +507,7 @@ opecode *disassembler::parse(uint8_t *code_start)
 {
 	uint8_t *code = code_start;
 	printf("A0: %p\n", code_start);
-	opecode *op = new opecode();
+	opecode *op = new opecode(code_start);
 	while (true) {
 		const instr_info *instr = first_byte_instr_array[*code];
 		if (instr == NULL) {

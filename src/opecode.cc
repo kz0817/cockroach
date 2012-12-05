@@ -2,18 +2,21 @@
 #include <cstring>
 #include "opecode.h"
 #include "utils.h"
-#include "opecode_relocator.h"
+#include "rip_relative_relocator.h"
 
 #ifdef __x86_64__
 // --------------------------------------------------------------------------
 // public functions
 // --------------------------------------------------------------------------
 
-opecode::opecode(void)
-: m_length(0),
+opecode::opecode(uint8_t *orig_addr)
+: m_original_addr(orig_addr),
+  m_length(0),
   m_code(NULL),
   m_prefix(0),
+  m_mod_rm_mod(-1),
   m_mod_rm_reg(-1),
+  m_mod_rm_r_m(-1),
   m_sib_ss(-1),
   m_sib_index(-1),
   m_sib_base(-1),
@@ -34,6 +37,11 @@ opecode::~opecode()
 		delete m_relocator;
 }
 
+uint8_t *opecode::get_original_addr(void)
+{
+	return m_original_addr;
+}
+
 void opecode::inc_length(int length)
 {
 	m_length += length;
@@ -49,9 +57,16 @@ int opecode::get_length(void)
 	return m_length;
 }
 
-void opecode::set_mod_rm_reg(int reg)
+uint8_t *opecode::get_code(void)
 {
+	return m_code;
+}
+
+void opecode::set_mod_rm(int mod, int reg, int r_m)
+{
+	m_mod_rm_mod = mod;
 	m_mod_rm_reg = reg;
+	m_mod_rm_r_m = r_m;
 }
 
 void opecode::set_sib_param(int ss, int index, int base)
@@ -63,6 +78,14 @@ void opecode::set_sib_param(int ss, int index, int base)
 
 void opecode::set_disp(opecode_disp_t disp_type, uint32_t disp)
 {
+	// chkeck if RIP relative addressing
+	if (m_mod_rm_mod == -1 || m_mod_rm_r_m == -1) {
+		ROACH_BUG("Mod or R/M have not been set: %d, %d\n", 
+		          m_mod_rm_mod, m_mod_rm_r_m == -1);
+	}
+	if (m_mod_rm_mod == 0 && m_mod_rm_r_m == 5)
+		m_relocator = new rip_relative_relocator(this);
+
 	m_disp_type = disp_type;
 	m_disp = disp;
 }
@@ -83,23 +106,11 @@ void opecode::copy_code(uint8_t *addr)
 	memcpy(m_code, addr, m_length);
 }
 
-int opecode::get_relocated_code_length(void)
+opecode_relocator *opecode::get_relocator(void)
 {
-	if (m_relocator) {
-  		if (m_relocated_code_size == 0) {
-			int len = m_relocator->get_relocated_area_length();
-			m_relocated_code_size = len;
-		}
-		return m_relocated_code_size;
-	}
-	return m_length;
-}
-
-void opecode::relocate(uint8_t *dest_addr)
-{
-	if (m_length == 0)
-		ROACH_BUG("m_length: 0\n");
-	memcpy(dest_addr, m_code, m_length);
+	if (!m_relocator)
+		m_relocator = new opecode_relocator(this);
+	return m_relocator;
 }
 
 // --------------------------------------------------------------------------

@@ -23,10 +23,13 @@ enum opecode_imm_t {
 };
 
 class opecode {
+	uint8_t *m_original_addr;
 	int      m_length;
 	uint8_t *m_code;
 	int      m_prefix;
+	int      m_mod_rm_mod;
 	int      m_mod_rm_reg;
+	int      m_mod_rm_r_m;
 	int      m_sib_ss;
 	int      m_sib_index;
 	int      m_sib_base;
@@ -37,19 +40,20 @@ class opecode {
 	opecode_relocator *m_relocator;
 	int                m_relocated_code_size;
 public:
-	opecode(void);
+	opecode(uint8_t *orig_addr);
 	virtual ~opecode();
 
+	uint8_t *get_original_addr(void);
 	void inc_length(int length = 1);
 	int  get_length(void);
+	uint8_t *get_code(void);
 	void add_prefix(int prefix);
-	void set_mod_rm_reg(int reg);
+	void set_mod_rm(int mod, int reg, int r_m);
 	void set_sib_param(int ss, int index, int base);
 	void set_disp(opecode_disp_t disp_type, uint32_t disp);
 	void set_immediate(opecode_imm_t imm_type, uint64_t imm);
 	void copy_code(uint8_t *addr);
-	int  get_relocated_code_length(void);
-	void relocate(uint8_t *dest_addr);
+	opecode_relocator *get_relocator(void);
 };
 
 #endif // __x86_64__

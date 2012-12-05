@@ -7,7 +7,10 @@ class opecode_relocator {
 	opecode *m_op;
 public:
 	opecode_relocator(opecode *op);
-	int get_relocated_area_length(void);
+	virtual ~opecode_relocator();
+	virtual int get_max_code_length(void);
+	virtual int get_max_data_length(void);
+	virtual int relocate(uint8_t *addr);
 };
 
 #endif

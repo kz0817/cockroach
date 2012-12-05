@@ -15,6 +15,7 @@ using namespace std;
 #include "probe.h"
 #include "side_code_area_manager.h"
 #include "disassembler.h"
+#include "opecode_relocator.h"
 
 #ifdef __x86_64__
 
@@ -375,11 +376,16 @@ void probe::install(const mapped_lib_info *lib_info)
 	}
 
 	int relocated_code_length = 0;
+	int relocated_data_length = 0;
 	if (!relocated_opecode_list.empty()) {
+		opecode_relocator *relocator;
 		list<opecode *>::iterator op = relocated_opecode_list.begin();
 		for (; op != relocated_opecode_list.end(); ++op) {
-			int length = (*op)->get_relocated_code_length();
-			relocated_code_length += length;
+			relocator = (*op)->get_relocator();
+			relocated_code_length +=
+			  relocator->get_max_code_length();
+			relocated_data_length +=
+			  relocator->get_max_data_length();
 		}
 	}
 	else
@@ -406,7 +412,8 @@ void probe::install(const mapped_lib_info *lib_info)
 	  utils::calc_func_distance(bridge_begin, bridge_end);
 	static const int RET_BRIDGE_LENGTH =
 	  utils::calc_func_distance(resume_begin, resume_end);
-	int code_len = BRIDGE_LENGTH + relocated_code_length
+	int code_len = BRIDGE_LENGTH
+	               + relocated_code_length + relocated_data_length
 	               + RET_BRIDGE_LENGTH;
 	uint8_t *side_code_area = side_code_area_manager::alloc(code_len);
 
@@ -417,10 +424,11 @@ void probe::install(const mapped_lib_info *lib_info)
 
 	// code relocation or simple copy
 	if (!relocated_opecode_list.empty()) {
+		opecode_relocator *relocator;
 		list<opecode *>::iterator op = relocated_opecode_list.begin();
 		for (; op != relocated_opecode_list.end(); ++op) {
-			(*op)->relocate(side_code_ptr);
-			side_code_ptr += (*op)->get_relocated_code_length();
+			relocator = (*op)->get_relocator();
+			side_code_ptr += relocator->relocate(side_code_ptr);
 		}
 	} else {
 		memcpy(side_code_ptr, target_addr_ptr, m_overwrite_length);
