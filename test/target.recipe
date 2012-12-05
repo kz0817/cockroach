@@ -1,8 +1,11 @@
 # recipe for target
 # printf: __printf_chk
 #T libc-2.15.so 0000000000108df0 14
+
 # random
 #T libc-2.15.so 000000000003c0d0 18
+T libc-2.15.so 000000000003c0d0 0
+
 # funcX
 #T target 0000006c0 13
 
