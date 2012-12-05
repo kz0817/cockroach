@@ -6,51 +6,92 @@
 
 #ifdef __x86_64__
 
-#define PREFIX_REX_W (1 << 0)
+typedef void (*code_parser_t)(opecode *op, uint8_t *code);
 
-struct code_parser_arg_t {
-	// input to the parser
-	uint32_t prefix;
-	uint8_t *code;
-
-	// output from the pasrser
-	int parsed_length;
+enum disp_size_t {
+	DISP_NONE,
+	DISP8,
+	DISP32,
 };
 
-typedef void (*code_parser_t)(code_parser_arg_t *arg);
+struct mod_rm_info_t {
+	const bool sib;
+	const disp_size_t disp_size;
+};
+
+static mod_rm_info_t mod_rm_sib_disp8 = {
+	true,
+	DISP8,
+};
+
+static mod_rm_info_t *mod_rm_matrix[4][8] = 
+{
+	{NULL, NULL, NULL, NULL,
+	 NULL, NULL, NULL, NULL},
+
+	{NULL, NULL, NULL, NULL,
+	 &mod_rm_sib_disp8, NULL, NULL, NULL},
+
+	{NULL, NULL, NULL, NULL,
+	 NULL, NULL, NULL, NULL},
+
+	{NULL, NULL, NULL, NULL,
+	 NULL, NULL, NULL, NULL},
+};
 
 struct instr_info {
 	int length;
-	uint32_t prefix;
 	code_parser_t parser;
+	int prefix;
 };
 
-static void parse_operand(uint8_t *code)
+static void parse_sib(uint8_t sib)
 {
-	int mod = (code[0] & 0xc0) >> 6;
-	int reg = (code[0] & 0x38) >> 3;
-	int r_m = (code[0] & 0x07);
+}
+
+static void parse_disp(uint8_t sib)
+{
+}
+
+static mod_rm_info_t *parse_mod_rm(uint8_t mod_rm, opecode *op)
+{
+	int mod = (mod_rm & 0xc0) >> 6;
+	int reg = (mod_rm & 0x38) >> 3;
+	int r_m = (mod_rm & 0x07);
+	mod_rm_info_t *mod_rm_info = mod_rm_matrix[mod][r_m];
+	if (mod_rm_info == NULL)
+		ROACH_BUG("mod_rm: NULL (not implemented)");
+	op->set_mod_rm_reg(reg);
+	return mod_rm_info;
 }
 
 // 0x48 REX.W Prefix
 static instr_info instr_info_rex_w = {
 	1,
+	NULL,
 	PREFIX_REX_W,
 };
 
 // 0x89 MOV
-static void parser_mov_ev_gv(code_parser_arg_t *arg)
+static void parser_mov_ev_gv(opecode *op, uint8_t *code)
 {
-	uint8_t *code = arg->code;
 	printf("%s, code: %p\n", __func__, code);
 	printf("code: %02x %02x %02x\n", code[0], code[1], code[2]);
-	parse_operand(arg->code);
+	mod_rm_info_t *mod_rm_info = parse_mod_rm(*code, op);
+	code++;
+	if (mod_rm_info->sib) {
+		parse_sib(*code);
+		code++;
+	}
+	if (mod_rm_info->disp_size != DISP_NONE) {
+		parse_disp(*code);
+		code++;
+	}
 	ROACH_ABORT();
 }
 
 static instr_info instr_info_mov_ev_gv = {
 	1,
-	0,
 	parser_mov_ev_gv,
 };
 
@@ -58,7 +99,6 @@ static instr_info instr_info_mov_ev_gv = {
 // 0xc3 RET
 static instr_info instr_info_ret = {
 	1,
-	0,
 };
 
 static instr_info *first_byte_instr_array[0x100] = 
@@ -248,38 +288,34 @@ static instr_info *first_byte_instr_array[0x100] =
 // --------------------------------------------------------------------------
 // public functions
 // --------------------------------------------------------------------------
-int disassembler::parse(uint8_t *code_start)
+opecode *disassembler::parse(uint8_t *code_start)
 {
 	int parsed_length = 0;
 	uint8_t *code = code_start;
-
-	code_parser_arg_t arg;
-	memset(&arg, 0, sizeof(code_parser_t));
+	opecode *op = new opecode();
 	while (true) {
-		instr_info *info = first_byte_instr_array[*code];
-		if (info == NULL) {
+		instr_info *instr = first_byte_instr_array[*code];
+		if (instr == NULL) {
 			ROACH_ERR("Failed to parse 1st byte: %p: %02x\n",
 			          code, *code);
 			ROACH_ABORT();
 		}
-		parsed_length += info->length;
-		code += info->length;
+		parsed_length += instr->length;
+		code += instr->length;
+		op.inc_length(instr->length);
 
-		if (info->parser) {
-			arg.code = code;
-			(*info->parser)(&arg);
-			parsed_length += arg.parsed_length;
-			code += arg.parsed_length;
-		}
+		if (instr->parser)
+			(*instr->parser)(op, code);
 
 		// If the first byte is prefix, we parse again
-		if (info->prefix & PREFIX_REX_W) {
-			arg.prefix = PREFIX_REX_W;
+		if (instr->prefix & PREFIX_REX_W) {
+			op->add_prefix(instr->prefix);
 			continue;
 		}
 		break;
 	}
+	op->copy_code(code_start);
 
-	return parsed_length;
+	return op;
 }
 

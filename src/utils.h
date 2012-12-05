@@ -5,10 +5,16 @@
 #include <string>
 using namespace std;
 
+#define ROACH_ABORT() utils::abort()
+
 #define ROACH_ERR(fmt, ...) \
 utils::message(__FILE__, __LINE__, "ERR", fmt, ##__VA_ARGS__)
 
-#define ROACH_ABORT() utils::abort()
+#define ROACH_BUG(fmt, ...) \
+do { \
+  utils::message(__FILE__, __LINE__, "BUG", fmt, ##__VA_ARGS__); \
+  ROACH_ABORT(); \
+} while(0)
 
 typedef void (*one_line_parser_t)(const char *line, void *arg);
 

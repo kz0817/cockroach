@@ -364,9 +364,9 @@ void probe::install(const mapped_lib_info *lib_info)
 		uint8_t *code_ptr = (uint8_t *)target_addr;
 		int parsed_length = 0;
 		while (parsed_length < get_minimum_overwrite_length()) {
-			int length = disassembler::parse(code_ptr);
-			parsed_length += length;
-			code_ptr += length;
+			opecode *op = disassembler::parse(code_ptr);
+			parsed_length += op->get_length();
+			code_ptr += parsed_length;
 		}
 		m_overwrite_length = parsed_length;
 	}
