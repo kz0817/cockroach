@@ -25,9 +25,19 @@ struct instr_info {
 //
 // static const instances definitions
 //
+static const mod_rm_info_t mod_rm_disp32 = {
+	false,
+	DISP32,
+};
+
 static const mod_rm_info_t mod_rm_sib_disp8 = {
 	true,
 	DISP8,
+};
+
+static const mod_rm_info_t mod_rm_eax = {
+	false,
+	DISP_NONE,
 };
 
 static const mod_rm_info_t mod_rm_ebx = {
@@ -43,7 +53,7 @@ static const mod_rm_info_t mod_rm_esp = {
 static const mod_rm_info_t *mod_rm_matrix[4][8] = 
 {
 	{NULL, NULL, NULL, NULL,
-	 NULL, NULL, NULL, NULL},
+	 NULL, &mod_rm_disp32, NULL, NULL},
 
 	{NULL, NULL, NULL, NULL,
 	 &mod_rm_sib_disp8, NULL, NULL, NULL},
@@ -51,7 +61,7 @@ static const mod_rm_info_t *mod_rm_matrix[4][8] =
 	{NULL, NULL, NULL, NULL,
 	 NULL, NULL, NULL, NULL},
 
-	{NULL, NULL, NULL, &mod_rm_ebx,
+	{&mod_rm_eax, NULL, NULL, &mod_rm_ebx,
 	 &mod_rm_esp, NULL, NULL, NULL},
 };
 
@@ -63,6 +73,13 @@ static uint8_t parse_immediate8(uint8_t *code, opecode *op)
 	op->inc_length(1);
 	return *code;
 }
+
+static uint32_t parse_immediate32(uint8_t *code, opecode *op)
+{
+	op->inc_length(4);
+	return *((uint32_t *)code);
+}
+
 
 static void parse_sib(uint8_t sib, opecode *op)
 {
@@ -96,11 +113,36 @@ static const mod_rm_info_t *parse_mod_rm(uint8_t mod_rm, opecode *op)
 	int r_m = (mod_rm & 0x07);
 	const mod_rm_info_t *mod_rm_info = mod_rm_matrix[mod][r_m];
 	if (mod_rm_info == NULL)
-		ROACH_BUG("mod_rm: NULL (not implemented)\n");
+		ROACH_BUG("mod_rm: mod: %d, r_m: %d, NULL (not implemented)\n",
+		          mod, r_m);
 	op->set_mod_rm_reg(reg);
 	op->inc_length();
 	return mod_rm_info;
 }
+
+static uint8_t *parse_operand(opecode *op, uint8_t *code)
+{
+	const mod_rm_info_t *mod_rm_info = parse_mod_rm(*code, op);
+	code++;
+	if (mod_rm_info->sib) {
+		parse_sib(*code, op);
+		code++;
+	}
+	if (mod_rm_info->disp_type != DISP_NONE)
+		code += parse_disp(mod_rm_info->disp_type, code, op);
+	return code;
+}
+
+// 0x31 XOR (MR)
+static void parser_xor_Eb_Gb(opecode *op, uint8_t *code)
+{
+	parse_operand(op, code);
+}
+
+static const instr_info instr_info_xor_Eb_Gb = {
+	1,
+	parser_xor_Eb_Gb,
+};
 
 // 0x48 REX.W Prefix
 static const instr_info instr_info_rex_w = {
@@ -109,13 +151,10 @@ static const instr_info instr_info_rex_w = {
 	PREFIX_REX_W,
 };
 
-// 0x83 Immediate Group 1 (MI)
+// 0x83 Immediate Group 1 (MI): sub, cmp
 static void parser_imm_grp1_Ev_Ib(opecode *op, uint8_t *code)
 {
-	//const mod_rm_info_t *mod_rm_info = parse_mod_rm(*code, op);
-	parse_mod_rm(*code, op);
-	// TODO: Should check SIB ?
-	code++;
+	code = parse_operand(op, code);
 	uint8_t imm = parse_immediate8(code, op);
 	op->set_immediate(IMM8, imm);
 	code++;
@@ -129,14 +168,7 @@ static const instr_info instr_info_imm_grp1_Ev_Ib = {
 // 0x89 MOV
 static void parser_mov_Ev_Gv(opecode *op, uint8_t *code)
 {
-	const mod_rm_info_t *mod_rm_info = parse_mod_rm(*code, op);
-	code++;
-	if (mod_rm_info->sib) {
-		parse_sib(*code, op);
-		code++;
-	}
-	if (mod_rm_info->disp_type != DISP_NONE)
-		code += parse_disp(mod_rm_info->disp_type, code, op);
+	parse_operand(op, code);
 }
 
 static const instr_info instr_info_mov_Ev_Gv = {
@@ -144,9 +176,27 @@ static const instr_info instr_info_mov_Ev_Gv = {
 	parser_mov_Ev_Gv,
 };
 
+// 0xbe MOV
+static void parser_mov_rSIr14_Iv(opecode *op, uint8_t *code)
+{
+	uint32_t imm = parse_immediate32(code, op);
+	op->set_immediate(IMM32, imm);
+}
+
+static const instr_info instr_info_mov_rSIr14_Iv = {
+	1,
+	parser_mov_rSIr14_Iv,
+};
+
 // 0xc3 RET
+static void parser_not_impl(opecode *op, uint8_t *code)
+{
+	ROACH_BUG("Not implemented\n");
+}
+
 static const instr_info instr_info_ret = {
 	1,
+	parser_not_impl,
 };
 
 static const instr_info *first_byte_instr_array[0x100] = 
@@ -203,7 +253,7 @@ static const instr_info *first_byte_instr_array[0x100] =
 	NULL,                         // 0x2f
 
 	NULL,                         // 0x30
-	NULL,                         // 0x31
+	&instr_info_xor_Eb_Gb,        // 0x31
 	NULL,                         // 0x32
 	NULL,                         // 0x33
 	NULL,                         // 0x34
@@ -320,11 +370,128 @@ static const instr_info *first_byte_instr_array[0x100] =
 	NULL,                         // 0x8d
 	NULL,                         // 0x8e
 	NULL,                         // 0x8f
+
+	NULL,                         // 0x90
+	NULL,                         // 0x91
+	NULL,                         // 0x92
+	NULL,                         // 0x93
+	NULL,                         // 0x94
+	NULL,                         // 0x95
+	NULL,                         // 0x96
+	NULL,                         // 0x97
+	NULL,                         // 0x98
+	NULL,                         // 0x99
+	NULL,                         // 0x9a
+	NULL,                         // 0x9b
+	NULL,                         // 0x9c
+	NULL,                         // 0x9d
+	NULL,                         // 0x9e
+	NULL,                         // 0x9f
 /*
 	&instr_info_pushf,            // 0x9c
 	&instr_info_popf,             // 0x9d
 */
+	NULL,                         // 0xa0
+	NULL,                         // 0xa1
+	NULL,                         // 0xa2
+	NULL,                         // 0xa3
+	NULL,                         // 0xa4
+	NULL,                         // 0xa5
+	NULL,                         // 0xa6
+	NULL,                         // 0xa7
+	NULL,                         // 0xa8
+	NULL,                         // 0xa9
+	NULL,                         // 0xaa
+	NULL,                         // 0xab
+	NULL,                         // 0xac
+	NULL,                         // 0xad
+	NULL,                         // 0xae
+	NULL,                         // 0xaf
+
+	NULL,                         // 0xb0
+	NULL,                         // 0xb1
+	NULL,                         // 0xb2
+	NULL,                         // 0xb3
+	NULL,                         // 0xb4
+	NULL,                         // 0xb5
+	NULL,                         // 0xb6
+	NULL,                         // 0xb7
+	NULL,                         // 0xb8
+	NULL,                         // 0xb9
+	NULL,                         // 0xba
+	NULL,                         // 0xbb
+	NULL,                         // 0xbc
+	NULL,                         // 0xbd
+	&instr_info_mov_rSIr14_Iv,    // 0xbe
+	NULL,                         // 0xbf
+
+	NULL,                         // 0xc0
+	NULL,                         // 0xc1
+	NULL,                         // 0xc2
 	&instr_info_ret,              // 0xc3
+	NULL,                         // 0xc4
+	NULL,                         // 0xc5
+	NULL,                         // 0xc6
+	NULL,                         // 0xc7
+	NULL,                         // 0xc8
+	NULL,                         // 0xc9
+	NULL,                         // 0xca
+	NULL,                         // 0xcb
+	NULL,                         // 0xcc
+	NULL,                         // 0xcd
+	NULL,                         // 0xce
+	NULL,                         // 0xcf
+
+	NULL,                         // 0xd1
+	NULL,                         // 0xd2
+	NULL,                         // 0xd3
+	NULL,                         // 0xd4
+	NULL,                         // 0xd5
+	NULL,                         // 0xd6
+	NULL,                         // 0xd7
+	NULL,                         // 0xd8
+	NULL,                         // 0xd9
+	NULL,                         // 0xda
+	NULL,                         // 0xdb
+	NULL,                         // 0xdc
+	NULL,                         // 0xdd
+	NULL,                         // 0xde
+	NULL,                         // 0xdf
+
+	NULL,                         // 0xe0
+	NULL,                         // 0xe0
+	NULL,                         // 0xe0
+	NULL,                         // 0xe1
+	NULL,                         // 0xe2
+	NULL,                         // 0xe3
+	NULL,                         // 0xe4
+	NULL,                         // 0xe5
+	NULL,                         // 0xe6
+	NULL,                         // 0xe7
+	NULL,                         // 0xe8
+	NULL,                         // 0xe9
+	NULL,                         // 0xea
+	NULL,                         // 0xeb
+	NULL,                         // 0xec
+	NULL,                         // 0xed
+	NULL,                         // 0xee
+	NULL,                         // 0xef
+
+	NULL,                         // 0xf1
+	NULL,                         // 0xf2
+	NULL,                         // 0xf3
+	NULL,                         // 0xf4
+	NULL,                         // 0xf5
+	NULL,                         // 0xf6
+	NULL,                         // 0xf7
+	NULL,                         // 0xf8
+	NULL,                         // 0xf9
+	NULL,                         // 0xfa
+	NULL,                         // 0xfb
+	NULL,                         // 0xfc
+	NULL,                         // 0xfd
+	NULL,                         // 0xfe
+	NULL,                         // 0xff
 };
 
 #endif // __x86_64__
