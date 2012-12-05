@@ -144,11 +144,30 @@ static const instr_info instr_info_xor_Eb_Gb = {
 	parser_xor_Eb_Gb,
 };
 
+// 0x41 REX.B Preifx
+static const instr_info instr_info_rex_b = {
+	1,
+	NULL,
+	PREFIX_REX_B,
+};
+
 // 0x48 REX.W Prefix
 static const instr_info instr_info_rex_w = {
 	1,
 	NULL,
 	PREFIX_REX_W,
+};
+
+
+// 0x54 PUSH
+static void parser_push_rSPr12(opecode *op, uint8_t *code)
+{
+	code = parse_operand(op, code);
+}
+
+static const instr_info instr_info_push_rSPr12 = {
+	1,
+	parser_push_rSPr12,
 };
 
 // 0x83 Immediate Group 1 (MI): sub, cmp
@@ -270,7 +289,7 @@ static const instr_info *first_byte_instr_array[0x100] =
 	NULL,                         // 0x3f
 
 	NULL,                         // 0x40
-	NULL,                         // 0x41
+	&instr_info_rex_b,            // 0x41
 	NULL,                         // 0x42
 	NULL,                         // 0x43
 	NULL,                         // 0x44
@@ -290,7 +309,6 @@ static const instr_info *first_byte_instr_array[0x100] =
 	&instr_info_push_cx,          // 0x51
 	&instr_info_push_dx,          // 0x52
 	&instr_info_push_bx,          // 0x53
-	&instr_info_push_sp,          // 0x54
 	&instr_info_push_bp,          // 0x55
 	&instr_info_push_si,          // 0x56
 	&instr_info_push_di,          // 0x57
@@ -307,7 +325,7 @@ static const instr_info *first_byte_instr_array[0x100] =
 	NULL,                         // 0x51
 	NULL,                         // 0x52
 	NULL,                         // 0x53
-	NULL,                         // 0x54
+	&instr_info_push_rSPr12,      // 0x54
 	NULL,                         // 0x55
 	NULL,                         // 0x56
 	NULL,                         // 0x57
@@ -522,7 +540,7 @@ opecode *disassembler::parse(uint8_t *code_start)
 			(*instr->parser)(op, code);
 
 		// If the first byte is prefix, we parse again
-		if (instr->prefix & PREFIX_REX_W) {
+		if (instr->prefix) {
 			op->add_prefix(instr->prefix);
 			continue;
 		}

@@ -6,7 +6,8 @@
 #ifdef __x86_64__
 class opecode_relocator;
 
-#define PREFIX_REX_W (1 << 0)
+#define PREFIX_REX_B (1 << 1)
+#define PREFIX_REX_W (1 << 8)
 
 enum opecode_disp_t {
 	DISP_NONE,
