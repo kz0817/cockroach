@@ -2,7 +2,12 @@
 // --------------------------------------------------------------------------
 // public functions
 // --------------------------------------------------------------------------
-int opecode_relocator::get_relocated_area_size(void)
+opecode_relocator::opecode_relocator(opecode *op)
+: m_op(op)
+{
+}
+
+int opecode_relocator::get_relocated_area_length(void)
 {
 	return 0;
 }

@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 #ifdef __x86_64__
-#include "opecode_relocator.h"
+class opecode_relocator;
 
 #define PREFIX_REX_W (1 << 0)
 
@@ -35,6 +35,7 @@ class opecode {
 	opecode_imm_t m_immediate_type;
 	uint64_t      m_immediate;
 	opecode_relocator *m_relocator;
+	int                m_relocated_code_size;
 public:
 	opecode(void);
 	virtual ~opecode();

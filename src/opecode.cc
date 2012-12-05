@@ -2,6 +2,7 @@
 #include <cstring>
 #include "opecode.h"
 #include "utils.h"
+#include "opecode_relocator.h"
 
 #ifdef __x86_64__
 // --------------------------------------------------------------------------
@@ -20,7 +21,8 @@ opecode::opecode(void)
   m_disp(0),
   m_immediate_type(IMM_INVALID),
   m_immediate(0),
-  m_relocator(NULL)
+  m_relocator(NULL),
+  m_relocated_code_size(0)
 {
 }
 
@@ -81,8 +83,15 @@ void opecode::copy_code(uint8_t *addr)
 	memcpy(m_code, addr, m_length);
 }
 
-int  opecode::get_relocated_code_length(void)
+int opecode::get_relocated_code_length(void)
 {
+	if (m_relocator) {
+  		if (m_relocated_code_size == 0) {
+			int len = m_relocator->get_relocated_area_length();
+			m_relocated_code_size = len;
+		}
+		return m_relocated_code_size;
+	}
 	return m_length;
 }
 
