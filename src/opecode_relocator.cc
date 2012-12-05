@@ -14,6 +14,11 @@ opecode_relocator::~opecode_relocator()
 {
 }
 
+const opecode *opecode_relocator::get_opecode(void)
+{
+	return m_op;
+}
+
 int opecode_relocator::get_max_code_length(void)
 {
 	return m_op->get_length();

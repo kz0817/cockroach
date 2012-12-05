@@ -43,10 +43,10 @@ public:
 	opecode(uint8_t *orig_addr);
 	virtual ~opecode();
 
-	uint8_t *get_original_addr(void);
+	uint8_t *get_original_addr(void) const;
 	void inc_length(int length = 1);
-	int  get_length(void);
-	uint8_t *get_code(void);
+	int  get_length(void) const;
+	uint8_t *get_code(void) const;
 	void add_prefix(int prefix);
 	void set_mod_rm(int mod, int reg, int r_m);
 	void set_sib_param(int ss, int index, int base);

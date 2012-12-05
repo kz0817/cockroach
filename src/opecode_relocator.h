@@ -4,7 +4,11 @@
 #include "opecode.h"
 
 class opecode_relocator {
-	opecode *m_op;
+	const opecode *m_op;
+
+protected:
+	const opecode *get_opecode(void);
+
 public:
 	opecode_relocator(opecode *op);
 	virtual ~opecode_relocator();

@@ -9,7 +9,7 @@ public:
 	~rip_relative_relocator();
 
 	// virtual function
-	//int relocate(uint8_t *addr);
+	int relocate(uint8_t *addr);
 	//int get_max_code_length(void);
 };
 

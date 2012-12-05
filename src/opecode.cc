@@ -37,7 +37,7 @@ opecode::~opecode()
 		delete m_relocator;
 }
 
-uint8_t *opecode::get_original_addr(void)
+uint8_t *opecode::get_original_addr(void) const
 {
 	return m_original_addr;
 }
@@ -52,12 +52,12 @@ void opecode::add_prefix(int prefix)
 	m_prefix |= prefix;
 }
 
-int opecode::get_length(void)
+int opecode::get_length(void) const
 {
 	return m_length;
 }
 
-uint8_t *opecode::get_code(void)
+uint8_t *opecode::get_code(void) const
 {
 	return m_code;
 }
