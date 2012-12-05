@@ -30,6 +30,11 @@ static const mod_rm_info_t mod_rm_sib_disp8 = {
 	DISP8,
 };
 
+static const mod_rm_info_t mod_rm_ebx = {
+	false,
+	DISP_NONE,
+};
+
 static const mod_rm_info_t *mod_rm_matrix[4][8] = 
 {
 	{NULL, NULL, NULL, NULL,
@@ -41,7 +46,7 @@ static const mod_rm_info_t *mod_rm_matrix[4][8] =
 	{NULL, NULL, NULL, NULL,
 	 NULL, NULL, NULL, NULL},
 
-	{NULL, NULL, NULL, NULL,
+	{NULL, NULL, NULL, &mod_rm_ebx,
 	 NULL, NULL, NULL, NULL},
 };
 
@@ -306,7 +311,6 @@ static instr_info *first_byte_instr_array[0x100] =
 // --------------------------------------------------------------------------
 opecode *disassembler::parse(uint8_t *code_start)
 {
-	int parsed_length = 0;
 	uint8_t *code = code_start;
 	printf("A0: %p\n", code_start);
 	opecode *op = new opecode();
@@ -317,7 +321,6 @@ opecode *disassembler::parse(uint8_t *code_start)
 			          code, *code);
 			ROACH_ABORT();
 		}
-		parsed_length += instr->length;
 		code += instr->length;
 		op->inc_length(instr->length);
 
