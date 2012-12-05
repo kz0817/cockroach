@@ -6,25 +6,31 @@
 
 #ifdef __x86_64__
 
+//
+// type definitions
+//
 typedef void (*code_parser_t)(opecode *op, uint8_t *code);
-
-enum disp_size_t {
-	DISP_NONE,
-	DISP8,
-	DISP32,
-};
 
 struct mod_rm_info_t {
 	const bool sib;
-	const disp_size_t disp_size;
+	const opecode_disp_t disp_type;
 };
 
-static mod_rm_info_t mod_rm_sib_disp8 = {
+struct instr_info {
+	int length;
+	code_parser_t parser;
+	int prefix;
+};
+
+//
+// static const instances definitions
+//
+static const mod_rm_info_t mod_rm_sib_disp8 = {
 	true,
 	DISP8,
 };
 
-static mod_rm_info_t *mod_rm_matrix[4][8] = 
+static const mod_rm_info_t *mod_rm_matrix[4][8] = 
 {
 	{NULL, NULL, NULL, NULL,
 	 NULL, NULL, NULL, NULL},
@@ -39,29 +45,41 @@ static mod_rm_info_t *mod_rm_matrix[4][8] =
 	 NULL, NULL, NULL, NULL},
 };
 
-struct instr_info {
-	int length;
-	code_parser_t parser;
-	int prefix;
-};
-
-static void parse_sib(uint8_t sib)
+static void parse_sib(uint8_t sib, opecode *op)
 {
+	int ss    = (sib & 0xc0) >> 6;
+	int index = (sib & 0x38) >> 3;
+	int base  = (sib & 0x07);
+	op->set_sib_param(ss, index, base);
+	op->inc_length();
 }
 
-static void parse_disp(uint8_t sib)
+static int parse_disp(opecode_disp_t disp_type, uint8_t *addr, opecode *op)
 {
+	int length = 0;
+	if (disp_type == DISP8) {
+		op->set_disp(*addr);
+		length = 1;
+	} else if (disp_type == DISP32) {
+		op->set_disp(*((uint32_t*)addr));
+		length = 4;
+	}
+	else
+		ROACH_BUG("Unknown disp type: %d\n", disp_type);
+	op->inc_length(length);
+	return length;
 }
 
-static mod_rm_info_t *parse_mod_rm(uint8_t mod_rm, opecode *op)
+static const mod_rm_info_t *parse_mod_rm(uint8_t mod_rm, opecode *op)
 {
 	int mod = (mod_rm & 0xc0) >> 6;
 	int reg = (mod_rm & 0x38) >> 3;
 	int r_m = (mod_rm & 0x07);
-	mod_rm_info_t *mod_rm_info = mod_rm_matrix[mod][r_m];
+	const mod_rm_info_t *mod_rm_info = mod_rm_matrix[mod][r_m];
 	if (mod_rm_info == NULL)
-		ROACH_BUG("mod_rm: NULL (not implemented)");
+		ROACH_BUG("mod_rm: NULL (not implemented)\n");
 	op->set_mod_rm_reg(reg);
+	op->inc_length();
 	return mod_rm_info;
 }
 
@@ -77,24 +95,22 @@ static void parser_mov_ev_gv(opecode *op, uint8_t *code)
 {
 	printf("%s, code: %p\n", __func__, code);
 	printf("code: %02x %02x %02x\n", code[0], code[1], code[2]);
-	mod_rm_info_t *mod_rm_info = parse_mod_rm(*code, op);
+	const mod_rm_info_t *mod_rm_info = parse_mod_rm(*code, op);
 	code++;
 	if (mod_rm_info->sib) {
-		parse_sib(*code);
+		parse_sib(*code, op);
 		code++;
 	}
-	if (mod_rm_info->disp_size != DISP_NONE) {
-		parse_disp(*code);
-		code++;
+	if (mod_rm_info->disp_type != DISP_NONE) {
+		op->set_disp_type(mod_rm_info->disp_type);
+		code += parse_disp(mod_rm_info->disp_type, code, op);
 	}
-	ROACH_ABORT();
 }
 
 static instr_info instr_info_mov_ev_gv = {
 	1,
 	parser_mov_ev_gv,
 };
-
 
 // 0xc3 RET
 static instr_info instr_info_ret = {
@@ -292,6 +308,7 @@ opecode *disassembler::parse(uint8_t *code_start)
 {
 	int parsed_length = 0;
 	uint8_t *code = code_start;
+	printf("A0: %p\n", code_start);
 	opecode *op = new opecode();
 	while (true) {
 		instr_info *instr = first_byte_instr_array[*code];
@@ -302,7 +319,7 @@ opecode *disassembler::parse(uint8_t *code_start)
 		}
 		parsed_length += instr->length;
 		code += instr->length;
-		op.inc_length(instr->length);
+		op->inc_length(instr->length);
 
 		if (instr->parser)
 			(*instr->parser)(op, code);
@@ -315,7 +332,7 @@ opecode *disassembler::parse(uint8_t *code_start)
 		break;
 	}
 	op->copy_code(code_start);
-
+	printf("AZ: length: %d\n", op->get_length());
 	return op;
 }
 
