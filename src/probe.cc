@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <queue>
+#include <list>
 using namespace std;
 
 #include <pthread.h>
@@ -360,6 +361,7 @@ void probe::install(const mapped_lib_info *lib_info)
 	void *target_addr_ptr = (void *)target_addr;
 
 	// detect overwrite length if needed
+	list<opecode *> relocated_opecode_list;
 	if (m_overwrite_length_auto_detect) {
 		uint8_t *code_ptr = (uint8_t *)target_addr;
 		int parsed_length = 0;
@@ -367,9 +369,21 @@ void probe::install(const mapped_lib_info *lib_info)
 			opecode *op = disassembler::parse(code_ptr);
 			parsed_length += op->get_length();
 			code_ptr += op->get_length();
+			relocated_opecode_list.push_back(op);
 		}
 		m_overwrite_length = parsed_length;
 	}
+
+	int relocated_code_length = 0;
+	if (!relocated_opecode_list.empty()) {
+		list<opecode *>::iterator op = relocated_opecode_list.begin();
+		for (; op != relocated_opecode_list.end(); ++op) {
+			int length = (*op)->get_relocated_code_length();
+			relocated_code_length += length;
+		}
+	}
+	else
+		relocated_code_length = m_overwrite_length;
 
 	// run the probe initializer that creates private data if needed.
 	probe_init_arg_t arg;
@@ -392,15 +406,27 @@ void probe::install(const mapped_lib_info *lib_info)
 	  utils::calc_func_distance(bridge_begin, bridge_end);
 	static const int RET_BRIDGE_LENGTH =
 	  utils::calc_func_distance(resume_begin, resume_end);
-	int code_len = BRIDGE_LENGTH + m_overwrite_length + RET_BRIDGE_LENGTH;
+	int code_len = BRIDGE_LENGTH + relocated_code_length
+	               + RET_BRIDGE_LENGTH;
 	uint8_t *side_code_area = side_code_area_manager::alloc(code_len);
 
 	// copy bridge code, orignal code and resume code
 	uint8_t *side_code_ptr = side_code_area;
 	memcpy(side_code_ptr, (void *)bridge_begin, BRIDGE_LENGTH);
 	side_code_ptr += BRIDGE_LENGTH;
-	memcpy(side_code_ptr, target_addr_ptr, m_overwrite_length);
-	side_code_ptr += m_overwrite_length;
+
+	// code relocation or simple copy
+	if (!relocated_opecode_list.empty()) {
+		list<opecode *>::iterator op = relocated_opecode_list.begin();
+		for (; op != relocated_opecode_list.end(); ++op) {
+			(*op)->relocate(side_code_ptr);
+			side_code_ptr += (*op)->get_relocated_code_length();
+		}
+	} else {
+		memcpy(side_code_ptr, target_addr_ptr, m_overwrite_length);
+		side_code_ptr += relocated_code_length;
+	}
+
 	memcpy(side_code_ptr, (void *)resume_begin, RET_BRIDGE_LENGTH);
 
 	// set the address to be executed after the probe is returned.
@@ -427,7 +453,7 @@ void probe::install(const mapped_lib_info *lib_info)
 	set_pseudo_push_parameter(side_code_ptr, (unsigned long)m_probe);
 
 	// set address to the original path
-	side_code_ptr = side_code_area + BRIDGE_LENGTH + m_overwrite_length;
+	side_code_ptr = side_code_area + BRIDGE_LENGTH + relocated_code_length;
 	uint8_t *dest_addr = (uint8_t *)target_addr_ptr + m_overwrite_length;
 	set_pseudo_push_parameter(side_code_ptr, (unsigned long)dest_addr);
 

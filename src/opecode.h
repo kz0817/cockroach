@@ -47,6 +47,8 @@ public:
 	void set_disp(opecode_disp_t disp_type, uint32_t disp);
 	void set_immediate(opecode_imm_t imm_type, uint64_t imm);
 	void copy_code(uint8_t *addr);
+	int  get_relocated_code_length(void);
+	void relocate(uint8_t *dest_addr);
 };
 
 #endif // __x86_64__

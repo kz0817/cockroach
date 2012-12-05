@@ -81,6 +81,18 @@ void opecode::copy_code(uint8_t *addr)
 	memcpy(m_code, addr, m_length);
 }
 
+int  opecode::get_relocated_code_length(void)
+{
+	return m_length;
+}
+
+void opecode::relocate(uint8_t *dest_addr)
+{
+	if (m_length == 0)
+		ROACH_BUG("m_length: 0\n");
+	memcpy(dest_addr, m_code, m_length);
+}
+
 // --------------------------------------------------------------------------
 // private functions
 // --------------------------------------------------------------------------
