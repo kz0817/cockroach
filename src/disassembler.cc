@@ -94,10 +94,10 @@ static int parse_disp(opecode_disp_t disp_type, uint8_t *addr, opecode *op)
 {
 	int length = 0;
 	if (disp_type == DISP8) {
-		op->set_disp(disp_type, *addr);
+		op->set_disp(disp_type, *addr, addr);
 		length = 1;
 	} else if (disp_type == DISP32) {
-		op->set_disp(disp_type, *((uint32_t*)addr));
+		op->set_disp(disp_type, *((uint32_t*)addr), addr);
 		length = 4;
 	}
 	else

@@ -4,8 +4,9 @@
 #include "opecode_relocator.h"
 
 class rip_relative_relocator : public opecode_relocator {
+	int m_disp_offset; // offset of the DISP location from the opecode top
 public:
-	rip_relative_relocator(opecode *op);
+	rip_relative_relocator(opecode *op, int offset);
 	~rip_relative_relocator();
 
 	// virtual function

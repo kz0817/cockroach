@@ -50,7 +50,9 @@ public:
 	void add_prefix(int prefix);
 	void set_mod_rm(int mod, int reg, int r_m);
 	void set_sib_param(int ss, int index, int base);
-	void set_disp(opecode_disp_t disp_type, uint32_t disp);
+	void set_disp(opecode_disp_t disp_type, uint32_t disp,
+	              uint8_t *disp_orig_addr);
+	uint32_t get_disp(void) const;
 	void set_immediate(opecode_imm_t imm_type, uint64_t imm);
 	void copy_code(uint8_t *addr);
 	opecode_relocator *get_relocator(void);

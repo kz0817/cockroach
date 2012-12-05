@@ -76,18 +76,26 @@ void opecode::set_sib_param(int ss, int index, int base)
 	m_sib_base = base;
 }
 
-void opecode::set_disp(opecode_disp_t disp_type, uint32_t disp)
+void opecode::set_disp(opecode_disp_t disp_type, uint32_t disp,
+                       uint8_t *disp_orig_addr)
 {
 	// chkeck if RIP relative addressing
 	if (m_mod_rm_mod == -1 || m_mod_rm_r_m == -1) {
-		ROACH_BUG("Mod or R/M have not been set: %d, %d\n", 
+		ROACH_BUG("Mod or R/M have not been set: %d, %d\n",
 		          m_mod_rm_mod, m_mod_rm_r_m == -1);
 	}
-	if (m_mod_rm_mod == 0 && m_mod_rm_r_m == 5)
-		m_relocator = new rip_relative_relocator(this);
+	if (m_mod_rm_mod == 0 && m_mod_rm_r_m == 5) {
+		int offset = (int)(disp_orig_addr - m_original_addr);
+		m_relocator = new rip_relative_relocator(this, offset);
+	}
 
 	m_disp_type = disp_type;
 	m_disp = disp;
+}
+
+uint32_t opecode::get_disp(void) const
+{
+	return m_disp;
 }
 
 void opecode::set_immediate(opecode_imm_t imm_type, uint64_t imm)
