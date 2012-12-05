@@ -19,7 +19,8 @@ opecode::opecode(void)
   m_disp_type(DISP_NONE),
   m_disp(0),
   m_immediate_type(IMM_INVALID),
-  m_immediate(0)
+  m_immediate(0),
+  m_relocator(NULL)
 {
 }
 
@@ -27,6 +28,8 @@ opecode::~opecode()
 {
 	if (m_code)
 		delete [] m_code;
+	if (m_relocator)
+		delete m_relocator;
 }
 
 void opecode::inc_length(int length)
