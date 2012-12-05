@@ -1,6 +1,7 @@
 #ifndef rip_relative_relocator_h
 #define rip_relative_relocator_h
 
+#ifdef __x86_64__
 #include "opecode_relocator.h"
 
 class rip_relative_relocator : public opecode_relocator {
@@ -14,6 +15,7 @@ public:
 	//int get_max_code_length(void);
 };
 
+#endif // __x86_64__
 #endif
 
 

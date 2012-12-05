@@ -1,5 +1,6 @@
-#include <cstdio>
+#ifdef __x86_64__
 
+#include <cstdio>
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
@@ -42,3 +43,5 @@ int rip_relative_relocator::get_max_code_length(void)
 	ROACH_BUG("Not implemented\n");
 	return 0;
 }*/
+
+#endif // __x86_64__
