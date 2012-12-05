@@ -110,22 +110,24 @@ static const instr_info instr_info_rex_w = {
 };
 
 // 0x83 Immediate Group 1 (MI)
-static void parser_imm_grp1_ev_ib(opecode *op, uint8_t *code)
+static void parser_imm_grp1_Ev_Ib(opecode *op, uint8_t *code)
 {
-	const mod_rm_info_t *mod_rm_info = parse_mod_rm(*code, op);
+	//const mod_rm_info_t *mod_rm_info = parse_mod_rm(*code, op);
+	parse_mod_rm(*code, op);
+	// TODO: Should check SIB ?
 	code++;
 	uint8_t imm = parse_immediate8(code, op);
 	op->set_immediate(IMM8, imm);
 	code++;
 }
 
-static const instr_info instr_info_imm_grp1_ev_b = {
+static const instr_info instr_info_imm_grp1_Ev_Ib = {
 	1,
-	parser_imm_grp1_ev_ib,
+	parser_imm_grp1_Ev_Ib,
 };
 
 // 0x89 MOV
-static void parser_mov_ev_gv(opecode *op, uint8_t *code)
+static void parser_mov_Ev_Gv(opecode *op, uint8_t *code)
 {
 	const mod_rm_info_t *mod_rm_info = parse_mod_rm(*code, op);
 	code++;
@@ -137,9 +139,9 @@ static void parser_mov_ev_gv(opecode *op, uint8_t *code)
 		code += parse_disp(mod_rm_info->disp_type, code, op);
 }
 
-static const instr_info instr_info_mov_ev_gv = {
+static const instr_info instr_info_mov_Ev_Gv = {
 	1,
-	parser_mov_ev_gv,
+	parser_mov_Ev_Gv,
 };
 
 // 0xc3 RET
@@ -305,13 +307,13 @@ static const instr_info *first_byte_instr_array[0x100] =
 	NULL,                         // 0x80
 	NULL,                         // 0x81
 	NULL,                         // 0x82
-	&instr_info_imm_grp1_ev_b,    // 0x83
+	&instr_info_imm_grp1_Ev_Ib,   // 0x83
 	NULL,                         // 0x84
 	NULL,                         // 0x85
 	NULL,                         // 0x86
 	NULL,                         // 0x87
 	NULL,                         // 0x88
-	&instr_info_mov_ev_gv,        // 0x89
+	&instr_info_mov_Ev_Gv,        // 0x89
 	NULL,                         // 0x8a
 	NULL,                         // 0x8b
 	NULL,                         // 0x8c
