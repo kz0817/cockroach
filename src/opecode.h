@@ -13,6 +13,14 @@ enum opecode_disp_t {
 	DISP32,
 };
 
+enum opecode_imm_t {
+	IMM_INVALID,
+	IMM8,
+	IMM16,
+	IMM32,
+	IMM64,
+};
+
 class opecode {
 	int      m_length;
 	uint8_t *m_code;
@@ -22,7 +30,9 @@ class opecode {
 	int      m_sib_index;
 	int      m_sib_base;
 	opecode_disp_t m_disp_type;
-	int      m_disp;
+	uint32_t       m_disp;
+	opecode_imm_t m_immediate_type;
+	uint64_t      m_immediate;
 public:
 	opecode(void);
 	virtual ~opecode();
@@ -32,8 +42,8 @@ public:
 	void add_prefix(int prefix);
 	void set_mod_rm_reg(int reg);
 	void set_sib_param(int ss, int index, int base);
-	void set_disp_type(opecode_disp_t disp_type);
-	void set_disp(int);
+	void set_disp(opecode_disp_t disp_type, uint32_t disp);
+	void set_immediate(opecode_imm_t imm_type, uint64_t imm);
 	void copy_code(uint8_t *addr);
 };
 

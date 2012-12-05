@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstring>
 #include "opecode.h"
+#include "utils.h"
 
 #ifdef __x86_64__
 // --------------------------------------------------------------------------
@@ -16,7 +17,9 @@ opecode::opecode(void)
   m_sib_index(-1),
   m_sib_base(-1),
   m_disp_type(DISP_NONE),
-  m_disp(-1)
+  m_disp(0),
+  m_immediate_type(IMM_INVALID),
+  m_immediate(0)
 {
 }
 
@@ -53,18 +56,22 @@ void opecode::set_sib_param(int ss, int index, int base)
 	m_sib_base = base;
 }
 
-void opecode::set_disp_type(opecode_disp_t disp_type)
+void opecode::set_disp(opecode_disp_t disp_type, uint32_t disp)
 {
 	m_disp_type = disp_type;
+	m_disp = disp;
 }
 
-void opecode::set_disp(int disp)
+void opecode::set_immediate(opecode_imm_t imm_type, uint64_t imm)
 {
-	m_disp = disp;
+	m_immediate_type = imm_type;
+	m_immediate = imm;
 }
 
 void opecode::copy_code(uint8_t *addr)
 {
+	if (m_length == 0)
+		ROACH_BUG("m_length: 0\n");
 	if (m_code)
 		delete [] m_code;
 	m_code = new uint8_t[m_length];
