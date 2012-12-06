@@ -31,7 +31,7 @@ src/cockroach-time-measure-tool
 .deps/
 Makefile
 Makefile.in
-test/helper_bin
+test/helper-bin
 test/*.o
 test/*.la
 test/*.lo
