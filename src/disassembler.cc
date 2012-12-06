@@ -30,6 +30,11 @@ static const mod_rm_info_t mod_rm_disp32 = {
 	DISP32,
 };
 
+static const mod_rm_info_t mod_rm_ecx_disp8 = {
+	false,
+	DISP8,
+};
+
 static const mod_rm_info_t mod_rm_sib_disp8 = {
 	true,
 	DISP8,
@@ -55,7 +60,7 @@ static const mod_rm_info_t *mod_rm_matrix[4][8] =
 	{NULL, NULL, NULL, NULL,
 	 NULL, &mod_rm_disp32, NULL, NULL},
 
-	{NULL, NULL, NULL, NULL,
+	{NULL, &mod_rm_ecx_disp8, NULL, NULL,
 	 &mod_rm_sib_disp8, NULL, NULL, NULL},
 
 	{NULL, NULL, NULL, NULL,
@@ -159,15 +164,37 @@ static const instr_info instr_info_rex_w = {
 };
 
 
+// 0x53 PUSH
+static void parser_push_rBXr11(opecode *op, uint8_t *code)
+{
+	// no operand
+}
+
+static const instr_info instr_info_push_rBXr11 = {
+	1,
+	parser_push_rBXr11,
+};
+
 // 0x54 PUSH
 static void parser_push_rSPr12(opecode *op, uint8_t *code)
 {
-	code = parse_operand(op, code);
+	// no operand
 }
 
 static const instr_info instr_info_push_rSPr12 = {
 	1,
 	parser_push_rSPr12,
+};
+
+// 0x55 PUSH
+static void parser_push_rBPr13(opecode *op, uint8_t *code)
+{
+	// no operand
+}
+
+static const instr_info instr_info_push_rBPr13 = {
+	1,
+	parser_push_rBPr13,
 };
 
 // 0x83 Immediate Group 1 (MI): sub, cmp
@@ -308,8 +335,6 @@ static const instr_info *first_byte_instr_array[0x100] =
 	&instr_info_push_ax,          // 0x50
 	&instr_info_push_cx,          // 0x51
 	&instr_info_push_dx,          // 0x52
-	&instr_info_push_bx,          // 0x53
-	&instr_info_push_bp,          // 0x55
 	&instr_info_push_si,          // 0x56
 	&instr_info_push_di,          // 0x57
 	&instr_info_pop_ax,           // 0x58
@@ -324,9 +349,9 @@ static const instr_info *first_byte_instr_array[0x100] =
 	NULL,                         // 0x50
 	NULL,                         // 0x51
 	NULL,                         // 0x52
-	NULL,                         // 0x53
+	&instr_info_push_rBXr11,      // 0x53
 	&instr_info_push_rSPr12,      // 0x54
-	NULL,                         // 0x55
+	&instr_info_push_rBPr13,      // 0x55
 	NULL,                         // 0x56
 	NULL,                         // 0x57
 	NULL,                         // 0x58
