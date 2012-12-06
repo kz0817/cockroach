@@ -62,7 +62,7 @@ static void remap_shm_window(uint64_t should_include_index, uint64_t shm_size)
 {
 	if (g_shm_window_addr) {
 		if (munmap(g_shm_window_addr, g_shm_window_size) == -1) {
-			ROACH_ERR("Failed: sem_post: %d\n", errno);
+			ROACH_ERR("Failed: munmap: %d\n", errno);
 			ROACH_ABORT();
 		}
 	}
@@ -70,7 +70,7 @@ static void remap_shm_window(uint64_t should_include_index, uint64_t shm_size)
 	int page_size = utils::get_page_size();
 	g_shm_window_offset = (should_include_index / page_size) * page_size;
 
-	size_t g_shm_window_size = SHM_WINDOW_SIZE;
+	g_shm_window_size = SHM_WINDOW_SIZE;
 	size_t shm_remain_size = shm_size - g_shm_window_offset;
 	if (g_shm_window_size > shm_remain_size)
 		g_shm_window_size = shm_remain_size;

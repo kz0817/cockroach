@@ -354,9 +354,10 @@ const char *probe::get_target_lib_path(void)
 #ifdef __x86_64__
 void probe::install(const mapped_lib_info *lib_info)
 {
-	printf("install: %s: %08lx, @ %016lx, %d\n",
-	       lib_info->get_path(), m_offset_addr, lib_info->get_addr(),
-	       m_overwrite_length);
+	ROACH_INFO("install: %s: mapped: %08lx, func addr: %016lx, "
+	           "overwrite len: %d\n",
+	           lib_info->get_path(), m_offset_addr, lib_info->get_addr(),
+	           m_overwrite_length);
 	// basic variables
 	unsigned long target_addr = lib_info->get_addr() +  m_offset_addr;
 	void *target_addr_ptr = (void *)target_addr;
