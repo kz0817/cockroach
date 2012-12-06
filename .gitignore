@@ -5,6 +5,7 @@ INSTALL
 Makefile
 Makefile.in
 NEWS
+compile
 aclocal.m4
 autom4te.cache/
 config.guess
@@ -26,9 +27,12 @@ src/Makefile.in
 src/*.o
 src/*.la
 src/*.lo
+src/cockroach-time-measure-tool
 .deps/
 Makefile
 Makefile.in
-test/target
+test/helper_bin
 test/*.o
+test/*.la
+test/*.lo
 test/*.swp
