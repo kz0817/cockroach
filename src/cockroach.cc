@@ -33,23 +33,26 @@ public:
 
 cockroach::cockroach(void)
 {
-	printf("started cockroach (%s)\n", __DATE__);
+	// Init original funcs
+	utils::init_original_func_addr_table();
+
+	ROACH_INFO("started cockroach (%s)\n", __DATE__);
 	g_orig_dlopen = (void *(*)(const char *, int))dlsym(RTLD_NEXT, "dlopen");
 	if (!g_orig_dlopen) {
-		printf("Failed to call dlsym() for dlopen.\n");
+		ROACH_ERR("Failed to call dlsym() for dlopen.\n");
 		exit(EXIT_FAILURE);
 	}
 
 	g_orig_dlclose = (int (*)(void *))dlsym(RTLD_NEXT, "dlclose");
 	if (!g_orig_dlclose) {
-		printf("Failed to call dlsym() for dlclose.\n");
+		ROACH_ERR("Failed to call dlsym() for dlclose.\n");
 		exit(EXIT_FAILURE);
 	}
 
 	// parse recipe file
 	char *recipe_file = getenv("COCKROACH_RECIPE");
 	if (!recipe_file) {
-		printf("Not defined environment variable: COCKROACH_RECIPE\n");
+		ROACH_ERR("Not defined environment variable: COCKROACH_RECIPE\n");
 		exit(EXIT_FAILURE);
 	}
 	parse_recipe(recipe_file);
@@ -69,9 +72,9 @@ cockroach::cockroach(void)
 void cockroach::parse_time_measurement(vector<string> &tokens)
 {
 	if (tokens.size() != 4) {
-		printf("Invalid format: tokens(%zd) != 3\n", tokens.size());
+		ROACH_ERR("Invalid format: tokens(%zd) != 3\n", tokens.size());
 		for (size_t i = 0; i < tokens.size(); i++) {
-			printf("[%zd] %s\n", i, tokens[i].c_str());
+			ROACH_ERR("[%zd] %s\n", i, tokens[i].c_str());
 		}
 		exit(EXIT_FAILURE);
 	}
@@ -90,7 +93,8 @@ void cockroach::parse_one_recipe(const char *line)
 	if (tokens[0] == "T")
 		parse_time_measurement(tokens);
 	else {
-		printf("Unknown command: '%s' : %s\n", tokens[0].c_str(), line);
+		ROACH_ERR("Unknown command: '%s' : %s\n",
+		          tokens[0].c_str(), line);
 		exit(EXIT_FAILURE);
 	}
 
@@ -100,13 +104,13 @@ void cockroach::parse_one_recipe(const char *line)
 	unsigned long target_addr = 0;
 	if (utils::is_hex_number(sym_or_addr.c_str())) {
 		if (sscanf(sym_or_addr.c_str(), "%lx", &target_addr) != 1) {
-			printf("Failed to parse address: %s: %s", 
-			       target_lib.c_str(), sym_or_addr.c_str());
+			ROACH_ERR("Failed to parse address: %s: %s", 
+			          target_lib.c_str(), sym_or_addr.c_str());
 			exit(EXIT_FAILURE);
 		}
 	} else {
-		printf("Currently symbol is not implemented. "
-		       "Please specify address. %s: %s\n",
+		ROACH_ERR("Currently symbol is not implemented. "
+		          "Please specify address. %s: %s\n",
 		       target_lib.c_str(), sym_or_addr.c_str());
 		exit(EXIT_FAILURE);
 	}
@@ -135,8 +139,8 @@ void cockroach::parse_recipe(const char *recipe_file)
 	                                     cockroach::_parse_one_recipe,
 	                                     this);
 	if (!ret) {
-		printf("Failed to parse recipe file: %s (%d)\n", recipe_file,
-		       errno);
+		ROACH_ERR("Failed to parse recipe file: %s (%d)\n", recipe_file,
+		          errno);
 		exit(EXIT_FAILURE);
 	}
 }

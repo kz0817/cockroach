@@ -93,8 +93,10 @@ static void open_shm_if_needed(void)
 	pthread_mutex_lock(&g_shm_window_mutex);
 	// check again because other thread might open the shm while
 	// in pthread_mutex_lock().
-	if (g_shm_header)
+	if (g_shm_header) {
+		pthread_mutex_unlock(&g_shm_window_mutex);
 		return;
+	}
 
 	g_shm_fd = shm_open(COCKROACH_TIME_MEASURE_SHM_NAME, O_RDWR, 0644);
 	if (g_shm_fd == -1) {

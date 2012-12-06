@@ -5,7 +5,12 @@
 #include <string>
 using namespace std;
 
+#include <stdarg.h>
+
 #define ROACH_ABORT() utils::abort()
+
+#define ROACH_INFO(fmt, ...) \
+utils::message(__FILE__, __LINE__, "INFO", fmt, ##__VA_ARGS__)
 
 #define ROACH_ERR(fmt, ...) \
 utils::message(__FILE__, __LINE__, "ERR", fmt, ##__VA_ARGS__)
@@ -18,8 +23,19 @@ do { \
 
 typedef void (*one_line_parser_t)(const char *line, void *arg);
 
+struct cockroach_original_func_addr_table_t {
+	int (*printf)(const char *format, ...);
+	int (*vprintf)(const char *format, va_list ap); 
+};
+
 class utils {
+	static cockroach_original_func_addr_table_t *m_original_func_table;
+
+	static void *get_func_addr(const char *symbol);
 public:
+	static void init_original_func_addr_table(void);
+	static cockroach_original_func_addr_table_t
+	  *get_original_func_addr_table(void);
 	static vector<string> split(const char *line, const char separator = ' ');
 	static string get_basename(string &path);
 	static string get_basename(const char *path);

@@ -6,7 +6,43 @@ using namespace std;
 #include <unistd.h>
 #include <sys/types.h> 
 #include <syscall.h>
+#include <dlfcn.h>
 #include "utils.h"
+
+cockroach_original_func_addr_table_t *utils::m_original_func_table = NULL;
+
+void *utils::get_func_addr(const char *symbol)
+{
+	void *ptr = dlsym(RTLD_NEXT, symbol);
+	if (!ptr)
+		ROACH_ABORT();
+	return ptr;
+}
+
+void utils::init_original_func_addr_table(void)
+{
+	// this function must be called once
+	if (m_original_func_table)
+		ROACH_ABORT();
+
+	m_original_func_table = new cockroach_original_func_addr_table_t();
+	if (!m_original_func_table)
+		ROACH_ABORT();
+
+	m_original_func_table->printf =
+	  (int (*)(const char *, ...))get_func_addr("printf");
+
+	m_original_func_table->vprintf =
+	  (int (*)(const char *, va_list))get_func_addr("vprintf"); 
+}
+
+cockroach_original_func_addr_table_t *utils::get_original_func_addr_table(void)
+{
+	// this function must be called once
+	if (m_original_func_table)
+		ROACH_ABORT();
+	return m_original_func_table;
+}
 
 vector<string> utils::split(const char *line, const char separator)
 {
@@ -99,10 +135,10 @@ int utils::get_page_size(void)
 void utils::message(const char *file, int line, const char *header,
                     const char *fmt, ...)
 {
-	printf("[%s] <%s:%d> ", header, file, line);
+	(*m_original_func_table->printf)("[%s] <%s:%d> ", header, file, line);
 	va_list ap;
 	va_start(ap, fmt); 
-	vprintf(fmt, ap);
+	(*m_original_func_table->vprintf)(fmt, ap);
 	va_end(ap);
 }
 

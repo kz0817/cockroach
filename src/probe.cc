@@ -477,21 +477,40 @@ void probe::install(const mapped_lib_info *lib_info)
 typedef map<uint8_t *, probe_func_t> ret_probe_func_map_t;
 typedef ret_probe_func_map_t::iterator ret_probe_func_map_itr;
 
+typedef queue<uint8_t *> ret_probe_bridge_queue_t;
+
 static pthread_mutex_t
   g_ret_probe_bridge_queue_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t
   g_ret_probe_func_map_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-static queue<uint8_t *> g_ret_probe_bridge_queue;
-static ret_probe_func_map_t g_ret_probe_func_map;
+//
+// The following two functions may be called before main().
+// They avoid static variable from being used without initialization.
+// i.e. The instance as a simple global variable may cause a problem
+//      when it is used before main().
+//
+static ret_probe_func_map_t &get_ret_probe_func_map(void)
+{
+	static ret_probe_func_map_t ret_probe_func_map;
+	return ret_probe_func_map;
+}
+
+static ret_probe_bridge_queue_t &get_ret_probe_bridge_queue(void)
+{
+	static ret_probe_bridge_queue_t ret_probe_bridge_queue;
+	return ret_probe_bridge_queue;
+}
 
 static uint8_t *get_ret_probe_bridge(void)
 {
 	uint8_t *ret = NULL;
+	ret_probe_bridge_queue_t &ret_probe_bridge_queue
+	  = get_ret_probe_bridge_queue();
 	pthread_mutex_lock(&g_ret_probe_bridge_queue_mutex);
-	if (!g_ret_probe_bridge_queue.empty()) {
-		ret = g_ret_probe_bridge_queue.front();
-		g_ret_probe_bridge_queue.pop();
+	if (!ret_probe_bridge_queue.empty()) {
+		ret = ret_probe_bridge_queue.front();
+		ret_probe_bridge_queue.pop();
 	}
 	pthread_mutex_unlock(&g_ret_probe_bridge_queue_mutex);
 	return ret;
@@ -500,7 +519,7 @@ static uint8_t *get_ret_probe_bridge(void)
 static void release_ret_probe_bridge(uint8_t *ret_probe_bridge)
 {
 	pthread_mutex_lock(&g_ret_probe_bridge_queue_mutex);
-	g_ret_probe_bridge_queue.push(ret_probe_bridge);
+	get_ret_probe_bridge_queue().push(ret_probe_bridge);
 	pthread_mutex_unlock(&g_ret_probe_bridge_queue_mutex);
 }
 
@@ -508,15 +527,16 @@ static void ret_probe_dispatcher(probe_arg_t *arg,
                                  uint8_t *ret_probe_bridge)
 {
 	ret_probe_func_map_itr it;
+	ret_probe_func_map_t &ret_probe_func_map = get_ret_probe_func_map();
 	pthread_mutex_lock(&g_ret_probe_func_map_mutex);
-	it = g_ret_probe_func_map.find(ret_probe_bridge);
-	if (it == g_ret_probe_func_map.end()) {
+	it = ret_probe_func_map.find(ret_probe_bridge);
+	if (it == ret_probe_func_map.end()) {
 		ROACH_ERR("Not found : ret_probe_bridge: %p\n",
 		          ret_probe_bridge);
 		abort();
 	}
 	probe_func_t probe = it->second;
-	g_ret_probe_func_map.erase(it);
+	ret_probe_func_map.erase(it);
 	pthread_mutex_unlock(&g_ret_probe_func_map_mutex);
 
 	// execute the return probe
@@ -583,14 +603,15 @@ void cockroach_set_return_probe(probe_func_t probe, probe_arg_t *arg)
 
 	// regist the return probe information to the map
 	ret_probe_func_map_itr it;
+	ret_probe_func_map_t &ret_probe_func_map = get_ret_probe_func_map();
 	pthread_mutex_lock(&g_ret_probe_func_map_mutex);
-	it = g_ret_probe_func_map.find(ret_probe_bridge);
-	if (it != g_ret_probe_func_map.end()) {
+	it = ret_probe_func_map.find(ret_probe_bridge);
+	if (it != ret_probe_func_map.end()) {
 		ROACH_ERR("Already registered: ret_probe_bridge: %p\n",
 		          ret_probe_bridge);
 		abort();
 	}
-	g_ret_probe_func_map[ret_probe_bridge] = probe;
+	ret_probe_func_map[ret_probe_bridge] = probe;
 	pthread_mutex_unlock(&g_ret_probe_func_map_mutex);
 }
 #endif // __x86_64__
