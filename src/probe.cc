@@ -250,17 +250,19 @@ void probe::overwrite_jump_rel32(void *target_addr, void *jump_abs_addr,
 	change_page_permission_all(target_addr, copy_code_size);
 	uint8_t *code = (uint8_t *)target_addr;
 
-	// fill jump instruction
-	*code = OPCODE_JMP_REL;
-	code++;
-
-	// fill address
+	// calculate relative address
 	int64_t rel_addr = (uint64_t)jump_abs_addr
 	                   - (uint64_t)(code + LEN_OPCODE_JMP_REL32);
 	if (rel_addr > INT32_MAX || rel_addr < INT32_MIN) {
 		ROACH_ERR("Invalid: rel_addr: %"PRId64"\n", rel_addr);
 		ROACH_ABORT();
 	}
+
+	// fill jump instruction
+	*code = OPCODE_JMP_REL;
+	code++;
+
+	// fill address
 	*((uint32_t *)code) = (uint32_t)rel_addr;
 	code += sizeof(uint32_t);
 }
@@ -460,6 +462,7 @@ void probe::install(const mapped_lib_info *lib_info)
 	               + relocated_code_length + relocated_data_length
 	               + RET_BRIDGE_LENGTH;
 	uint8_t *side_code_area = side_code_area_manager::alloc(code_len);
+	ROACH_DBG("side_code: %p\n", side_code_area);
 
 	// copy bridge code, orignal code and resume code
 	uint8_t *side_code_ptr = side_code_area;
