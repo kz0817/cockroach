@@ -82,6 +82,7 @@ void cockroach::parse_time_measurement(vector<string> &tokens)
 
 void cockroach::parse_one_recipe(const char *line)
 {
+	probe_type probe_type;
 	// strip head spaces
 	vector<string> tokens = utils::split(line);
 	if (tokens.empty())
@@ -90,8 +91,13 @@ void cockroach::parse_one_recipe(const char *line)
 	if (tokens[0].at(0) == '#') // comment line
 		return;
 
-	if (tokens[0] == "T")
+	if (tokens[0] == "T") {
+		probe_type = PROBE_TYPE_OVERWRITE_ABS64_JUMP;
 		parse_time_measurement(tokens);
+	} else if (tokens[0] == "t") {
+		probe_type = PROBE_TYPE_OVERWRITE_REL32_JUMP;
+		parse_time_measurement(tokens);
+	}
 	else {
 		ROACH_ERR("Unknown command: '%s' : %s\n",
 		          tokens[0].c_str(), line);
@@ -118,7 +124,7 @@ void cockroach::parse_one_recipe(const char *line)
 	int overwrite_length = atoi(tokens[3].c_str());
 
 	// register probe
-	probe probe(PROBE_TYPE_OVERWRITE_ABS64_JUMP);
+	probe probe(probe_type);
 	probe.set_target_address(target_lib.c_str(), target_addr,
 	                         overwrite_length);
 	probe.set_probe(NULL, roach_time_measure_probe,

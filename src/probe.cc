@@ -11,6 +11,12 @@ using namespace std;
 #include <errno.h>
 #include <dlfcn.h>
 
+#define __STDC_LIMIT_MACROS 
+#include <stdint.h>
+
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 #include "utils.h"
 #include "probe.h"
 #include "side_code_area_manager.h"
@@ -221,21 +227,43 @@ void probe::change_page_permission_all(void *addr, int len)
 }
 
 #ifdef __x86_64__
-/*
-void overwrite_rel32_jump_code(uint8_t *code, void *jump_abs_addr)
+void probe::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
+                                int copy_code_size)
 {
+	if (m_type == PROBE_TYPE_OVERWRITE_ABS64_JUMP) {
+		overwrite_jump_abs64(target_addr, jump_abs_addr,
+		                     copy_code_size);
+	} else if (m_type == PROBE_TYPE_OVERWRITE_REL32_JUMP) {
+		overwrite_jump_rel32(target_addr, jump_abs_addr,
+		                     copy_code_size);
+	} else {
+		ROACH_BUG("Unknown m_type: %d\n", m_type);
+	}
+}
+
+void probe::overwrite_jump_rel32(void *target_addr, void *jump_abs_addr,
+                                 int copy_code_size)
+{
+	change_page_permission_all(target_addr, copy_code_size);
+	uint8_t *code = (uint8_t *)target_addr;
+
 	// fill jump instruction
 	*code = OPCODE_JMP_REL;
 	code++;
 
 	// fill address
-	uint32_t rel_addr = jump_abs_addr - (code + LEN_OPCODE_JMP_REL);
-	*((uint32_t *)code) = rel_addr;
+	int64_t rel_addr = (uint64_t)jump_abs_addr
+	                   - (uint64_t)(code + LEN_OPCODE_JMP_REL32);
+	if (rel_addr > INT32_MAX || rel_addr < INT32_MIN) {
+		ROACH_ERR("Invalid: rel_addr: %"PRId64"\n", rel_addr);
+		ROACH_ABORT();
+	}
+	*((uint32_t *)code) = (uint32_t)rel_addr;
 	code += sizeof(uint32_t);
-}*/
+}
 
-void probe::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
-                                int copy_code_size)
+void probe::overwrite_jump_abs64(void *target_addr, void *jump_abs_addr,
+                                 int copy_code_size)
 {
 	change_page_permission_all(target_addr, copy_code_size);
 
