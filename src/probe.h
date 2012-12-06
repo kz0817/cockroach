@@ -50,11 +50,12 @@ class probe {
 	void change_page_permission_all(void *addr, int len);
 	void overwrite_jump_code(void *intrude_addr, void *jump_abs_addr,
 	                         int copy_code_size);
-	void overwrite_jump_abs64(void *target_addr, void *jump_abs_addr,
-	                          int copy_code_size);
-	void overwrite_jump_rel32(void *target_addr, void *jump_abs_addr,
-	                          int copy_code_size);
+	uint8_t *overwrite_jump_abs64(uint8_t *code, void *jump_abs_addr,
+	                              int copy_code_size);
+	uint8_t *overwrite_jump_rel32(uint8_t *code, void *jump_abs_addr,
+	                              int copy_code_size);
 	int get_minimum_overwrite_length(void);
+	int get_overwrite_code_length(void);
 public:
 	probe(probe_type type);
 	void set_target_address(const char *target_lib_path, unsigned long addr,

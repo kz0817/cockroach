@@ -11,7 +11,7 @@ using namespace std;
 #include <errno.h>
 #include <dlfcn.h>
 
-#define __STDC_LIMIT_MACROS 
+#define __STDC_LIMIT_MACROS
 #include <stdint.h>
 
 #define __STDC_FORMAT_MACROS
@@ -233,23 +233,37 @@ void probe::change_page_permission_all(void *addr, int len)
 void probe::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
                                 int copy_code_size)
 {
+	change_page_permission_all(target_addr, copy_code_size);
+
+	// calculate the count of nop, which should be filled
+	int idx;
+	int len_nops = copy_code_size - probe::get_overwrite_code_length();
+	if (len_nops < 0) {
+		ROACH_ERR("len_nops is zero or negaitve: %d (%d)\n",
+		          copy_code_size, OPCODES_LEN_OVERWRITE_JUMP);
+		ROACH_ABORT();
+	}
+	uint8_t *code = reinterpret_cast<uint8_t*>(target_addr);
+
+	// fill jump instruction(s)
 	if (m_type == PROBE_TYPE_OVERWRITE_ABS64_JUMP) {
-		overwrite_jump_abs64(target_addr, jump_abs_addr,
-		                     copy_code_size);
+		code = overwrite_jump_abs64(code, jump_abs_addr,
+		                            copy_code_size);
 	} else if (m_type == PROBE_TYPE_OVERWRITE_REL32_JUMP) {
-		overwrite_jump_rel32(target_addr, jump_abs_addr,
-		                     copy_code_size);
+		code = overwrite_jump_rel32(code, jump_abs_addr,
+		                            copy_code_size);
 	} else {
 		ROACH_BUG("Unknown m_type: %d\n", m_type);
 	}
+
+	// fill NOP instructions
+	for (idx = 0; idx < len_nops; idx++, code++)
+		*code = OPCODE_NOP;
 }
 
-void probe::overwrite_jump_rel32(void *target_addr, void *jump_abs_addr,
-                                 int copy_code_size)
+uint8_t *probe::overwrite_jump_rel32(uint8_t *code, void *jump_abs_addr,
+                                     int copy_code_size)
 {
-	change_page_permission_all(target_addr, copy_code_size);
-	uint8_t *code = (uint8_t *)target_addr;
-
 	// calculate relative address
 	int64_t rel_addr = (uint64_t)jump_abs_addr
 	                   - (uint64_t)(code + LEN_OPCODE_JMP_REL32);
@@ -265,23 +279,13 @@ void probe::overwrite_jump_rel32(void *target_addr, void *jump_abs_addr,
 	// fill address
 	*((uint32_t *)code) = (uint32_t)rel_addr;
 	code += sizeof(uint32_t);
+
+	return code;
 }
 
-void probe::overwrite_jump_abs64(void *target_addr, void *jump_abs_addr,
-                                 int copy_code_size)
+uint8_t *probe::overwrite_jump_abs64(uint8_t *code, void *jump_abs_addr,
+                                     int copy_code_size)
 {
-	change_page_permission_all(target_addr, copy_code_size);
-
-	// calculate the count of nop, which should be filled
-	int idx;
-	int len_nops = copy_code_size - OPCODES_LEN_OVERWRITE_JUMP;;
-	if (len_nops < 0) {
-		ROACH_ERR("len_nops is zero or negaitve: %d (%d)\n",
-		          copy_code_size, OPCODES_LEN_OVERWRITE_JUMP);
-		abort();
-	}
-	uint8_t *code = reinterpret_cast<uint8_t*>(target_addr);
-
 	// push $rax
 	*code = OPCODE_PUSH_RAX;
 	code++;
@@ -302,32 +306,8 @@ void probe::overwrite_jump_abs64(void *target_addr, void *jump_abs_addr,
 	*code = OPCODE_JMP_ABS_RAX_1;
 	code++;
 
-	// fill NOP instructions
-	for (idx = 0; idx < len_nops; idx++, code++)
-		*code = OPCODE_NOP;
+	return code;
 }
-
-/*
-void overwrite_rel32_jump_code(void *target_addr, void *jump_abs_addr,
-                               int copy_code_size)
-{
-	change_page_permission_all(target_addr, copy_code_size);
-
-	// calculate the count of nop, which should be filled
-	int idx;
-	int len_nops = copy_code_size - LEN_OPCODE_JMP_REL;
-	if (len_nops < 0) {
-		EMPL_P(BUG, "len_nops is negaitve: %d, %d\n",
-		       overwrite_code_size, LenRelCall);
-		abort();
-	}
-	uint8_t *code = reinterpret_cast<uint8_t*>(target_addr);
-
-
-	// fill NOP instructions
-	for (idx = 0; idx < len_nops; idx++, code++)
-		*code = OPCODE_NOP;
-}*/
 
 label_func_t probe::get_bridge_begin_addr(void)
 {
@@ -339,6 +319,18 @@ label_func_t probe::get_bridge_begin_addr(void)
 	ROACH_BUG("Unknown m_type: %d\n", m_type);
 	return NULL;
 }
+
+int probe::get_overwrite_code_length(void)
+{
+	if (m_type == PROBE_TYPE_OVERWRITE_ABS64_JUMP)
+		return OPCODES_LEN_OVERWRITE_JUMP;
+	else if (m_type == PROBE_TYPE_OVERWRITE_REL32_JUMP) {
+		return LEN_OPCODE_JMP_REL32;
+	}
+	ROACH_BUG("Unknown m_type: %d\n", m_type);
+	return -1;
+}
+
 
 #endif // __x86_64__
 
