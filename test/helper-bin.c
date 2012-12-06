@@ -48,8 +48,8 @@ int main(int argc, char *argv[])
 		printf("Hello, World: %d\n", count++);
 		printf("Hello, World: %d\n", count++);
 	}
-	else if (strcmp(first_arg, "targets_func1") == 0) {
-		printf("%d\n", func1(1,2));
+	else if (strcmp(first_arg, "func1") == 0) {
+		printf("%d", func1(1,2));
 	}
 
 	return EXIT_SUCCESS;
