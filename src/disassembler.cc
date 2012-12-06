@@ -197,6 +197,20 @@ static const instr_info instr_info_push_rBPr13 = {
 	parser_push_rBPr13,
 };
 
+// 0x81 Immediate Group 1 (MI): sub, cmp
+static void parser_imm_grp1_Ev_Iz(opecode *op, uint8_t *code)
+{
+	code = parse_operand(op, code);
+	uint8_t imm = parse_immediate32(code, op);
+	op->set_immediate(IMM32, imm);
+	code += 4;
+}
+
+static const instr_info instr_info_imm_grp1_Ev_Iz = {
+	1,
+	parser_imm_grp1_Ev_Iz,
+};
+
 // 0x83 Immediate Group 1 (MI): sub, cmp
 static void parser_imm_grp1_Ev_Ib(opecode *op, uint8_t *code)
 {
@@ -398,7 +412,7 @@ static const instr_info *first_byte_instr_array[0x100] =
 	NULL,                         // 0x7f
 
 	NULL,                         // 0x80
-	NULL,                         // 0x81
+	&instr_info_imm_grp1_Ev_Iz,   // 0x81
 	NULL,                         // 0x82
 	&instr_info_imm_grp1_Ev_Ib,   // 0x83
 	NULL,                         // 0x84
