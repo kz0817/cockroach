@@ -9,6 +9,9 @@ using namespace std;
 
 #define ROACH_ABORT() utils::abort()
 
+#define ROACH_DBG(fmt, ...) \
+utils::message(__FILE__, __LINE__, "DBG", fmt, ##__VA_ARGS__)
+
 #define ROACH_INFO(fmt, ...) \
 utils::message(__FILE__, __LINE__, "INFO", fmt, ##__VA_ARGS__)
 

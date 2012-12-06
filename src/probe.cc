@@ -354,7 +354,7 @@ const char *probe::get_target_lib_path(void)
 #ifdef __x86_64__
 void probe::install(const mapped_lib_info *lib_info)
 {
-	ROACH_INFO("install: %s: mapped: %08lx, func addr: %016lx, "
+	ROACH_INFO("install: %s: func: %08lx, mapped addr: %016lx, "
 	           "overwrite len: %d\n",
 	           lib_info->get_path(), m_offset_addr, lib_info->get_addr(),
 	           m_overwrite_length);

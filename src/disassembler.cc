@@ -563,7 +563,7 @@ static const instr_info *first_byte_instr_array[0x100] =
 opecode *disassembler::parse(uint8_t *code_start)
 {
 	uint8_t *code = code_start;
-	printf("A0: %p\n", code_start);
+	ROACH_DBG("BEGIN: %p\n", code_start);
 	opecode *op = new opecode(code_start);
 	while (true) {
 		const instr_info *instr = first_byte_instr_array[*code];
@@ -586,7 +586,7 @@ opecode *disassembler::parse(uint8_t *code_start)
 		break;
 	}
 	op->copy_code(code_start);
-	printf("AZ: length: %d\n", op->get_length());
+	ROACH_DBG("END: length: %d\n", op->get_length());
 	return op;
 }
 
