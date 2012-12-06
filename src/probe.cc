@@ -77,6 +77,7 @@ void _bridge_template(void)
 {
 	asm volatile("bridge_begin:");
 	asm volatile("pop %rax");
+	asm volatile("bridge_begin_no_pop_ax:");
 
 	// the return address of the probe
 	PSEUDO_PUSH("bridge_set_post_probe_addr:");
@@ -108,6 +109,7 @@ void _bridge_template(void)
 	asm volatile("bridge_end:");
 }
 extern "C" void bridge_begin(void);
+extern "C" void bridge_begin_no_pop_ax(void);
 extern "C" void bridge_set_post_probe_addr(void);
 extern "C" void bridge_set_private_data(void);
 extern "C" void probe_call_set_ret_addr(void);
@@ -125,7 +127,8 @@ void _resume_template(void)
 extern "C" void resume_begin(void);
 extern "C" void resume_end(void);
 
-#define OFFSET_BRIDGE(label) utils::calc_func_distance(bridge_begin, label)
+#define OFFSET_BRIDGE(label) \
+utils::calc_func_distance(get_bridge_begin_addr(), label)
 
 void _ret_probe_bridge_template(void)
 {
@@ -324,6 +327,17 @@ void overwrite_rel32_jump_code(void *target_addr, void *jump_abs_addr,
 		*code = OPCODE_NOP;
 }*/
 
+label_func_t probe::get_bridge_begin_addr(void)
+{
+	if (m_type == PROBE_TYPE_OVERWRITE_ABS64_JUMP)
+		return bridge_begin;
+	else if (m_type == PROBE_TYPE_OVERWRITE_REL32_JUMP) {
+		return bridge_begin_no_pop_ax;
+	}
+	ROACH_BUG("Unknown m_type: %d\n", m_type);
+	return NULL;
+}
+
 #endif // __x86_64__
 
 int probe::get_minimum_overwrite_length(void)
@@ -437,19 +451,20 @@ void probe::install(const mapped_lib_info *lib_info)
 	// --------------------------------------------------------------------
 
 	// check if the patch for the same address has already been registered.
-	static const int BRIDGE_LENGTH =
-	  utils::calc_func_distance(bridge_begin, bridge_end);
+	label_func_t bridge_begin_addr = get_bridge_begin_addr();
+	int bridge_length =
+	  utils::calc_func_distance(bridge_begin_addr, bridge_end);
 	static const int RET_BRIDGE_LENGTH =
 	  utils::calc_func_distance(resume_begin, resume_end);
-	int code_len = BRIDGE_LENGTH
+	int code_len = bridge_length
 	               + relocated_code_length + relocated_data_length
 	               + RET_BRIDGE_LENGTH;
 	uint8_t *side_code_area = side_code_area_manager::alloc(code_len);
 
 	// copy bridge code, orignal code and resume code
 	uint8_t *side_code_ptr = side_code_area;
-	memcpy(side_code_ptr, (void *)bridge_begin, BRIDGE_LENGTH);
-	side_code_ptr += BRIDGE_LENGTH;
+	memcpy(side_code_ptr, (void *)bridge_begin_addr, bridge_length);
+	side_code_ptr += bridge_length;
 
 	// code relocation or simple copy
 	if (!relocated_opecode_list.empty()) {
@@ -490,7 +505,7 @@ void probe::install(const mapped_lib_info *lib_info)
 	set_pseudo_push_parameter(side_code_ptr, (unsigned long)m_probe);
 
 	// set address to the original path
-	side_code_ptr = side_code_area + BRIDGE_LENGTH + relocated_code_length;
+	side_code_ptr = side_code_area + bridge_length + relocated_code_length;
 	uint8_t *dest_addr = (uint8_t *)target_addr_ptr + m_overwrite_length;
 	set_pseudo_push_parameter(side_code_ptr, (unsigned long)dest_addr);
 

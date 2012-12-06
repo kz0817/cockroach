@@ -8,6 +8,8 @@ using namespace std;
 #include "cockroach-probe.h"
 #include "mapped_lib_info.h"
 
+typedef void (*label_func_t)(void);
+
 #ifdef __x86_64__
 // push %rax (1); mov $adrr,%rax (10); push *%rax (2);
 #define OPCODES_LEN_OVERWRITE_JUMP 13
@@ -43,6 +45,7 @@ class probe {
 	void             *m_probe_priv_data;
 
 	// methods
+	label_func_t get_bridge_begin_addr();
 	void change_page_permission(void *addr);
 	void change_page_permission_all(void *addr, int len);
 	void overwrite_jump_code(void *intrude_addr, void *jump_abs_addr,
