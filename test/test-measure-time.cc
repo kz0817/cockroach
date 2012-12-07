@@ -25,6 +25,8 @@ void test_func1(void)
 	cppcut_assert_equal(TRUE, ret);
 	cppcut_assert_equal(0, EXIT_SUCCESS);
 	cut_assert_equal_string("3", std_output);
+
+	testutil::assert_measured_time(1);
 }
 
 }

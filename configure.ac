@@ -1,14 +1,10 @@
-AC_INIT(cockroach, 0.0.1)
+AC_INIT(cockroach, 0.1.0)
 AM_INIT_AUTOMAKE()
 AC_CONFIG_MACRO_DIR([m4])
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
 AC_PROG_CXX
 AM_PROG_CC_C_O
-
-dnl glib (for test)
-GLIB_REQUIRED=2.22
-PKG_CHECK_MODULES(GLIB, glib-2.0 >= $GLIB_REQUIRED)
 
 dnl cutter
 CUTTER_REQUIRED=1.1.7
@@ -31,6 +27,13 @@ if test "$ac_cv_use_cutter" != "no"; then
   AC_DEFINE(WITH_CUTTER, 1, [Define to 1 if you use Cutter])
   have_cutter=yes
 fi
+
+dnl glib (for test)
+if test "$have_cutter" = "yes"; then
+  GLIB_REQUIRED=2.22
+  PKG_CHECK_MODULES(GLIB, glib-2.0 >= $GLIB_REQUIRED)
+fi
+
 
 AC_OUTPUT([
 Makefile
