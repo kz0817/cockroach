@@ -28,10 +28,15 @@ if test "$ac_cv_use_cutter" != "no"; then
   have_cutter=yes
 fi
 
-dnl glib (for test)
 if test "$have_cutter" = "yes"; then
+  dnl glib (for test)
   GLIB_REQUIRED=2.22
   PKG_CHECK_MODULES(GLIB, glib-2.0 >= $GLIB_REQUIRED)
+
+  dnl boost (for test)
+  AC_LANG_PUSH([C++])
+  AC_CHECK_HEADERS([boost/foreach.hpp], [], [AC_MSG_ERROR(Not found Boost libraries.)])
+  AC_LANG_POP([C++])
 fi
 
 
