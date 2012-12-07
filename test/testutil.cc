@@ -4,6 +4,7 @@ using namespace std;
 
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/split.hpp>
+#include <boost/foreach.hpp>
 using namespace boost;
 
 #include <cppcutter.h>
@@ -25,8 +26,10 @@ testutil::exec_command(const char *command_line, string *std_output)
 		str_ptr = NULL;
 	ret = g_spawn_command_line_sync(command_line, str_ptr,
 	                                NULL, &exit_status, NULL);
-	if (std_output)
-		*std_output = *str_ptr;
+	if (std_output) {
+		*std_output = str;
+		g_free(str);
+	}
 	cppcut_assert_equal(TRUE, ret);
 	cppcut_assert_equal(EXIT_SUCCESS, exit_status);
 }
@@ -49,10 +52,10 @@ void testutil::assert_measured_time(int expected_num_line)
 {
 	string result = exec_time_measure_tool("list");
 	if (expected_num_line >= 0)
-		assert_num_lines(expected_num_line, result);
+		assert_measured_time_lines(expected_num_line, result);
 }
 
-void testutil::assert_num_lines(int expected_num_line, string &lines)
+void testutil::assert_measured_time_lines(int expected_num_line, string &lines)
 {
 	vector<string> split_lines;
 	split(split_lines, lines, is_any_of("\n"), token_compress_on); 
@@ -66,11 +69,28 @@ void testutil::assert_num_lines(int expected_num_line, string &lines)
 	}
 
 	cppcut_assert_equal(expected_num_line, (int)split_lines.size());
+	BOOST_FOREACH(string line, split_lines)
+		assert_measured_time_format(line);
 }
 
-/*void testutil::assert_measured_time_format(string &lines)
+void testutil::assert_measured_time_format(string &line)
 {
-}*/
+	vector<string> tokens;
+	split(tokens, line, is_any_of(" "), token_compress_on); 
+}
+
+string testutil::exec_helper(const char *recipe_path, const char *arg)
+{
+	setenv("LD_PRELOAD", "../src/.libs/cockroach.so", 1);
+	setenv("COCKROACH_RECIPE", recipe_path, 1);
+
+	string std_output;
+	string cmd = ".libs/lt-helper-bin ";
+	cmd += arg;
+	exec_command(cmd.c_str(),  &std_output);
+	return std_output;
+
+}
 
 // ---------------------------------------------------------------------------
 // Private methods
