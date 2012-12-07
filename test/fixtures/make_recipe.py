@@ -11,7 +11,7 @@ def make_measure_time():
 
   # output 
   print "# func1"
-  print "t libtargets.so.0 " + addr + " 0"
+  print "t libtargets.so.0.0.0 " + addr + " 0"
 
 command_map = {"measure-time":make_measure_time}
 
