@@ -75,9 +75,10 @@ void testutil::assert_measured_time_lines(int expected_num_line, string &lines)
 
 void testutil::assert_measured_time_format(string &line)
 {
+	static const int NUM_TIME_MEASURE_TOKENS = 5;
 	vector<string> tokens;
-	split(tokens, line, is_any_of(" "), token_compress_on); 
-	cut_fail("%s", __func__);
+	split(tokens, line, is_any_of(" "), token_compress_on);
+	cppcut_assert_equal(NUM_TIME_MEASURE_TOKENS, (int)tokens.size());
 }
 
 string testutil::exec_helper(const char *recipe_path, const char *arg)
