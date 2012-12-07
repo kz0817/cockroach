@@ -135,10 +135,11 @@ int utils::get_page_size(void)
 void utils::message(const char *file, int line, const char *header,
                     const char *fmt, ...)
 {
-	(*m_original_func_table->printf)("[%s] <%s:%d> ", header, file, line);
+	FILE *fp = stderr;
+	fprintf(fp, "[%s] <%s:%d> ", header, file, line);
 	va_list ap;
 	va_start(ap, fmt); 
-	(*m_original_func_table->vprintf)(fmt, ap);
+	vfprintf(fp, fmt, ap);
 	va_end(ap);
 }
 

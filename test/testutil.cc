@@ -77,6 +77,7 @@ void testutil::assert_measured_time_format(string &line)
 {
 	vector<string> tokens;
 	split(tokens, line, is_any_of(" "), token_compress_on); 
+	cut_fail("%s", __func__);
 }
 
 string testutil::exec_helper(const char *recipe_path, const char *arg)
