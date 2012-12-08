@@ -7,39 +7,69 @@ using namespace std;
 #include <boost/foreach.hpp>
 using namespace boost;
 
+#include <sys/types.h> 
+#include <sys/wait.h>
 #include <cppcutter.h>
+#include <gcutter.h>
 #include <glib.h>
 
 #include "testutil.h"
+
+
+exec_command_arg::exec_command_arg()
+: save_stdout(false),
+  save_stderr(false),
+  argv(NULL),
+  envp(NULL),
+  working_dir(NULL),
+  child_setup(NULL),
+  user_data(NULL),
+  child_pid(0),
+  error(NULL),
+  status(0)
+{
+}
+
+exec_command_arg::~exec_command_arg()
+{
+	if (error)
+		g_error_free(error);
+}
 
 // ---------------------------------------------------------------------------
 // Public methods
 // ---------------------------------------------------------------------------
 void
-testutil::exec_command(const char *command_line, string *std_output)
+testutil::exec_command(exec_command_arg *arg)
 {
+	// exec
 	gboolean ret;
-	gint exit_status;
-	gchar *str;
-	gchar **str_ptr = &str;
-	if (std_output == NULL)
-		str_ptr = NULL;
-	ret = g_spawn_command_line_sync(command_line, str_ptr,
-	                                NULL, &exit_status, NULL);
-	if (std_output) {
-		*std_output = str;
-		g_free(str);
-	}
+	int fd_stdin, fd_stdout, fd_stderr;
+	GSpawnFlags flags = (GSpawnFlags)
+	                    (G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD);
+	ret = g_spawn_async_with_pipes(arg->working_dir,
+	                               (gchar **)arg->argv,
+	                               (gchar **)arg->envp,
+	                               flags,
+	                               arg->child_setup, arg->user_data,
+	                               &arg->child_pid,
+	                               &fd_stdin, &fd_stdout, &fd_stderr,
+	                               &arg->error);
+	gcut_assert_error(arg->error);
 	cppcut_assert_equal(TRUE, ret);
-	cppcut_assert_equal(EXIT_SUCCESS, exit_status);
+	waitpid(arg->child_pid, &arg->status, 0);
+	cppcut_assert_equal(EXIT_SUCCESS, WEXITSTATUS(arg->status));
+	g_spawn_close_pid(arg->child_pid);
 }
 
 string testutil::exec_time_measure_tool(const char *arg)
 {
 	string result;
-	string command_line = "../src/cockroach-time-measure-tool ";
-	command_line += arg;
-	exec_command(command_line.c_str(), &result);
+	const gchar *cmd = "../src/cockroach-time-measure-tool";
+	exec_command_arg exec_arg;
+	const char *argv[] = {cmd, arg, NULL};
+	exec_arg.argv = argv;
+	exec_command(&exec_arg);
 	return result;
 }
 
@@ -86,11 +116,12 @@ string testutil::exec_helper(const char *recipe_path, const char *arg)
 	setenv("LD_PRELOAD", "../src/.libs/cockroach.so", 1);
 	setenv("COCKROACH_RECIPE", recipe_path, 1);
 
-	string std_output;
-	string cmd = ".libs/lt-helper-bin ";
-	cmd += arg;
-	exec_command(cmd.c_str(),  &std_output);
-	return std_output;
+	const char *cmd = ".libs/lt-helper-bin";
+	const char *argv[] = {cmd, arg, NULL};
+	exec_command_arg exec_arg;
+	exec_arg.argv = argv;
+	exec_command(&exec_arg);
+	return exec_arg.stdout_str;
 
 }
 
