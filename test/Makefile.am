@@ -31,7 +31,7 @@ helper_bin_LDADD = ./libtargets.la
 
 # Testers
 libtestutil_la_SOURCES = testutil.cc
-libtestutil_la_LDFLAGS = $(NORM_LIB_LDFLAGS)
+libtestutil_la_LDFLAGS = $(NORM_LIB_LDFLAGS) -lboost_thread-mt
 
 test_measure_time_la_SOURCES = test-measure-time.cc
 test_measure_time_la_LIBADD = ./libtestutil.la

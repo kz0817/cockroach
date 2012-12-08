@@ -18,9 +18,10 @@ void teardown(void)
 
 void test_func1(void)
 {
-	string std_out = testutil::exec_helper(recipe_file, "func1");
-	cut_assert_equal_string("3", std_out.c_str());
-	testutil::assert_measured_time(1);
+	exec_command_info exec_info;
+	testutil::exec_helper(recipe_file, "func1", &exec_info);
+	cut_assert_equal_string("3", exec_info.stdout_str.c_str());
+	testutil::assert_measured_time(1, exec_info.child_pid);
 }
 
 }
