@@ -5,6 +5,8 @@
 using namespace std;
 
 #include <errno.h>
+#include <limits.h>
+#include <unistd.h>
 
 #include "mapped_lib_manager.h"
 #include "utils.h"
@@ -49,8 +51,9 @@ void mapped_lib_manager::parse_mapped_lib_line(const char *line)
 	unsigned long length = end_addr - start_addr;
 
 	// add to the maps
+	bool is_exe = (path == m_exe_path);
 	mapped_lib_info *lib_info
-	  = new mapped_lib_info(path.c_str(), start_addr, length);
+	  = new mapped_lib_info(path.c_str(), start_addr, length, is_exe);
 
 	m_lib_info_path_map[lib_info->get_path()] = lib_info;
 	m_lib_info_filename_map[lib_info->get_filename()] = lib_info;
@@ -67,10 +70,22 @@ void mapped_lib_manager::_parse_mapped_lib_line(const char *line, void *arg)
 // --------------------------------------------------------------------------
 mapped_lib_manager::mapped_lib_manager()
 {
+	// get the executable path
+	const static int BUF_LEN = PATH_MAX;
+	char buf[BUF_LEN];
+	ssize_t len = readlink("/proc/self/exe", buf, BUF_LEN);
+	if (len == -1) {
+		ROACH_ERR("Failed to readlink(\"/proc/self/exe\"): %d\n",
+		          errno);
+		ROACH_ABORT();
+	}
+	m_exe_path = string(buf, len);
+
+	// lookup mapped files
 	const char *map_file_path = "/proc/self/maps";
-	bool ret = utils::read_one_line_loop(map_file_path,
-	                                     mapped_lib_manager::_parse_mapped_lib_line,
-	                                     this);
+	bool ret = utils::read_one_line_loop
+	                   (map_file_path,
+	                    mapped_lib_manager::_parse_mapped_lib_line, this);
 	if (!ret) {
 		printf("Failed to parse recipe file: %s (%d)\n", map_file_path,
 		       errno);

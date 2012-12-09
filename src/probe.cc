@@ -268,7 +268,7 @@ uint8_t *probe::overwrite_jump_rel32(uint8_t *code, void *jump_abs_addr,
 	int64_t rel_addr = (uint64_t)jump_abs_addr
 	                   - (uint64_t)(code + LEN_OPCODE_JMP_REL32);
 	if (rel_addr > INT32_MAX || rel_addr < INT32_MIN) {
-		ROACH_ERR("Invalid: rel_addr: %"PRId64"\n", rel_addr);
+		ROACH_ERR("Invalid: rel_addr: %"PRIx64"\n", rel_addr);
 		ROACH_ABORT();
 	}
 
@@ -393,7 +393,9 @@ void probe::install(const mapped_lib_info *lib_info)
 	           lib_info->get_path(), m_offset_addr, lib_info->get_addr(),
 	           m_overwrite_length);
 	// basic variables
-	unsigned long target_addr = lib_info->get_addr() +  m_offset_addr;
+	unsigned long target_addr = m_offset_addr;
+	if (!lib_info->is_exe())
+		target_addr += lib_info->get_addr();
 	void *target_addr_ptr = (void *)target_addr;
 
 	// detect overwrite length if needed
