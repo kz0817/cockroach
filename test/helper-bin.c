@@ -51,6 +51,9 @@ int main(int argc, char *argv[])
 	else if (strcmp(first_arg, "func1") == 0) {
 		printf("%d", func1(1,2));
 	}
+	else if (strcmp(first_arg, "func1a") == 0) {
+		printf("%d", func1a(1,2));
+	}
 
 	return EXIT_SUCCESS;
 }

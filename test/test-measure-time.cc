@@ -16,16 +16,27 @@ void teardown(void)
 {
 }
 
-void test_func1(void)
+static void assert_func(const char *target_func, const char *expected_stdout)
 {
-	const char *target_func = "func1";
 	exec_command_info exec_info;
 	testutil::exec_test_helper(recipe_file, target_func, &exec_info);
-	cut_assert_equal_string("3", exec_info.stdout_str.c_str());
+	cut_assert_equal_string(expected_stdout, exec_info.stdout_str.c_str());
 
 	target_probe_info probe_info(exec_info.child_pid,
 	                             recipe_file, target_func);
 	testutil::assert_measured_time(1, &probe_info);
+}
+
+// rel 32bit
+void test_func1(void)
+{
+	assert_func("func1", "3");
+}
+
+// abs 64bit
+void test_func1a(void)
+{
+	assert_func("func1a", "3");
 }
 
 }

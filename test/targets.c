@@ -8,7 +8,7 @@ int func1(int a, int b)
 }
 
 // test for abs 64bit probe
-int func1x(int a, int b)
+int func1a(int a, int b)
 {
-	return (a + b) * a;
+	return (a + b) * (a + a) * a / b;
 }

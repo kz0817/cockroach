@@ -15,6 +15,7 @@ def make_measure_time_one(func_name):
 
 def make_measure_time():
     make_measure_time_one("func1")
+    make_measure_time_one("func1a")
 
 command_map = {"measure-time":make_measure_time}
 

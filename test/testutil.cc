@@ -92,7 +92,7 @@ unsigned long target_probe_info::get_target_addr(void)
 			continue;
 		if (tokens[0] != "#")
 			continue;
-		if (tokens[1] == m_target_func);
+		if (tokens[1] == m_target_func)
 			next_line_should_have_defs = true;
 	}
 	cut_fail("Not found: %s in %s\n", m_target_func, m_recipe_file);
