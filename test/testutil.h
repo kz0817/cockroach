@@ -6,10 +6,6 @@ using namespace std;
 
 #include <glib.h>
 
-class reader_thread {
-public:
-};
-
 struct exec_command_info {
 	// intput
 	bool save_stdout;
@@ -32,6 +28,12 @@ struct exec_command_info {
 	~exec_command_info();
 };
 
+struct target_probe_info {
+	pid_t pid;
+	const char *recipe_file;
+	const char *target_func;
+};
+
 class testutil {
 	
 	static void add_test_libs_dir_to_ld_library_path_if_needed(void);
@@ -41,12 +43,13 @@ public:
 	static void exec_time_measure_tool(const char *arg,
 	                                   exec_command_info *exec_info);
 	static void reset_time_list(void);
-	static void assert_measured_time(int expected_num_line, pid_t pid);
+	static void assert_measured_time(int expected_num_line,
+	                                 target_probe_info *probe_info);
 	static void assert_measured_time_lines(int expected_num_line,
 	                                       string &lines,
-	                                       pid_t expected_pid);
+	                                       target_probe_info *probe_info);
 	static void assert_measured_time_format(string &line,
-	                                        pid_t expected_pid);
+	                                        target_probe_info *probe_info);
 	static void exec_test_helper(const char *recipe_path, const char *arg,
 	                             exec_command_info *exec_info);
 };

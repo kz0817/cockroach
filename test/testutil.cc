@@ -110,18 +110,19 @@ void testutil::reset_time_list(void)
 }
 
 void testutil::assert_measured_time(int expected_num_line,
-                                    pid_t expected_pid)
+                                    target_probe_info *probe_info)
 {
 	exec_command_info exec_info;
 	exec_time_measure_tool("list", &exec_info);
 	if (expected_num_line >= 0) {
 		assert_measured_time_lines(expected_num_line,
-		                           exec_info.stdout_str, expected_pid);
+		                           exec_info.stdout_str, probe_info);
 	}
 }
 
 void testutil::assert_measured_time_lines(int expected_num_line,
-                                          string &lines, pid_t expected_pid)
+                                          string &lines,
+                                          target_probe_info *probe_info)
 {
 	vector<string> split_lines;
 	split(split_lines, lines,
@@ -137,10 +138,11 @@ void testutil::assert_measured_time_lines(int expected_num_line,
 
 	cppcut_assert_equal(expected_num_line, (int)split_lines.size());
 	BOOST_FOREACH(string line, split_lines)
-		assert_measured_time_format(line, expected_pid);
+		assert_measured_time_format(line, probe_info);
 }
 
-void testutil::assert_measured_time_format(string &line, pid_t expected_pid)
+void testutil::assert_measured_time_format(string &line,
+                                           target_probe_info *probe_info)
 {
 	static const int NUM_TIME_MEASURE_TOKENS = 5;
 	static const int IDX_PID_MEASURED_TIME_LIST = 3;
@@ -150,7 +152,7 @@ void testutil::assert_measured_time_format(string &line, pid_t expected_pid)
 	cppcut_assert_equal(NUM_TIME_MEASURE_TOKENS, (int)tokens.size());
 
 	// pid
-	string pid_str = (format("%d") % expected_pid).str();
+	string pid_str = (format("%d") % probe_info->pid).str();
 	cut_assert_equal_string(pid_str.c_str(),
 	                        tokens[IDX_PID_MEASURED_TIME_LIST].c_str());
 
