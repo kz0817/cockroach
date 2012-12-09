@@ -156,9 +156,10 @@ void testutil::assert_measured_time_format(string &line, pid_t expected_pid)
 
 }
 
-void testutil::exec_helper(const char *recipe_path, const char *arg,
-                             exec_command_info *exec_info)
+void testutil::exec_test_helper(const char *recipe_path, const char *arg,
+                                exec_command_info *exec_info)
 {
+	add_test_libs_dir_to_ld_library_path_if_needed();
 	setenv("LD_PRELOAD", "../src/.libs/cockroach.so", 1);
 	setenv("COCKROACH_RECIPE", recipe_path, 1);
 
@@ -173,11 +174,25 @@ void testutil::exec_helper(const char *recipe_path, const char *arg,
 // ---------------------------------------------------------------------------
 // Private methods
 // ---------------------------------------------------------------------------
-static void add_dot_libs_to_ld_library_path_if_needed(void)
+void testutil::add_test_libs_dir_to_ld_library_path_if_needed(void)
 {
+	const static char *TEST_LIBS_DIR = ".libs";
 	char *env = getenv("LD_LIBRARY_PATH");
-	cut_fail("Now under construction...");
-	/*if (env) {
-		vector<string> paths = split(env, ":");
-	}*/
+	if (!env) {
+		setenv("LD_LIBRARY_PATH", TEST_LIBS_DIR, 1);
+		return;
+	}
+
+	// check if the path has already been set
+	set<string> path_set;
+	split(path_set, env, is_any_of(":"));
+	set<string>::iterator path_it = path_set.find("");
+	if (path_it != path_set.end() && *path_it == TEST_LIBS_DIR)
+		return; // already set
+
+	// add the test libs path
+	string new_path = env;
+	new_path += ":";
+	new_path += TEST_LIBS_DIR;
+	setenv("LD_LIBRARY_PATH", new_path.c_str(), 1);
 }

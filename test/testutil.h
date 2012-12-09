@@ -34,7 +34,7 @@ struct exec_command_info {
 
 class testutil {
 	
-	static void add_dot_libs_to_ld_library_path_if_needed(void);
+	static void add_test_libs_dir_to_ld_library_path_if_needed(void);
 
 public:
 	static void exec_command(exec_command_info *arg);
@@ -47,8 +47,8 @@ public:
 	                                       pid_t expected_pid);
 	static void assert_measured_time_format(string &line,
 	                                        pid_t expected_pid);
-	static void exec_helper(const char *recipe_path, const char *arg,
-	                        exec_command_info *exec_info);
+	static void exec_test_helper(const char *recipe_path, const char *arg,
+	                             exec_command_info *exec_info);
 };
 
 #endif
