@@ -34,9 +34,9 @@ void test_func1(void)
 }
 
 // abs 64bit
-void test_func1a(void)
+void test_func1x(void)
 {
-	assert_func("func1a", "3");
+	assert_func("func1x", "3");
 }
 
 }

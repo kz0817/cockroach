@@ -76,7 +76,7 @@ unsigned long target_probe_info::get_target_addr(void)
 		split(tokens, read_buffer, is_any_of(" "));
 
 		if (next_line_should_have_defs) {
-			const static size_t IDX_TARGET_ADDR = 2;
+			const static size_t IDX_TARGET_ADDR = 3;
 			if (tokens.size() <= IDX_TARGET_ADDR) {
 				cut_fail("Unexpected line: %s\n",
 				         read_buffer.c_str());

@@ -345,7 +345,7 @@ int probe::get_minimum_overwrite_length(void)
 // --------------------------------------------------------------------------
 // public functions
 // --------------------------------------------------------------------------
-probe(probe_type_t probe_type, install_type_t install_type)
+probe::probe(probe_type_t probe_type, install_type_t install_type)
 : m_probe_type(probe_type),
   m_install_type(install_type),
   m_offset_addr(0),

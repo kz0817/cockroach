@@ -176,7 +176,7 @@ static void roach_time_measure_ret_probe(probe_arg_t *arg)
 extern "C"
 void roach_time_measure_probe_init(probe_init_arg_t *arg)
 {
-	time_measure_data *priv =new time_measure_data();
+	time_measure_data *priv = new time_measure_data();
 	priv->target_addr = arg->target_addr;
 	priv->pid = getpid();
 	arg->priv_data = priv;

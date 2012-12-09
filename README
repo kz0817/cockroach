@@ -2,12 +2,14 @@ Cockroach is a probe utility tool. It can insert probes at the specified
 address according to a configuration file called a recipe file.
 
 <Features>
-* No need to recompile target program with certain options or libraries.
-* Overhead to call probe is very small by using jump instruction, not
+* No need to recompile a target program with certain options or libraries.
+* Low overhead to call probes by using a jump instruction, not
   processor exceptions or trap instructionsd.
 * Can install a probe soon after a function is return.
-* Built-in time measurement probe measures the time of execution of a function.
-  With the feature, cockroach can be used as profilers.
+* Can skip an execution of the target function after the probe is executed.
+  This enables users to replace a function into the user's prepared function.
+* Built-in time measurement probe measures the execution time of a function.
+  With the feature, cockroach can be used as a profiler.
 
 <Currently supported platforms>
 * x86_64(amd64)
