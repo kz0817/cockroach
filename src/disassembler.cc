@@ -53,6 +53,11 @@ static const mod_rm_info_t mod_rm_eax = {
 	DISP_NONE,
 };
 
+static const mod_rm_info_t mod_rm_edx = {
+	false,
+	DISP_NONE,
+};
+
 static const mod_rm_info_t mod_rm_ebx = {
 	false,
 	DISP_NONE,
@@ -79,7 +84,7 @@ static const mod_rm_info_t *mod_rm_matrix[4][8] =
 	{NULL, NULL, NULL, NULL,
 	 NULL, NULL, NULL, NULL},
 
-	{&mod_rm_eax, NULL, NULL, &mod_rm_ebx,
+	{&mod_rm_eax, NULL, &mod_rm_edx, &mod_rm_ebx,
 	 &mod_rm_esp, NULL, NULL, &mod_rm_edi},
 };
 
