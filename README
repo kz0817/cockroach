@@ -5,7 +5,8 @@ address according to a configuration file called a recipe file.
 * No need to recompile a target program with certain options or libraries.
 * Low overhead to call probes by using a jump instruction, not
   processor exceptions such as a trap instruction.
-* Can install a probe soon after a function is return.
+* Can install a probe at an arbitray address of the code.
+* Can install probes both at the top of and the end of the function.
 * Can skip an execution of the target function after the probe is executed.
   This enables users to replace a function into the user's prepared function.
 * Built-in time measurement probe measures the execution time of a function.

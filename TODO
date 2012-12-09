@@ -1,5 +1,8 @@
 * try to map within +/-2GB from the target when REL32.
+* support symbol in a recipe file.
 * test cases for disassembler.
-* support more assembly code.
+* support targets loaded later.
+* makes short bridge code by split into a normal function.
+* add more disassembly code.
 * support user probe.
 * support i386.
