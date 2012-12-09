@@ -162,7 +162,7 @@ void testutil::exec_helper(const char *recipe_path, const char *arg,
 	setenv("LD_PRELOAD", "../src/.libs/cockroach.so", 1);
 	setenv("COCKROACH_RECIPE", recipe_path, 1);
 
-	const char *cmd = ".libs/lt-helper-bin";
+	const char *cmd = ".libs/helper-bin";
 	const char *argv[] = {cmd, arg, NULL};
 	exec_info->argv = argv;
 	exec_info->save_stdout = true;
@@ -173,3 +173,11 @@ void testutil::exec_helper(const char *recipe_path, const char *arg,
 // ---------------------------------------------------------------------------
 // Private methods
 // ---------------------------------------------------------------------------
+static void add_dot_libs_to_ld_library_path_if_needed(void)
+{
+	char *env = getenv("LD_LIBRARY_PATH");
+	cut_fail("Now under construction...");
+	/*if (env) {
+		vector<string> paths = split(env, ":");
+	}*/
+}

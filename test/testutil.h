@@ -33,6 +33,8 @@ struct exec_command_info {
 };
 
 class testutil {
+	
+	static void add_dot_libs_to_ld_library_path_if_needed(void);
 
 public:
 	static void exec_command(exec_command_info *arg);
