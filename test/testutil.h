@@ -28,10 +28,16 @@ struct exec_command_info {
 	~exec_command_info();
 };
 
-struct target_probe_info {
-	pid_t pid;
-	const char *recipe_file;
-	const char *target_func;
+class target_probe_info {
+	pid_t m_pid;
+	const char *m_recipe_file;
+	const char *m_target_func;
+
+public:
+	target_probe_info(pid_t pid, const char *recipe_file,
+	                  const char *target_func);
+	unsigned long get_target_addr(void);
+	pid_t get_pid(void);
 };
 
 class testutil {
@@ -39,6 +45,7 @@ class testutil {
 	static void add_test_libs_dir_to_ld_library_path_if_needed(void);
 
 public:
+	static long get_page_size(void);
 	static void exec_command(exec_command_info *arg);
 	static void exec_time_measure_tool(const char *arg,
 	                                   exec_command_info *exec_info);

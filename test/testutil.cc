@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <vector>
+#include <fstream>
 using namespace std;
 
 #include <boost/algorithm/string.hpp>
@@ -53,10 +54,60 @@ static void read_fd_thread(int fd, string &buf, int &errno_ret)
 }
 
 // ---------------------------------------------------------------------------
+// Class: target_probe_info
+// ---------------------------------------------------------------------------
+target_probe_info::target_probe_info(pid_t pid, const char *recipe_file,
+                                     const char *target_func)
+: m_pid(pid),
+  m_recipe_file(recipe_file),
+  m_target_func(target_func)
+{
+}
+
+unsigned long target_probe_info::get_target_addr(void)
+{
+	ifstream ifs(m_recipe_file);
+	if (!ifs)
+		cut_fail("Failed to open: %s", m_recipe_file);
+	string read_buffer;
+	bool next_line_should_have_defs = false;
+	while (getline(ifs, read_buffer)){
+		vector<string> tokens;
+		split(tokens, read_buffer, is_any_of(" "));
+
+		if (next_line_should_have_defs) {
+			const static size_t IDX_TARGET_ADDR = 2;
+			if (tokens.size() <= IDX_TARGET_ADDR) {
+				cut_fail("Unexpected line: %s\n",
+				         read_buffer.c_str());
+			}
+			unsigned long addr;
+			int num = sscanf(tokens[IDX_TARGET_ADDR].c_str(),
+			                 "%lx", &addr);
+			cppcut_assert_equal(1, num);
+			return addr;
+		}
+
+		if (tokens.size() < 2)
+			continue;
+		if (tokens[0] != "#")
+			continue;
+		if (tokens[1] == m_target_func);
+			next_line_should_have_defs = true;
+	}
+	cut_fail("Not found: %s in %s\n", m_target_func, m_recipe_file);
+	return 0;
+}
+
+pid_t target_probe_info::get_pid(void)
+{
+	return m_pid;
+}
+
+// ---------------------------------------------------------------------------
 // Public methods
 // ---------------------------------------------------------------------------
-void
-testutil::exec_command(exec_command_info *arg)
+void testutil::exec_command(exec_command_info *arg)
 {
 	// exec
 	gboolean ret;
@@ -145,14 +196,26 @@ void testutil::assert_measured_time_format(string &line,
                                            target_probe_info *probe_info)
 {
 	static const int NUM_TIME_MEASURE_TOKENS = 5;
-	static const int IDX_PID_MEASURED_TIME_LIST = 3;
+	//static const int IDX_TIME_MEASURED_TIME_LIST        = 0;
+	static const int IDX_TARGET_ADDR_MEASURED_TIME_LIST = 1;
+	//static const int IDX_RET_ADDR_MEASURED_TIME_LIST    = 2;
+	static const int IDX_PID_MEASURED_TIME_LIST         = 3;
 
 	vector<string> tokens;
 	split(tokens, line, is_any_of(" "), token_compress_on);
 	cppcut_assert_equal(NUM_TIME_MEASURE_TOKENS, (int)tokens.size());
 
+	// target address (just compare below a page file size)
+	unsigned long expected_target_addr = probe_info->get_target_addr();
+	expected_target_addr &= (get_page_size() - 1);
+	unsigned long actual_target_addr;
+	sscanf(tokens[IDX_TARGET_ADDR_MEASURED_TIME_LIST].c_str(),
+	       "%lx", &actual_target_addr);
+	actual_target_addr &= (get_page_size() - 1);
+	cppcut_assert_equal(expected_target_addr, actual_target_addr);
+
 	// pid
-	string pid_str = (format("%d") % probe_info->pid).str();
+	string pid_str = (format("%d") % probe_info->get_pid()).str();
 	cut_assert_equal_string(pid_str.c_str(),
 	                        tokens[IDX_PID_MEASURED_TIME_LIST].c_str());
 
@@ -170,7 +233,11 @@ void testutil::exec_test_helper(const char *recipe_path, const char *arg,
 	exec_info->argv = argv;
 	exec_info->save_stdout = true;
 	exec_command(exec_info);
+}
 
+long testutil::get_page_size(void)
+{
+	return sysconf(_SC_PAGESIZE);
 }
 
 // ---------------------------------------------------------------------------
