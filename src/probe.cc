@@ -246,14 +246,14 @@ void probe::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
 	uint8_t *code = reinterpret_cast<uint8_t*>(target_addr);
 
 	// fill jump instruction(s)
-	if (m_type == PROBE_TYPE_OVERWRITE_ABS64_JUMP) {
+	if (m_install_type == INSTALL_TYPE_OVERWRITE_ABS64_JUMP) {
 		code = overwrite_jump_abs64(code, jump_abs_addr,
 		                            copy_code_size);
-	} else if (m_type == PROBE_TYPE_OVERWRITE_REL32_JUMP) {
+	} else if (m_install_type == INSTALL_TYPE_OVERWRITE_REL32_JUMP) {
 		code = overwrite_jump_rel32(code, jump_abs_addr,
 		                            copy_code_size);
 	} else {
-		ROACH_BUG("Unknown m_type: %d\n", m_type);
+		ROACH_BUG("Unknown m_install_type: %d\n", m_install_type);
 	}
 
 	// fill NOP instructions
@@ -311,23 +311,21 @@ uint8_t *probe::overwrite_jump_abs64(uint8_t *code, void *jump_abs_addr,
 
 label_func_t probe::get_bridge_begin_addr(void)
 {
-	if (m_type == PROBE_TYPE_OVERWRITE_ABS64_JUMP)
+	if (m_install_type == INSTALL_TYPE_OVERWRITE_ABS64_JUMP)
 		return bridge_begin;
-	else if (m_type == PROBE_TYPE_OVERWRITE_REL32_JUMP) {
+	else if (m_install_type == INSTALL_TYPE_OVERWRITE_REL32_JUMP)
 		return bridge_begin_no_pop_ax;
-	}
-	ROACH_BUG("Unknown m_type: %d\n", m_type);
+	ROACH_BUG("Unknown install type: %d\n", m_install_type);
 	return NULL;
 }
 
 int probe::get_overwrite_code_length(void)
 {
-	if (m_type == PROBE_TYPE_OVERWRITE_ABS64_JUMP)
+	if (m_install_type == INSTALL_TYPE_OVERWRITE_ABS64_JUMP)
 		return OPCODES_LEN_OVERWRITE_JUMP;
-	else if (m_type == PROBE_TYPE_OVERWRITE_REL32_JUMP) {
+	else if (m_install_type == INSTALL_TYPE_OVERWRITE_REL32_JUMP)
 		return LEN_OPCODE_JMP_REL32;
-	}
-	ROACH_BUG("Unknown m_type: %d\n", m_type);
+	ROACH_BUG("Unknown install type: %d\n", m_install_type);
 	return -1;
 }
 
@@ -336,20 +334,20 @@ int probe::get_overwrite_code_length(void)
 
 int probe::get_minimum_overwrite_length(void)
 {
-	if (m_type == PROBE_TYPE_OVERWRITE_ABS64_JUMP)
+	if (m_install_type == INSTALL_TYPE_OVERWRITE_ABS64_JUMP)
 		return OPCODES_LEN_OVERWRITE_JUMP;
-	else if (m_type == PROBE_TYPE_OVERWRITE_REL32_JUMP)
+	else if (m_install_type == INSTALL_TYPE_OVERWRITE_REL32_JUMP)
 		return LEN_OPCODE_JMP_REL32;
-	ROACH_ERR("Unknown m_type: %d\n", m_type);
-	ROACH_ABORT();
+	ROACH_BUG("Unknown install type: %d\n", m_install_type);
 	return -1;
 }
 
 // --------------------------------------------------------------------------
 // public functions
 // --------------------------------------------------------------------------
-probe::probe(probe_type type)
-: m_type(type),
+probe(probe_type_t probe_type, install_type_t install_type)
+: m_probe_type(probe_type),
+  m_install_type(install_type),
   m_offset_addr(0),
   m_overwrite_length(0),
   m_overwrite_length_auto_detect(false),

@@ -25,14 +25,22 @@ typedef void (*label_func_t)(void);
 #define OPCODE_JMP_REL    0xe9
 #endif // __x86_64__
 
-enum probe_type {
-	PROBE_TYPE_OVERWRITE_ABS64_JUMP,
-	PROBE_TYPE_OVERWRITE_REL32_JUMP,
-	PROBE_TYPE_REPLACE_JUMP_ADDR,
+enum probe_type_t {
+	PROBE_TYPE_UNKNOWN,
+	PROBE_TYPE_BUILT_IN_TIME_MEASURE,
+	PROBE_TYPE_USER,
+};
+
+enum install_type_t {
+	INSTALL_TYPE_UNKNOWN,
+	INSTALL_TYPE_OVERWRITE_ABS64_JUMP,
+	INSTALL_TYPE_OVERWRITE_REL32_JUMP,
+	INSTALL_TYPE_REPLACE_JUMP_ADDR,
 };
 
 class probe {
-	probe_type m_type;
+	probe_type_t m_probe_type;
+	install_type_t m_install_type;
 	string m_target_lib_path;
 	string m_symbol_name;
 	unsigned long m_offset_addr;
@@ -57,7 +65,7 @@ class probe {
 	int get_minimum_overwrite_length(void);
 	int get_overwrite_code_length(void);
 public:
-	probe(probe_type type);
+	probe(probe_type_t probe_type, install_type_t install_type);
 	void set_target_address(const char *target_lib_path, unsigned long addr,
 	                        int overwrite_length = 0);
 	void set_probe(const char *probe_lib_path, probe_func_t probe,

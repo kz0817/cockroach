@@ -1,8 +1,19 @@
-Cockroach
-====
+Cockroach is a probe utility tool. It can insert probes at the specified
+address according to a configuration file called a recipe file.
 
-Cockroach is a probe utility. It can measure execution time of functions
-or a part of programs. It also can insert userdefined probes dynamically.
+<Features>
+* No need to recompile target program with certain options or libraries.
+* Overhead to call probe is very small by using jump instruction, not
+  processor exceptions or trap instructionsd.
+* Can install a probe soon after a function is return.
+* Built-in time measurement probe measures the time of execution of a function.
+  With the feature, cockroach can be used as profilers.
+
+<Currently supported platforms>
+* x86_64(amd64)
+
+<Planned to be supported>
+* i386
 
 ==============================
 How to build
@@ -20,17 +31,31 @@ $ LDPRELOAD=cockroach.so COCKROACH_RECIPE=<path>/recipe_file program args
 ==============================
 Format of recipe file
 ==============================
-# Meausre execution time: T dll_name symbol|offset(hex)
-T libc.so memset
-T libc.so 0000000000053840
+* command line
+probe_type install_type lib_name symbol|offset(hex) [save_instruction_size]
 
-# Probes: P dll_name symbol|offset(hex) probe_so probe_name
-P libc.so printf myprobe.so my_probe
+* comment line
+# A comment line begins from '#'
 
-==============================
-Recipe command
-==============================
-T: Time Measurement [64bit aboslute jumper (overwrite 13B)]
-t: Time Measurement [32bit relative jumper (overwrite 5B). rarely fails] <Not implemented>
-P: User define probe [64bit aboslute jumper (overwrite 13B)] <Not implemented>
-p: User define probe [32bit relative jumper (overwrite 5B). rarely fails] <Not implemented>
+[probe_type]
+T: Built-in Time Measurement probe
+P: User probe
+
+[install_type]
+REL32: overwrite relative 32bit jump code [overwrite 5B at the target address]
+ABS64: overwrite absolute 64bit jump code [overwrite 13B at the target address]
+
+[save_instruction_size]
+If this is given, the specified bytes from the target address are
+backed up to anothre memory region and executed after the probe is called.
+Of course, this size must equal to or be larger than the overwrite size
+(5B for REL32, 13B for ABS64) and be a boundary of instructions.
+If not given, cockroach try to calculate the size by perfoming disassemble
+the code (some instructions have not been implemented yet).
+
+<examples>
+# This is comment
+T REL32 libc.so 0000000000053840
+T ABS64 libc.so memset                     (Symbol is not implemented)
+P REL32 libc.so printf myprobe.so my_probe (User probe is not implemented)
+

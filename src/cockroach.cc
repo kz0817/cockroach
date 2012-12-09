@@ -26,7 +26,6 @@ class cockroach {
 	static void _parse_one_recipe(const char *line, void *arg);
 	void parse_recipe(const char *recipe_file);
 	void parse_one_recipe(const char *line);
-	void parse_time_measurement(vector<string> &tokens);
 public:
 	cockroach(void);
 };
@@ -69,44 +68,53 @@ cockroach::cockroach(void)
 	}
 }
 
-void cockroach::parse_time_measurement(vector<string> &tokens)
-{
-	if (tokens.size() != 4) {
-		ROACH_ERR("Invalid format: tokens(%zd) != 3\n", tokens.size());
-		for (size_t i = 0; i < tokens.size(); i++) {
-			ROACH_ERR("[%zd] %s\n", i, tokens[i].c_str());
-		}
-		exit(EXIT_FAILURE);
-	}
-}
-
 void cockroach::parse_one_recipe(const char *line)
 {
-	probe_type probe_type;
+	size_t idx = 0;
 	// strip head spaces
 	vector<string> tokens = utils::split(line);
 	if (tokens.empty())
 		return;
 
-	if (tokens[0].at(0) == '#') // comment line
+	// check if this is the comment line
+	if (tokens[idx].at(0) == '#') // comment line
 		return;
 
-	if (tokens[0] == "T") {
-		probe_type = PROBE_TYPE_OVERWRITE_ABS64_JUMP;
-		parse_time_measurement(tokens);
-	} else if (tokens[0] == "t") {
-		probe_type = PROBE_TYPE_OVERWRITE_REL32_JUMP;
-		parse_time_measurement(tokens);
+	// probe type
+	probe_type_t probe_type = PROBE_TYPE_UNKNOWN;
+	string &probe_type_def = tokens[idx];
+	if (probe_type_def == "T") {
+		probe_type = PROBE_TYPE_BUILT_IN_TIME_MEASURE;
+	} else if (probe_type_def == "P") {
+		probe_type = PROBE_TYPE_USER;
+		ROACH_BUG("User probe has not been implemented.\n");
 	}
+	else {
+		ROACH_ERR("Unknown probe_type: '%s' : %s\n",
+		          probe_type_def.c_str(), line);
+		ROACH_ABORT();
+	}
+	idx++;
+
+	// install type
+	install_type_t install_type = INSTALL_TYPE_UNKNOWN;;
+	string &install_type_def = tokens[idx];
+	if (install_type_def == "ABS64")
+		install_type = INSTALL_TYPE_OVERWRITE_ABS64_JUMP;
+	else if (install_type_def == "REL32")
+		install_type = INSTALL_TYPE_OVERWRITE_REL32_JUMP;
 	else {
 		ROACH_ERR("Unknown command: '%s' : %s\n",
 		          tokens[0].c_str(), line);
-		exit(EXIT_FAILURE);
+		ROACH_ABORT();
 	}
+	idx++;
 
 	// target address
-	string &target_lib = tokens[1];
-	string &sym_or_addr = tokens[2];
+	string &target_lib = tokens[idx];
+	idx++;
+	string &sym_or_addr = tokens[idx];
+	idx++;
 	unsigned long target_addr = 0;
 	if (utils::is_hex_number(sym_or_addr.c_str())) {
 		if (sscanf(sym_or_addr.c_str(), "%lx", &target_addr) != 1) {
@@ -121,10 +129,15 @@ void cockroach::parse_one_recipe(const char *line)
 		exit(EXIT_FAILURE);
 	}
 
-	int overwrite_length = atoi(tokens[3].c_str());
+	// target address
+	int overwrite_length = 0;
+	if (tokens.size() >= idx) {
+		string &overwrite_length_def = tokens[idx];
+		overwrite_length = atoi(overwrite_length_def.c_str());
+	}
 
 	// register probe
-	probe probe(probe_type);
+	probe probe(probe_type, install_type);
 	probe.set_target_address(target_lib.c_str(), target_addr,
 	                         overwrite_length);
 	probe.set_probe(NULL, roach_time_measure_probe,
