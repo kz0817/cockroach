@@ -164,7 +164,7 @@ void cockroach::parse_recipe(const char *recipe_file)
 	}
 }
 
-// make instance
+// make an instance
 static cockroach roach;
 
 // --------------------------------------------------------------------------

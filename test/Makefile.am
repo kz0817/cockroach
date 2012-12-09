@@ -26,7 +26,7 @@ libtargets_la_SOURCES = targets.c
 libtargets_la_LDFLAGS = $(NORM_LIB_LDFLAGS)
 
 helper_bin_SOURCES = helper-bin.c
-helper_bin_LDFLAGS = 
+helper_bin_LDFLAGS =
 helper_bin_LDADD = ./libtargets.la
 
 # Testers

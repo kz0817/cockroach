@@ -43,11 +43,16 @@ void test_func_save_instr_size_6(void)
 	assert_func("func1b", "3");
 }
 
-
 // abs 64bit
 void test_func1x(void)
 {
 	assert_func("func2", "3");
+}
+
+// symbol in the executable
+void test_funcX(void)
+{
+	assert_func("funcX", "5");
 }
 
 }

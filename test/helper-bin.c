@@ -3,6 +3,9 @@
 #include <string.h>
 #include <ctype.h>
 
+#define __USE_GNU
+#include <dlfcn.h>
+
 #include "targets.h"
 
 int funcX(int a, int b)
@@ -18,10 +21,6 @@ int main(int argc, char *argv[])
 
 	if (strcmp(first_arg, "hello") == 0) {
 		printf("Hello, World!\n");
-	} else if (strcmp(first_arg, "funcX") == 0) {
-		printf("funcX: %p\n", funcX);
-		int x = funcX(2, 3);
-		printf("%d\n", x);
 	} else if (strcmp(first_arg, "memcpy") == 0) {
 		int dest[2] = {0, 0};
 		int src[2] = {0xff, 0xaa};
@@ -36,8 +35,10 @@ int main(int argc, char *argv[])
 		int count = 0;
 		printf("Hello, World: %d\n", count++);
 		printf("Hello, World: %d\n", count++);
-	}
-	else if (strcmp(first_arg, "func1") == 0) {
+	} else if (strcmp(first_arg, "funcX") == 0) {
+		int (*funcX_ptr)(int , int) = funcX;
+		printf("%d", (*funcX_ptr)(2, 3));
+	} else if (strcmp(first_arg, "func1") == 0) {
 		printf("%d", func1(1,2));
 	}
 	else if (strcmp(first_arg, "func1a") == 0) {

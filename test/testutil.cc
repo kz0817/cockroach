@@ -142,6 +142,7 @@ void testutil::exec_command(exec_command_info *arg)
 	thr_grp.join_all();
 	cppcut_assert_equal(0, errno_stdout);
 	cppcut_assert_equal(0, errno_stderr);
+	cppcut_assert_equal(1, WIFEXITED(arg->status));
 	cppcut_assert_equal(EXIT_SUCCESS, WEXITSTATUS(arg->status));
 }
 
