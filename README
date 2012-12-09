@@ -4,7 +4,7 @@ address according to a configuration file called a recipe file.
 <Features>
 * No need to recompile a target program with certain options or libraries.
 * Low overhead to call probes by using a jump instruction, not
-  processor exceptions or trap instructionsd.
+  processor exceptions such as a trap instruction.
 * Can install a probe soon after a function is return.
 * Can skip an execution of the target function after the probe is executed.
   This enables users to replace a function into the user's prepared function.
