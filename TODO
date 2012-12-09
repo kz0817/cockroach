@@ -1,0 +1,5 @@
+* try to map within +/-2GB from the target when REL32.
+* test cases for disassembler.
+* support more assembly code.
+* support user probe.
+* support i386.

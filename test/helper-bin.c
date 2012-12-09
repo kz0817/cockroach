@@ -7,19 +7,7 @@
 
 int funcX(int a, int b)
 {
-	asm volatile("nop");
-	asm volatile("nop");
-	asm volatile("nop");
-	asm volatile("nop");
-	asm volatile("nop");
-	asm volatile("nop");
-	asm volatile("nop");
-	asm volatile("nop");
-	asm volatile("nop");
-	asm volatile("nop");
-	asm volatile("nop");
-	asm volatile("nop");
-	return a * b;
+	return a * b + a - b;
 }
 
 int main(int argc, char *argv[])
@@ -31,6 +19,7 @@ int main(int argc, char *argv[])
 	if (strcmp(first_arg, "hello") == 0) {
 		printf("Hello, World!\n");
 	} else if (strcmp(first_arg, "funcX") == 0) {
+		printf("funcX: %p\n", funcX);
 		int x = funcX(2, 3);
 		printf("%d\n", x);
 	} else if (strcmp(first_arg, "memcpy") == 0) {
