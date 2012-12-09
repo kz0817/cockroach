@@ -131,7 +131,7 @@ void cockroach::parse_one_recipe(const char *line)
 
 	// target address
 	int overwrite_length = 0;
-	if (tokens.size() >= idx) {
+	if (tokens.size() > idx) {
 		string &overwrite_length_def = tokens[idx];
 		overwrite_length = atoi(overwrite_length_def.c_str());
 	}

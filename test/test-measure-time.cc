@@ -28,15 +28,26 @@ static void assert_func(const char *target_func, const char *expected_stdout)
 }
 
 // rel 32bit
-void test_func1(void)
+void test_func1_save_instr_size_0(void)
 {
 	assert_func("func1", "3");
 }
 
+void test_func_no_save_instr_size(void)
+{
+	assert_func("func1a", "3");
+}
+
+void test_func_save_instr_size_6(void)
+{
+	assert_func("func1b", "3");
+}
+
+
 // abs 64bit
 void test_func1x(void)
 {
-	assert_func("func1x", "3");
+	assert_func("func2", "3");
 }
 
 }
