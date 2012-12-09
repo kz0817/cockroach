@@ -196,7 +196,7 @@ void testutil::assert_measured_time_format(string &line,
                                            target_probe_info *probe_info)
 {
 	static const int NUM_TIME_MEASURE_TOKENS = 5;
-	//static const int IDX_TIME_MEASURED_TIME_LIST        = 0;
+	static const int IDX_TIME_MEASURED_TIME_LIST        = 0;
 	static const int IDX_TARGET_ADDR_MEASURED_TIME_LIST = 1;
 	//static const int IDX_RET_ADDR_MEASURED_TIME_LIST    = 2;
 	static const int IDX_PID_MEASURED_TIME_LIST         = 3;
@@ -204,6 +204,10 @@ void testutil::assert_measured_time_format(string &line,
 	vector<string> tokens;
 	split(tokens, line, is_any_of(" "), token_compress_on);
 	cppcut_assert_equal(NUM_TIME_MEASURE_TOKENS, (int)tokens.size());
+
+	// time
+	double dt = atof(tokens[IDX_TIME_MEASURED_TIME_LIST].c_str());
+	cppcut_assert_equal(true, dt > 1.0e-6);
 
 	// target address (just compare below a page file size)
 	unsigned long expected_target_addr = probe_info->get_target_addr();
