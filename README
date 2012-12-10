@@ -21,6 +21,13 @@ address according to a configuration file called a recipe file.
 ==============================
 How to build
 ==============================
+* Depending libraries
+If you run tests, the following librarie should be installed.
+- cutter  (C/C++ unit test framework)
+- glib
+- boost headers
+- boost thread library
+
 $ ./autogen.sh
 $ ./configure
 $ make
@@ -29,13 +36,17 @@ $ sudo make install
 ==============================
 How to run
 ==============================
-$ LDPRELOAD=cockroach.so COCKROACH_RECIPE=<path>/recipe_file program args
+Cockroach is loaded into the target program by LD_PRELOAD environment
+variable. The recipe file is also specified by the COCKROACH_RECIPE
+environment variable.
+
+$ LD_PRELOAD=cockroach.so COCKROACH_RECIPE=<path>/recipe_file program args
 
 ==============================
 Format of recipe file
 ==============================
-* command line
-probe_type install_type lib_name symbol|offset(hex) [save_instruction_size]
+* recipe line
+probe_type install_type lib_name symbol|offset(hex) [save_instruction_size(decimal)]
 
 * comment line
 # A comment line begins from '#'
@@ -45,18 +56,37 @@ T: Built-in Time Measurement probe
 P: User probe
 
 [install_type]
-REL32: overwrite relative 32bit jump code [overwrite 5B at the target address]
-ABS64: overwrite absolute 64bit jump code [overwrite 13B at the target address]
+REL32: overwrite relative 32bit jump [overwrite 5B at the target address]
+ABS64: overwrite absolute 64bit jump [overwrite 13B at the target address]
+
+[offset]
+The address of the function that can be gotten by 'nm' command and so on.
+
+Ex.) When you install a probe to random(),
+$ nm -D /lib/x86_64-linux-gnu/libc-2.15.so | grep \ random$
+000000000003c0d0 W random
 
 [save_instruction_size]
-If this is given, the specified bytes from the target address are
+If this parameter is given, the specified bytes from the target address are
 backed up to anothre memory region and executed after the probe is called.
 Of course, this size must equal to or be larger than the overwrite size
 (5B for REL32, 13B for ABS64) and be a boundary of instructions.
-If not given, cockroach try to calculate the size by perfoming disassemble
-the code (some instructions have not been implemented yet).
 
-<examples>
+Ex.) When you probe random() whose assembly code is the following,
+      you should specifiy 9 and 18 for REL32 and ABS64 respectively.
+
+$ objdump -d /lib/x86_64-linux-gnu/libc-2.15.so | grep -A5 "<random>:"
+000000000003c0d0 <random>:
+   3c0d0:       48 83 ec 18             sub    $0x18,%rsp
+   3c0d4:       be 01 00 00 00          mov    $0x1,%esi
+   3c0d9:       31 c0                   xor    %eax,%eax
+   3c0db:       83 3d 12 21 38 00 00    cmpl   $0x0,0x382112(%rip)        # 3be1f4 <argp_program_version_hook+0x1bc>
+   3c0e2:       74 10                   je     3c0f4 <random+0x24>
+
+If this parameter is omitted, cockroach calculates the size by perfoming
+disassemble the code (some instructions have not been implemented yet).
+
+<<< examples >>>
 # This is comment
 T REL32 libc.so 0000000000053840
 T ABS64 libc.so memset                     (Symbol is not implemented)

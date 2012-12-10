@@ -1,5 +1,6 @@
 * try to map within +/-2GB from the target when REL32.
 * support symbol in a recipe file.
+* add --disable-test to configure.ac
 * support loading targets later.
 * suffix readlink the target lib. in the recipe.
 * test cases for disassembler.
