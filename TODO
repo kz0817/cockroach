@@ -1,8 +1,8 @@
 * try to map within +/-2GB from the target when REL32.
 * support symbol in a recipe file.
 * add --disable-test to configure.ac
-* support loading targets later.
-* suffix readlink the target lib. in the recipe.
+* support targets in the library that is loaded later.
+* resolve the symbolic link of the target lib. in the recipe.
 * test cases for disassembler.
 * makes short bridge code by split into a normal function.
 * add more disassembly code.
@@ -10,4 +10,6 @@
 * pre-check of output macro
 * support user probe.
 * avoid infinite loop of probe
+* Check the overlap of overwrite code
+* support call/jmp address replacement installation
 * support i386.
