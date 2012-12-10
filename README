@@ -45,11 +45,20 @@ $ LD_PRELOAD=cockroach.so COCKROACH_RECIPE=<path>/recipe_file program args
 ==============================
 Format of recipe file
 ==============================
-* recipe line
-probe_type install_type lib_name symbol|offset(hex) [save_instruction_size(decimal)]
-
 * comment line
 # A comment line begins from '#'
+
+* target limitation
+TARGET_EXE <exe_path>
+
+<exe_path> can be a just file name or an absolute path. If this parameter is
+omitted, cockroach installs probes to the all programs when it is loaded.
+This option is useful when the target is spawned by other program. In such
+case, LD_PRELOAD shall be added in the command line to run the parent
+program and cockroach is loaded in the parent program.
+
+* probe definition
+probe_type install_type lib_name symbol|offset(hex) [save_instruction_size(decimal)]
 
 [probe_type]
 T  : Built-in time measurement probe. It measures time from the probe point
@@ -58,12 +67,14 @@ TSC: Built-in TSC (Time Stamp Counter) recorder probe. (Not implemented)
 P  : User probe.
 
 [install_type]
-REL32: overwrite relative 32bit jump [overwrite 5B at the target address]
-ABS64: overwrite absolute 64bit jump [overwrite 13B at the target address]
-CJAR : replace call or jump address (Not implemented)
+REL32  : overwrite relative 32bit jump [overwrite 5B at the target address]
+ABS64  : overwrite absolute 64bit jump [overwrite 13B at the target address]
+CJADDR : replace call or jump address in the code (Not implemented)
+GOT    : replace the address in GOT (Global Offset Table) (Not implemented)
 
 [offset]
-The address of the function that can be gotten by 'nm' command and so on.
+The address of the function in the library, which can be gotten by
+'nm' command and so on.
 
 Ex.) When you install a probe to random(),
 $ nm -D /lib/x86_64-linux-gnu/libc-2.15.so | grep \ random$

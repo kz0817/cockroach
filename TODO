@@ -1,12 +1,12 @@
 * try to map within +/-2GB from the target when REL32.
 * support symbol in a recipe file.
 * add --disable-test to configure.ac
-* support targets in the library that is loaded later.
+* support the installation of a probe to targets that is loaded later.
 * resolve the symbolic link of the target lib. in the recipe.
 * test cases for disassembler.
-* makes short bridge code by split into a normal function.
-* add more disassembly code.
-* output macro setting (env and recipe)
+* makes bridge code simple by spliting into dynamically created code and a normal common function.
+* support more operands in disassembler.
+* configurable level of output macro macros (env and recipe)
 * pre-check of output macro
 * support user probe.
 * avoid infinite loop of probe
@@ -14,3 +14,5 @@
 * support call/jmp address replacement installation
 * support user specific share mem data structure.
 * support i386.
+* support CJADDR installation
+* support GOT installation
