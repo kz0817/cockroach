@@ -52,12 +52,15 @@ probe_type install_type lib_name symbol|offset(hex) [save_instruction_size(decim
 # A comment line begins from '#'
 
 [probe_type]
-T: Built-in Time Measurement probe
-P: User probe
+T  : Built-in time measurement probe. It measures time from the probe point
+     to the end of the function.
+TSC: Built-in TSC (Time Stamp Counter) recorder probe. (Not implemented)
+P  : User probe.
 
 [install_type]
 REL32: overwrite relative 32bit jump [overwrite 5B at the target address]
 ABS64: overwrite absolute 64bit jump [overwrite 13B at the target address]
+CJAR : replace call or jump address (Not implemented)
 
 [offset]
 The address of the function that can be gotten by 'nm' command and so on.

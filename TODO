@@ -12,4 +12,5 @@
 * avoid infinite loop of probe
 * Check the overlap of overwrite code
 * support call/jmp address replacement installation
+* support user specific share mem data structure.
 * support i386.
