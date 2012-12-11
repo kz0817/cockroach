@@ -22,7 +22,7 @@ address according to a configuration file called a recipe file.
 How to build
 ==============================
 * Depending libraries
-If you run tests, the following librarie should be installed.
+If you run tests, the following libraries should be installed.
 - cutter  (C/C++ unit test framework)
 - glib
 - boost headers
