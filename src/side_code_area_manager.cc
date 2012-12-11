@@ -7,6 +7,7 @@
 #include "side_code_area_manager.h"
 
 static const unsigned long REGION_NOT_FOUND = 0;
+static const unsigned long REGION_START_ADDR = 0x10000;
 
 side_code_area::side_code_area(unsigned long _start_addr, unsigned long _length)
 : start_addr(_start_addr),
@@ -86,7 +87,7 @@ side_code_area_manager::alloc_within_rel32(size_t size, unsigned long ref_addr)
 	string line;
 	int page_size = utils::get_page_size();
 	unsigned long alloc_addr = REGION_NOT_FOUND;;
-	unsigned long prev_mem_region_end = page_size;
+	unsigned long prev_mem_region_end = REGION_START_ADDR;
 	unsigned long region_size = page_size;
 	while (getline(ifs, line)) {
 		unsigned long addr0, addr1;
@@ -126,9 +127,11 @@ bool
 side_code_area_manager::is_within_rel32(unsigned long addr,
                                         unsigned long ref_addr)
 {
-	if (addr < ref_addr)
+	if (addr < ref_addr) {
+		if (ref_addr < 0x80000000UL)
+			return true;
 		return (addr >= ref_addr - 0x80000000UL);
-	else
+	} else
 		return (addr <= ref_addr + 0x7fffffffUL);
 }
 
@@ -193,7 +196,7 @@ uint8_t *side_code_area_manager::alloc_region(size_t region_size,
 	map_size *= page_size;
 	int prot = PROT_EXEC|PROT_READ|PROT_WRITE;
 	void *ptr = mmap(request_addr, map_size, prot,
-	                 MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+	                 MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED, -1, 0);
 	// FIXME: mmap() with alloc_addr may fail if the other
 	//        thread allocates memory region we will allocate.
 	if (ptr == MAP_FAILED) {
