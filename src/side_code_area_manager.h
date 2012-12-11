@@ -29,17 +29,23 @@ class side_code_area_manager {
 	static side_code_area_set_t &get_side_code_area_set(void);
 	static side_code_area *m_curr_area;
 
+#ifdef __x86_64__
 	static bool is_within_rel32(unsigned long addr, unsigned long ref_addr);
+	static unsigned long
+	find_region_within_rel32(unsigned long addr0, unsigned long addr1,
+	                         unsigned long ref_addr, size_t region_size);
+#endif // __x86_64__
 	static bool extract_address(string &line,
 	                            unsigned long &addr0, unsigned long &addr1);
 	static unsigned long get_page_boundary_ceil(unsigned long addr);
-	static unsigned long
-	find_region_within_rel32(unsigned long addr0, unsigned long addr1,
-	                         unsigned long ref_addr, unsigned long size);
-	static uint8_t *alloc_region(size_t size, void *request_addr = NULL);
+	static uint8_t *alloc_region(size_t region_size,
+	                             size_t reserve_size = 0,
+	                             void *request_addr = NULL);
 public:
 	static uint8_t *alloc(size_t size);
+#ifdef __x86_64__
 	static uint8_t *alloc_within_rel32(size_t size, unsigned long ref_addr);
+#endif // __x86_64__
 };
 
 #endif

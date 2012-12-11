@@ -53,10 +53,11 @@ uint8_t *side_code_area_manager::alloc(size_t size)
 	}
 	pthread_mutex_unlock(&m_mutex);
 
-	size_t alloc_size = utils::get_page_size();
-	return alloc_region(alloc_size);
+	size_t region_size = utils::get_page_size();
+	return alloc_region(region_size, size);
 }
 
+#ifdef __x86_64__
 uint8_t *
 side_code_area_manager::alloc_within_rel32(size_t size, unsigned long ref_addr)
 {
@@ -84,52 +85,84 @@ side_code_area_manager::alloc_within_rel32(size_t size, unsigned long ref_addr)
 
 	string line;
 	int page_size = utils::get_page_size();
-	unsigned long alloc_addr = 0;
+	unsigned long alloc_addr = REGION_NOT_FOUND;;
 	unsigned long prev_mem_region_end = page_size;
-	unsigned long alloc_size = page_size;
+	unsigned long region_size = page_size;
 	while (getline(ifs, line)) {
 		unsigned long addr0, addr1;
 		if (!extract_address(line, addr0, addr1))
 			continue;
-		ROACH_DBG("%lx,%lx ::::: %s\n", addr0, addr1, line.c_str());
 		if (addr0 == prev_mem_region_end) {
 			prev_mem_region_end = addr1;
 			continue;
 		}
 		alloc_addr = find_region_within_rel32(prev_mem_region_end,
 		                                      addr0, ref_addr,
-		                                      alloc_size);
+		                                      region_size);
 		if (alloc_addr == REGION_NOT_FOUND) {
 			prev_mem_region_end = addr1;
 			continue;
 		}
 		break;
 	}
-	if (alloc_addr == 0) {
+	if (alloc_addr == REGION_NOT_FOUND) {
 		ROACH_ERR("Failed to find address to be allocated: %lx, %zd\n",
 		          ref_addr, size);
 		ROACH_ABORT();
 	}
-	ROACH_DBG("************: %lx\n", alloc_addr);
 
 	uint8_t *new_addr;
-	new_addr = alloc_region(alloc_size,
+	new_addr = alloc_region(region_size, size,
 	                        reinterpret_cast<uint8_t *>(alloc_addr));
 	return new_addr;
 }
+#endif // __x86_64__
 
 // ---------------------------------------------------------------------------
 // Private methods
 // ---------------------------------------------------------------------------
+#ifdef __x86_64__
 bool
 side_code_area_manager::is_within_rel32(unsigned long addr,
                                         unsigned long ref_addr)
 {
 	if (addr < ref_addr)
-		return (addr >= ref_addr - 0x80000000);
+		return (addr >= ref_addr - 0x80000000UL);
 	else
-		return (addr <= ref_addr + 0x7fffffff);
+		return (addr <= ref_addr + 0x7fffffffUL);
 }
+
+unsigned long
+side_code_area_manager::find_region_within_rel32(unsigned long addr0,
+                                                 unsigned long addr1,
+                                                 unsigned long ref_addr,
+                                                 size_t region_size)
+{
+	// check arguments
+	if (addr0 >= addr1)
+		ROACH_BUG("addr0: %lx >= addr1: %lx\n", addr0, addr1);
+
+	if (addr1 - addr0 < region_size)
+		return REGION_NOT_FOUND;
+
+	unsigned long mid_addr = 0;
+	if (addr1 < ref_addr) {
+		if (!is_within_rel32(addr1 - region_size, ref_addr))
+			return REGION_NOT_FOUND;
+		if (is_within_rel32(addr0, ref_addr))
+			return addr0;
+		mid_addr = get_page_boundary_ceil(ref_addr - 0x80000000UL);
+		if (mid_addr + region_size <= addr1)
+			return mid_addr;
+	} else {
+		if (!is_within_rel32(addr0 + region_size, ref_addr))
+			return REGION_NOT_FOUND;
+		return addr0;
+	}
+
+	return REGION_NOT_FOUND;
+}
+#endif // __x86_64__
 
 bool
 side_code_area_manager::extract_address(string &line,
@@ -151,40 +184,12 @@ side_code_area_manager::get_page_boundary_ceil(unsigned long addr)
 	return ret;
 }
 
-unsigned long
-side_code_area_manager::find_region_within_rel32(unsigned long addr0,
-                                                 unsigned long addr1,
-                                                 unsigned long ref_addr,
-                                                 unsigned long size)
-{
-	// check arguments
-	if (addr0 >= addr1)
-		ROACH_BUG("addr0: %lx >= addr1: %lx\n", addr0, addr1);
-
-	if (addr1 - addr0 < size)
-		return REGION_NOT_FOUND;
-
-	unsigned long mid_addr = 0;
-	if (addr1 < ref_addr) {
-		if (!is_within_rel32(addr1 - size, ref_addr))
-			return REGION_NOT_FOUND;
-		if (is_within_rel32(addr0, ref_addr))
-			return addr0;
-		mid_addr = get_page_boundary_ceil(ref_addr - 0x80000000);
-		return (mid_addr + size <= addr1) ? mid_addr : REGION_NOT_FOUND;
-	} else {
-		if (!is_within_rel32(addr0 + size, ref_addr))
-			return REGION_NOT_FOUND;
-		return addr0;
-	}
-
-	return REGION_NOT_FOUND;
-}
-
-uint8_t *side_code_area_manager::alloc_region(size_t size, void *request_addr)
+uint8_t *side_code_area_manager::alloc_region(size_t region_size,
+                                              size_t reserve_size,
+                                              void *request_addr)
 {
 	int page_size = utils::get_page_size();
-	int map_size = (size + page_size - 1) / page_size;
+	int map_size = (region_size + page_size - 1) / page_size;
 	map_size *= page_size;
 	int prot = PROT_EXEC|PROT_READ|PROT_WRITE;
 	void *ptr = mmap(request_addr, map_size, prot,
@@ -203,7 +208,7 @@ uint8_t *side_code_area_manager::alloc_region(size_t size, void *request_addr)
 	m_curr_area = area;
 
 	uint8_t *ret = m_curr_area->get_head_addr();
-	m_curr_area->idx += size;
+	m_curr_area->idx += reserve_size;
 	pthread_mutex_unlock(&m_mutex);
 	return ret;
 }
