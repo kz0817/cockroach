@@ -40,7 +40,7 @@ Cockroach is loaded into the target program by LD_PRELOAD environment
 variable. The recipe file is also specified by the COCKROACH_RECIPE
 environment variable.
 
-$ LD_PRELOAD=cockroach.so COCKROACH_RECIPE=<path>/recipe_file program args
+$ LD_PRELOAD=cockroach.so COCKROACH_RECIPE=<path>/recipe_file target_program args
 
 ==============================
 Format of recipe file
@@ -52,10 +52,12 @@ Format of recipe file
 TARGET_EXE <exe_path>
 
 <exe_path> can be a just file name or an absolute path. If this parameter is
-omitted, cockroach installs probes to the all programs when it is loaded.
+omitted, cockroach installs probes to the programs in which it is loaded.
 This option is useful when the target is spawned by other program. In such
-case, LD_PRELOAD shall be added in the command line to run the parent
-program and cockroach is loaded in the parent program.
+case, LD_PRELOAD should be added in the command line to run the parent
+program and cockroach is loaded in the parent program. If you want to avoid
+cockroach from installing probes in the parent, you can use
+'TARGET_EXE target_program' line in the recipe.
 
 * probe definition
 probe_type install_type lib_name symbol|offset(hex) [save_instruction_size(decimal)]
