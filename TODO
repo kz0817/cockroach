@@ -1,4 +1,3 @@
-* try to map within +/-2GB from the target when REL32.
 * support symbol in a recipe file.
 * fix configure.ac to disable test when boost and the lib is missing.
 * support the installation of a probe to targets that is loaded later.
@@ -9,8 +8,9 @@
 * configurable level of output macro macros (env and recipe)
 * pre-check of output macro
 * support user probe.
-* avoid infinite loop of probe
-* Check the overlap of overwrite code
+* avoid infinite loop of probe (or support probe to the overwritten area).
+* Check the overlap of overwritten code
+* support multiple probe in the same address.
 * support call/jmp address replacement installation
 * support user specific share mem data structure.
 * support Built-in TSC counter probe.
@@ -18,3 +18,4 @@
 * support CJADDR installation.
 * support GOT installation.
 * support TARGET_EXE directive in the recipe.
+* more efficient algorithm to map within +/-2GB from the target when REL32.
