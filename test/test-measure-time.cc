@@ -52,13 +52,14 @@ void test_abs64(void)
 // symbol in the executable
 void test_target_in_exe(void)
 {
-	assert_func("funcX", "5");
+	assert_func("funcX", "-30");
 }
 
+/*
 void test_call_10times(void)
 {
 	for (int i = 0; i < 10; i++)
 		test_save_instr_size_0();
-}
+}*/
 
 }
