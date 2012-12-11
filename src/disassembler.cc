@@ -156,6 +156,17 @@ static uint8_t *parse_operand(opecode *op, uint8_t *code)
 	return code;
 }
 
+// 0x01 ADD (MR)
+static void parser_add_Ev_Gv(opecode *op, uint8_t *code)
+{
+	parse_operand(op, code);
+}
+
+static const instr_info instr_info_add_Ev_Gv = {
+	1,
+	parser_add_Ev_Gv,
+};
+
 // 0x0f 2byte escape
 static const instr_info instr_info_2byte_escape = {
 	1,
@@ -299,7 +310,7 @@ static const instr_info instr_info_ret = {
 static const instr_info *first_byte_instr_array[0x100] = 
 {
 	NULL,                         // 0x00
-	NULL,                         // 0x01
+	&instr_info_add_Ev_Gv,        // 0x01
 	NULL,                         // 0x02
 	NULL,                         // 0x03
 	NULL,                         // 0x04
