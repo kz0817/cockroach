@@ -13,6 +13,7 @@
 * Check the overlap of overwrite code
 * support call/jmp address replacement installation
 * support user specific share mem data structure.
+* support Built-in TSC counter probe.
 * support i386.
 * support CJADDR installation.
 * support GOT installation.
