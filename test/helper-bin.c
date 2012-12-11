@@ -13,6 +13,8 @@ int funcX(int a, int b)
 	return a * b * (a - b) * (a + b);
 }
 
+int (*funcX_ptr)(int , int) = funcX;
+
 int main(int argc, char *argv[])
 {
 	if (argc < 2)
@@ -36,8 +38,8 @@ int main(int argc, char *argv[])
 		printf("Hello, World: %d\n", count++);
 		printf("Hello, World: %d\n", count++);
 	} else if (strcmp(first_arg, "funcX") == 0) {
-		int (*funcX_ptr)(int , int) = funcX;
-		printf("%d", (*funcX_ptr)(2, 3));
+		int a = (*funcX_ptr)(2, 3);
+		printf("%d", a);
 	} else if (strcmp(first_arg, "func1") == 0) {
 		printf("%d", func1(1,2));
 	}
