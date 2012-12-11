@@ -48,7 +48,7 @@ Format of recipe file
 * comment line
 # A comment line begins from '#'
 
-* target limitation
+* target limitation (not implemented)
 TARGET_EXE <exe_path>
 
 <exe_path> can be a just file name or an absolute path. If this parameter is
