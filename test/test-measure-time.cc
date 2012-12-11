@@ -28,31 +28,37 @@ static void assert_func(const char *target_func, const char *expected_stdout)
 }
 
 // rel 32bit
-void test_func1_save_instr_size_0(void)
+void test_save_instr_size_0(void)
 {
 	assert_func("func1", "3");
 }
 
-void test_func_no_save_instr_size(void)
+void test_no_save_instr_size(void)
 {
 	assert_func("func1a", "3");
 }
 
-void test_func_save_instr_size_6(void)
+void test_save_instr_size_6(void)
 {
 	assert_func("func1b", "3");
 }
 
 // abs 64bit
-void test_func1x(void)
+void test_abs64(void)
 {
 	assert_func("func2", "3");
 }
 
 // symbol in the executable
-void test_funcX(void)
+void test_target_in_exe(void)
 {
 	assert_func("funcX", "5");
+}
+
+void test_call_10times(void)
+{
+	for (int i = 0; i < 10; i++)
+		test_save_instr_size_0();
 }
 
 }
