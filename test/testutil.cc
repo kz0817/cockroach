@@ -132,17 +132,22 @@ void testutil::exec_command(exec_command_info *arg)
 		                           ref(arg->stdout_str),
 		                           ref(errno_stdout)));
 	}
-	if (arg->save_stderr) {
-		thr_grp.create_thread(bind(read_fd_thread, ref(fd_stderr),
-		                           ref(arg->stderr_str),
-		                           ref(errno_stderr)));
-	}
+
+	// stderr is always saved
+	string stderr_buf;
+	thr_grp.create_thread(bind(read_fd_thread, ref(fd_stderr),
+	                           ref(stderr_buf),
+	                           ref(errno_stderr)));
+	if (arg->save_stderr)
+		arg->stderr_str = stderr_buf;
+
 	waitpid(arg->child_pid, &arg->status, 0);
 	g_spawn_close_pid(arg->child_pid);
 	thr_grp.join_all();
 	cppcut_assert_equal(0, errno_stdout);
 	cppcut_assert_equal(0, errno_stderr);
-	cppcut_assert_equal(1, WIFEXITED(arg->status));
+	cppcut_assert_equal(1, WIFEXITED(arg->status),
+	                    cut_message("%s", stderr_buf.c_str()));
 	cppcut_assert_equal(EXIT_SUCCESS, WEXITSTATUS(arg->status));
 }
 
