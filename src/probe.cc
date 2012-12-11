@@ -389,9 +389,9 @@ const char *probe::get_target_lib_path(void)
 void probe::install(const mapped_lib_info *lib_info)
 {
 	ROACH_INFO("install: %s: func: %08lx, mapped addr: %016lx, "
-	           "overwrite len: %d\n",
+	           "overwrite len: %d, install: %d\n",
 	           lib_info->get_path(), m_offset_addr, lib_info->get_addr(),
-	           m_overwrite_length);
+	           m_overwrite_length, m_install_type);
 	// basic variables
 	unsigned long target_addr = m_offset_addr;
 	if (!lib_info->is_exe())
@@ -453,7 +453,15 @@ void probe::install(const mapped_lib_info *lib_info)
 	int code_len = bridge_length
 	               + relocated_code_length + relocated_data_length
 	               + RET_BRIDGE_LENGTH;
-	uint8_t *side_code_area = side_code_area_manager::alloc(code_len);
+	uint8_t *side_code_area = NULL;
+	if (m_install_type == INSTALL_TYPE_OVERWRITE_REL32_JUMP) {
+		unsigned long next_code_addr
+		  = target_addr + relocated_code_length;
+		side_code_area =
+		  side_code_area_manager::alloc_within_rel32(code_len,
+		                                             next_code_addr);
+	} else
+		side_code_area = side_code_area_manager::alloc(code_len);
 	ROACH_DBG("side_code: %p\n", side_code_area);
 
 	// copy bridge code, orignal code and resume code
