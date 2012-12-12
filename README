@@ -1,5 +1,6 @@
-Cockroach is a probe utility. It can insert probes at the specified
-address according to a configuration file called a recipe file.
+Cockroach is a probe utility that insert probes (pre-defined or/and
+user-defined functions) at the specified addresses according to
+a configuration file called a recipe file.
 
 <Applications>
 * A debugger that shows registers and values in memory at the
