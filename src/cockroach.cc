@@ -211,7 +211,7 @@ cockroach::add_user_probe(probe &user_probe, vector<string> &tokens, size_t &idx
 	dlerror(); // clear
 	if (it == user_probe_map.end()) {
 		// open the shared library that contains user probes
-		void *handle = dlopen(probe_lib_name.c_str(), RTLD_LAZY);
+		handle = dlopen(probe_lib_name.c_str(), RTLD_LAZY);
 		if (handle == NULL) {
 			ROACH_ERR("Failed to call dlopen(): %s: %s\n",
 			          probe_lib_name.c_str(), dlerror());

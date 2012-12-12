@@ -10,7 +10,9 @@ bin_PROGRAMS = helper-bin
 
 noinst_LTLIBRARIES = \
 test-measure-time.la \
-libtargets.la libtestutil.la
+test-user-probe.la \
+libtargets.la libtestutil.la \
+user_probe.la
 
 endif
 
@@ -35,6 +37,13 @@ libtestutil_la_LDFLAGS = $(NORM_LIB_LDFLAGS) -lboost_thread-mt
 
 test_measure_time_la_SOURCES = test-measure-time.cc
 test_measure_time_la_LIBADD = ./libtestutil.la
+
+test_user_probe_la_SOURCES = test-user-probe.cc
+test_user_probe_la_LIBADD = ./libtestutil.la
+
+# User probe
+user_probe_la_SOURCES = user-probe.cc
+user_probe_la_CXXFLAGS = $(AM_CXXFLAGS) -I../src
 
 echo-cutter:
 	@echo $(CUTTER)

@@ -431,7 +431,8 @@ void probe::install(const mapped_lib_info *lib_info)
 	// run the probe initializer that creates private data if needed.
 	probe_init_arg_t arg;
 	arg.target_addr = target_addr;
-	(*m_probe_init)(&arg);
+	if (m_probe_init)
+		(*m_probe_init)(&arg);
 	m_probe_priv_data = arg.priv_data;
 
 	// --------------------------------------------------------------------
