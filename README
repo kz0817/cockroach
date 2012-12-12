@@ -115,5 +115,5 @@ disassemble the code (some instructions have not been implemented yet).
 # This is comment
 T REL32 libc.so 0000000000053840
 T ABS64 libc.so memset                     (Symbol is not implemented)
-P REL32 libc.so printf myprobe.so my_probe (User probe is not implemented)
+P REL32 libc.so printf myprobe.so my_probe
 

@@ -1,4 +1,3 @@
-* support user probe.
 * support user specific share mem data structure.
 * support symbol in a recipe file.
 * support the installation of a probe to targets that is loaded later.
