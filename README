@@ -1,10 +1,18 @@
-Cockroach is a probe utility tool. It can insert probes at the specified
+Cockroach is a probe utility. It can insert probes at the specified
 address according to a configuration file called a recipe file.
+
+<Applications>
+* A debugger that shows registers and values in memory at the
+specified program address.
+* A profiler to measure execution time and call frequency.
+* A function-replace tool without the modification of the program.
 
 <Features>
 * No need to recompile a target program with certain options or libraries.
 * Low overhead to call probes by using a jump instruction, not
   processor exceptions such as a trap instruction.
+* Low overhead data recording framework using a shared memory.
+* Can install user defined probes.
 * Can install a probe at an arbitray address of the code.
 * Can install probes both at the top of and the end of the function.
 * Can skip an execution of the target function after the probe is executed.
