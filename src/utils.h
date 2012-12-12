@@ -44,6 +44,7 @@ public:
 	static string get_basename(const char *path);
 	static bool is_absolute_path(const char *path);
 	static bool is_hex_number(const char *word);
+	static bool is_hex_number(string &word);
 	static bool read_one_line_loop(const char *path,
 	                               one_line_parser_t parser, void *arg);
 	static int get_page_size(void);

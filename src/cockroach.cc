@@ -16,16 +16,26 @@ using namespace std;
 static void *(*g_orig_dlopen)(const char *, int) = NULL;
 static int (*g_orig_dlclose)(void *) = NULL;
 
+// probe type, install type, target lib, and address
+static const size_t NUM_RECIPE_MIN_TOKENS = 4;
+static const size_t NUM_RECIPE_MIN_USER_PROBE_TOKENS = 2; // probe_lib and symbol 
+
 typedef list<probe> probe_list_t;
 typedef probe_list_t::iterator  probe_list_itr;
+
+typedef map<string, void *> user_probe_lib_handle_map_t;
+typedef user_probe_lib_handle_map_t::iterator user_probe_lib_handle_map_itr;
 
 class cockroach {
 	mapped_lib_manager m_mapped_lib_mgr;
 	probe_list_t m_probe_list;
 
+	static user_probe_lib_handle_map_t &get_user_probe_lib_handle_map(void);
 	static void _parse_one_recipe(const char *line, void *arg);
 	void parse_recipe(const char *recipe_file);
 	void parse_one_recipe(const char *line);
+	void add_user_probe(probe &user_probe, vector<string> &tokens,
+	                    size_t &idx);
 public:
 	cockroach(void);
 };
@@ -68,6 +78,12 @@ cockroach::cockroach(void)
 	}
 }
 
+user_probe_lib_handle_map_t &cockroach::get_user_probe_lib_handle_map(void)
+{
+	static user_probe_lib_handle_map_t map;
+	return map;
+}
+
 void cockroach::parse_one_recipe(const char *line)
 {
 	size_t idx = 0;
@@ -80,6 +96,13 @@ void cockroach::parse_one_recipe(const char *line)
 	if (tokens[idx].at(0) == '#') // comment line
 		return;
 
+	// check the numbe of tokens
+	if (tokens.size() < NUM_RECIPE_MIN_TOKENS) {
+		ROACH_ERR("Number of tokens is too small: %zd: %s\n",
+		          tokens.size(), line);
+		ROACH_ABORT();
+	}
+
 	// probe type
 	probe_type_t probe_type = PROBE_TYPE_UNKNOWN;
 	string &probe_type_def = tokens[idx];
@@ -87,7 +110,6 @@ void cockroach::parse_one_recipe(const char *line)
 		probe_type = PROBE_TYPE_BUILT_IN_TIME_MEASURE;
 	} else if (probe_type_def == "P") {
 		probe_type = PROBE_TYPE_USER;
-		ROACH_BUG("User probe has not been implemented.\n");
 	}
 	else {
 		ROACH_ERR("Unknown probe_type: '%s' : %s\n",
@@ -131,17 +153,28 @@ void cockroach::parse_one_recipe(const char *line)
 
 	// target address
 	int overwrite_length = 0;
-	if (tokens.size() > idx) {
+	if (tokens.size() > idx && utils::is_hex_number(tokens[idx])) {
 		string &overwrite_length_def = tokens[idx];
 		overwrite_length = atoi(overwrite_length_def.c_str());
+		idx++;
 	}
 
 	// register probe
 	probe probe(probe_type, install_type);
 	probe.set_target_address(target_lib.c_str(), target_addr,
 	                         overwrite_length);
-	probe.set_probe(NULL, roach_time_measure_probe,
-	                      roach_time_measure_probe_init);
+
+	if (probe_type == PROBE_TYPE_BUILT_IN_TIME_MEASURE) {
+		probe.set_probe(NULL, roach_time_measure_probe,
+		                      roach_time_measure_probe_init);
+	}
+	else if (probe_type == PROBE_TYPE_USER) {
+		if (tokens.size() - idx < NUM_RECIPE_MIN_USER_PROBE_TOKENS) {
+			ROACH_ERR("Token is too short: %s: %d\n", line, errno);
+			ROACH_ABORT();
+		}
+		add_user_probe(probe, tokens, idx);
+	}
 
 	m_probe_list.push_back(probe);
 }
@@ -160,8 +193,57 @@ void cockroach::parse_recipe(const char *recipe_file)
 	if (!ret) {
 		ROACH_ERR("Failed to parse recipe file: %s (%d)\n", recipe_file,
 		          errno);
-		exit(EXIT_FAILURE);
+		ROACH_ABORT();
 	}
+}
+
+void
+cockroach::add_user_probe(probe &user_probe, vector<string> &tokens, size_t &idx)
+{
+	// check number of arguments
+	string &probe_lib_name = tokens[idx++];
+	string &probe_func_name = tokens[idx++];
+
+	user_probe_lib_handle_map_t &user_probe_map
+	  = get_user_probe_lib_handle_map();
+	user_probe_lib_handle_map_itr it = user_probe_map.find(probe_lib_name);
+	void *handle = NULL;
+	dlerror(); // clear
+	if (it == user_probe_map.end()) {
+		// open the shared library that contains user probes
+		void *handle = dlopen(probe_lib_name.c_str(), RTLD_LAZY);
+		if (handle == NULL) {
+			ROACH_ERR("Failed to call dlopen(): %s: %s\n",
+			          probe_lib_name.c_str(), dlerror());
+			ROACH_ABORT();
+		}
+		user_probe_map[probe_lib_name] = handle;
+	} else
+		handle = it->second;
+
+	// probe
+	probe_func_t probe_func =
+	  (probe_func_t)dlsym(handle, probe_func_name.c_str());
+	if (probe_func == NULL) {
+		ROACH_ERR("Failed to call dlsym(): %s: %s\n",
+		          probe_func_name.c_str(), dlerror());
+		ROACH_ABORT();
+	}
+
+	// probe initializer
+	probe_init_func_t probe_init_func = NULL;
+	if (tokens.size() > idx) {
+		string &probe_init_func_name = tokens[idx++];
+		probe_init_func =
+		  (probe_init_func_t)dlsym(handle, probe_init_func_name.c_str());
+		if (probe_func == NULL) {
+			ROACH_ERR("Failed to call dlsym(): %s: %s\n",
+			          probe_init_func_name.c_str(), dlerror());
+			ROACH_ABORT();
+		}
+	}
+
+	user_probe.set_probe(NULL, probe_func, probe_init_func);
 }
 
 // make an instance

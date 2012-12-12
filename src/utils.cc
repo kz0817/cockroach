@@ -124,6 +124,11 @@ bool utils::is_hex_number(const char *word)
 	return true;
 }
 
+bool utils::is_hex_number(string &word)
+{
+	return is_hex_number(word.c_str());
+}
+
 int utils::get_page_size(void)
 {
 	static int s_page_size = 0;
