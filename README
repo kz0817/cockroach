@@ -60,7 +60,7 @@ Format of recipe file
 * target limitation (not implemented)
 TARGET_EXE <exe_path>
 
-<exe_path> can be a just file name or an absolute path. If this parameter is
+<exe_path> can be a file name or an absolute path. If this parameter is
 omitted, cockroach installs probes to the programs in which it is loaded.
 This option is useful when the target is spawned by other program. In such
 case, LD_PRELOAD should be added in the command line to run the parent
