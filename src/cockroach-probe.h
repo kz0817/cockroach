@@ -8,6 +8,9 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#define COCKROACH_RECORD_ID_STRING 0xffff0000
+#define COCKROACH_RECORD_ID_RESERVED_BEGIN COCKROACH_RECORD_ID_STRING
+
 #ifdef __x86_64__
 struct probe_arg_t {
 	void *priv_data;
@@ -43,8 +46,10 @@ struct probe_init_arg_t {
 typedef void (*probe_init_func_t)(probe_init_arg_t *t);
 typedef void (*probe_func_t)(probe_arg_t *t);
 
+typedef void (*record_data_func_t)(size_t size, void *buf);
+
 void cockroach_set_return_probe(probe_func_t probe, probe_arg_t *arg);
-void cockroach_add_record(uint32_t id, size_t size, void *data);
+void cockroach_record_data_to_shm(uint32_t id, size_t size, void *data);
 
 #ifdef __cplusplus
 }
