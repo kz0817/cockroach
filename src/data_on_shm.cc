@@ -202,6 +202,7 @@ map_info_t *find_map_info_and_inc_used_count(uint64_t start_index, size_t size)
 		// 'map_info->offset <= start_index' is ensured by
 		// lower_bound() that calls map_info_comparator::operator()().
 		map_info = *it;
+		map_info->used_count++;
 	}
 	pthread_mutex_unlock(&g_map_info_mutex);
 	return map_info;
