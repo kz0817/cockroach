@@ -47,26 +47,6 @@ struct item_slot_t {
 	uint8_t       *data;
 };
 
-struct map_info_comparator {
-	bool operator()(const map_info_t *map_info0,
-	                const map_info_t *map_info1) {
-		if (map_info0->offset < map_info1->offset)
-			return true;
-		if (map_info0->offset > map_info1->offset)
-			return false;
-
-		if (map_info0->size < map_info1->size)
-			return true;
-		if (map_info0->size > map_info1->size)
-			return false;
-
-		return false;
-	}
-};
-
-typedef set<map_info_t *, map_info_comparator> map_info_set_t;
-typedef map_info_set_t::iterator map_info_set_itr;
-
 typedef queue<map_info_t *> map_info_queue_t;
 
 static int               g_shm_fd = 0;
@@ -77,13 +57,6 @@ static pthread_mutex_t   g_map_info_mutex = PTHREAD_MUTEX_INITIALIZER;
 static size_t g_shm_add_unit_size = DEFAULT_SHM_ADD_UNIT_SIZE;
 static size_t g_shm_window_size   = DEFAULT_SHM_WINDOW_SIZE;
 static map_info_t       *g_latest_map_info = NULL;
-
-
-static map_info_set_t &get_map_info_set(void)
-{
-	static map_info_set_t set;
-	return set;
-}
 
 static map_info_queue_t &get_unused_map_info_queu(void)
 {
@@ -173,48 +146,30 @@ static void open_shm_if_needed(void)
 }
 
 static
-map_info_t *find_map_info_and_inc_used_count(uint64_t start_index, size_t size)
+map_info_t *reuse_latest_map_info_if_possible(uint64_t start_index, size_t size)
 {
-	// This assertion ensures that key_map_info never equals to
-	// any element in map_info_set.
-	if (size >= g_shm_window_size) {
-		ROACH_ERR("size: %zd > g_shm_window_size: %zd\n",
-		          size, g_shm_window_size);
-		ROACH_ABORT();
-	}
-
-	map_info_t key_map_info;
+	uint64_t last_index;
 	map_info_t *map_info = NULL;
-	key_map_info.offset = start_index;
-	key_map_info.size = size;
-
-	map_info_set_t &map_info_set = get_map_info_set();
-
 	pthread_mutex_lock(&g_map_info_mutex);
-	map_info_set_itr it = map_info_set.lower_bound(&key_map_info);
-	/* !!! The following is wrong !!! */
-	if (it == map_info_set.end()) {
-		pthread_mutex_unlock(&g_map_info_mutex);
-		return NULL;
-	}
+	if (!g_latest_map_info)
+		goto exit;
 
-	if (map_info->offset + map_info->size >= start_index + size) {
-		// 'map_info->offset <= start_index' is ensured by
-		// lower_bound() that calls map_info_comparator::operator()().
-		map_info = *it;
-		map_info->used_count++;
-	}
+	if (g_latest_map_info->offset > start_index)
+		goto exit;
+
+	last_index = g_latest_map_info->offset + g_latest_map_info->size;
+	if (last_index < start_index + size)
+		goto exit;
+
+	map_info = g_latest_map_info;
+	map_info->used_count++;
+exit:
 	pthread_mutex_unlock(&g_map_info_mutex);
 	return map_info;
 }
 
-/**
- * This function must be called while g_map_info_mutex is being taken.
- */
 static void free_map(map_info_t *map_info)
 {
-	get_map_info_set().erase(map_info);
-
 	if (munmap(map_info->addr, map_info->size) == -1)
 		ROACH_ERR("Failed: munmap: %d\n", errno);
 
@@ -257,26 +212,9 @@ map_info_t *create_new_map_info(uint64_t shm_head_index, uint64_t shm_size)
 	map_info->offset = map_offset;
 	map_info->size = map_length;
 
-	// insert the created map information to map_info_set.
-	map_info_set_t &map_info_set = get_map_info_set();
 	pthread_mutex_lock(&g_map_info_mutex);
-	pair<map_info_set_itr, bool> result;
-	result = map_info_set.insert(map_info);
-	if (result.second == false) {
-		// merge the map info into the existed one
-		map_info_set_itr it = map_info_set.find(map_info);
-		if (it == map_info_set.end()) {
-			ROACH_BUG("map_info is not found. Even the insert "
-			          "operation failed.\n");
-		}
-		delete map_info;
-
-		map_info_t *existed_info = *it;
-		existed_info->used_count++;
-		map_info = existed_info;
-	}
-
 	g_latest_map_info = map_info;
+
 	// TO BE CONSIDERED: Is here the best to unmap and free object ?
 	free_unused_maps();
 
@@ -321,9 +259,9 @@ static void alloc_item_slot(size_t size, item_slot_t *item_slot)
 	uint64_t shm_head_index = g_primary_header->head_index;
 	unlock_shm();
 
-	// map window if needed
+	// map window
 	map_info_t *map_info;
-	map_info = find_map_info_and_inc_used_count(shm_head_index, size);
+	map_info = reuse_latest_map_info_if_possible(shm_head_index, size);
 	if (!map_info)
 		map_info = create_new_map_info(shm_head_index, shm_size);
 
