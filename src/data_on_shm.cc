@@ -1,3 +1,6 @@
+#include <set>
+using namespace std;
+
 #include <pthread.h>
 #include <sys/mman.h> 
 #include <sys/stat.h>
@@ -15,8 +18,8 @@
 
 #define COCKROACH_DATA_SHM_NAME "cockroach_data"
 
-#define SHM_ADD_UNIT_SIZE (1024*1024) // 1MiB
-#define SHM_WINDOW_SIZE   SHM_ADD_UNIT_SIZE
+#define DEFAULT_SHM_ADD_UNIT_SIZE (1024*1024) // 1MiB
+#define DEFAULT_SHM_WINDOW_SIZE   DEFAULT_SHM_ADD_UNIT_SIZE
 
 struct primary_header_t {
 	sem_t sem;
@@ -36,10 +39,22 @@ struct map_info_t {
 	uint64_t size;
 };
 
+typedef set<map_info_t *> map_info_set_t;
+typedef map_info_set_t::iterator map_info_set_itr;
+
 static int               g_shm_fd = 0;
 static pthread_mutex_t   g_shm_mutex = PTHREAD_MUTEX_INITIALIZER;
 static primary_header_t *g_primary_header = NULL;
 static pthread_mutex_t   g_map_info_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static size_t g_shm_add_unit_size = DEFAULT_SHM_ADD_UNIT_SIZE;
+static size_t g_shm_window_size   = DEFAULT_SHM_WINDOW_SIZE;
+
+static map_info_set_t &get_map_info_set(void)
+{
+	static map_info_set_t set;
+	return set;
+}
 
 static int lock_shm(primary_header_t *header)
 {
@@ -100,7 +115,7 @@ static void open_shm_if_needed(void)
 			ROACH_ABORT();
 		}
 		if (ftruncate(g_shm_fd, shm_size) == -1) {
-			ROACH_ERR("Failed: ftrunc: %d\n", errno);
+			ROACH_ERR("Failed: ftruncate: %d\n", errno);
 			ROACH_ABORT();
 		}
 		ROACH_INFO("created: SHM for data\n");
@@ -135,36 +150,63 @@ static item_header_t *get_shm_region(size_t size)
 	open_shm_if_needed();
 
 	lock_shm();
-	//uint64_t size = g_primary_header->size;
-	uint64_t shm_size = g_primary_header->size;
-	uint64_t offset = g_primary_header->head_index;
+	uint64_t new_index = g_primary_header->head_index
+	                     + (sizeof(item_header_t) + size);
 
-	// truncate shm if its size is small.
+	// extend shm size if it is smaller than the size with the requested.
+	if (new_index > g_primary_header->size) {
+		uint64_t new_size = g_primary_header->size;
+		while (new_index > new_size)
+			new_size += g_shm_add_unit_size;
+		if (ftruncate(g_shm_fd, new_size) == -1) {
+			ROACH_ERR("Failed: ftrancate: %d\n", errno);
+			ROACH_ABORT();
+		}
+		g_primary_header->size = new_size;
+	}
 
 	// just reserve region. Writing data is performed later w/o the lock.
-	g_primary_header->head_index += (sizeof(item_header_t) + size);
+	g_primary_header->head_index = new_index;
 	g_primary_header->count++;
+
+	uint64_t shm_size = g_primary_header->size;
+	uint64_t shm_head_index = g_primary_header->head_index;
 	unlock_shm();
 
 	// map window if needed
-	map_info_t *map_info = find_map_info_and_inc_used_count(offset, size);
+	map_info_t *map_info;
+	map_info = find_map_info_and_inc_used_count(shm_head_index, size);
 	if (map_info) {
 		return NULL;
 	}
 
 	// make a new mapped region
-	int page_size = utils::get_page_size();
-	uint64_t offset_page_aligned = (offset + page_size - 1) / page_size;
-	offset_page_aligned *= page_size;
-	size_t length = SHM_WINDOW_SIZE;
-	void *ptr = mmap(NULL, length,
+	uint64_t page_size = utils::get_page_size();
+	uint64_t map_offset = shm_head_index & ~(page_size - 1);
+	size_t map_length = g_shm_window_size;
+	if (map_length < shm_size - shm_head_index)
+		map_length = shm_size - shm_head_index;
+	void *ptr = mmap(NULL, map_length,
 	                 PROT_READ | PROT_WRITE, MAP_SHARED, g_shm_fd,
-	                 offset_page_aligned);
+	                 map_offset);
 	if (ptr == MAP_FAILED) {
 		ROACH_ERR("Failed to map shm: %d: offset: %"PRIu64"\n",
-		          errno, offset);
+		          errno, map_offset);
 		ROACH_ABORT();
 	}
+	map_info = new map_info_t();
+	map_info->used_count = 1;
+	map_info->offset = map_offset;
+	map_info->size = map_length;
+
+	map_info_set_t &map_info_set = get_map_info_set();
+	pthread_mutex_lock(&g_map_info_mutex);
+	pair<map_info_set_itr, bool> result;
+	result = map_info_set.insert(map_info);
+	if (result.second == false) {
+		// TODO: merge two window
+	}
+	pthread_mutex_unlock(&g_map_info_mutex);
 
 	//return (item_header_t *)ptr;
 	return NULL;
