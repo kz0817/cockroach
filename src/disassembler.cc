@@ -262,7 +262,18 @@ static const instr_info instr_info_imm_grp1_Ev_Ib = {
 	parser_imm_grp1_Ev_Ib,
 };
 
-// 0x89 MOV
+// 0x85 TEST (MR)
+static void parser_test_Ev_Gv(opecode *op, uint8_t *code)
+{
+	parse_operand(op, code);
+}
+
+static const instr_info instr_info_test_Ev_Gv = {
+	1,
+	parser_test_Ev_Gv,
+};
+
+// 0x89 MOV (MR)
 static void parser_mov_Ev_Gv(opecode *op, uint8_t *code)
 {
 	parse_operand(op, code);
@@ -464,7 +475,7 @@ static const instr_info *first_byte_instr_array[0x100] =
 	NULL,                         // 0x82
 	&instr_info_imm_grp1_Ev_Ib,   // 0x83
 	NULL,                         // 0x84
-	NULL,                         // 0x85
+	&instr_info_test_Ev_Gv,       // 0x85
 	NULL,                         // 0x86
 	NULL,                         // 0x87
 	NULL,                         // 0x88
