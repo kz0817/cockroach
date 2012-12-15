@@ -90,8 +90,27 @@ static bool command_info(vector<string> &args)
 	return true;
 }
 
+static void dump_data(item_header_t *item)
+{
+	uint8_t *data = (uint8_t *)(item + 1);
+	for (size_t i = 0; i < item->size; i++)
+		printf("%02x ", data[i]);
+	printf("\n");
+}
+
 static bool command_list(vector<string> &args)
 {
+	bool is_dump = false;
+	for (size_t i = 0; i < args.size(); i++) {
+		string &arg = args[i];
+		if (arg == "--dump")
+			is_dump = true;
+		else {
+			printf("unknwon option: %s\n", arg.c_str());
+			return false;
+		}
+	}
+
 	int shm_fd;
 	primary_header_t *header = get_primary_header(&shm_fd);
 	if (header == NULL) {
@@ -121,6 +140,8 @@ static bool command_list(vector<string> &args)
 	item_header_t *item = (item_header_t *)(header + 1);
 	for (uint64_t i = 0; i < count; i++) {
 		printf("%08x %zd\n", item->id, item->size);
+		if (is_dump)
+			dump_data(item);
 		item = (item_header_t *)
 		       ((uint8_t *)item + sizeof(item_header_t) + item->size);
 	}
@@ -138,7 +159,7 @@ static void print_usage(void)
 	printf("reset\n");
 	printf("remove\n");
 	printf("info\n");
-	printf("list\n");
+	printf("list [--dump]\n");
 	printf("\n");
 }
 
