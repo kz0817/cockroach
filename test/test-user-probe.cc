@@ -15,11 +15,18 @@ void teardown(void)
 {
 }
 
-static void assert_func(const char *target_func, const char *expected_stdout)
+static void
+assert_func_base(const char *arg, const char *expected_stdout,
+             exec_command_info *exec_info)
+{
+	testutil::run_target_exe(recipe_file, arg, exec_info);
+	cut_assert_equal_string(expected_stdout, exec_info->stdout_str.c_str());
+}
+
+static void assert_func(const char *arg, const char *expected_stdout)
 {
 	exec_command_info exec_info;
-	testutil::run_target_exe(recipe_file, target_func, &exec_info);
-	cut_assert_equal_string(expected_stdout, exec_info.stdout_str.c_str());
+	assert_func_base(arg, expected_stdout, &exec_info);
 }
 
 void test_user_probe(void)
@@ -39,14 +46,15 @@ void test_save_instr_size_6(void)
 
 void test_data_record(void)
 {
-	assert_func("sum 5", "15");
+	exec_command_info exec_info;
+	assert_func_base("sum 5", "15", &exec_info);
 	//assert_func("sum 0", "15");
-	
-	/*target_probe_info probe_info(exec_info.child_pid,
-	                             recipe_file, target_func);
-	testutil::assert_measured_time(1, &probe_info);
-	*/
+	//target_probe_info probe_info(exec_info.child_pid,
+	//                             recipe_file, "sum_up_to");
+	uint32_t id;
+	size_t size;
+	void *data;
+	testutil::assert_get_record_data(&id, &size, &data);
 }
-
 
 }

@@ -1,4 +1,7 @@
 #include <cockroach-probe.h>
+#include "user-probe.h"
+
+#define USER_DATA_ID 0x318
 
 extern "C"
 void user_probe_init(probe_init_arg_t *arg)
@@ -9,18 +12,6 @@ extern "C"
 void user_probe(probe_arg_t *arg)
 {
 }
-
-#define USER_DATA_ID 0x318
-
-struct user_data {
-	int id;
-	int call_times;
-};
-
-struct user_record_t {
-	int call_times;
-	unsigned long arg0;
-};
 
 extern "C"
 void data_recorder_init(probe_init_arg_t *arg)

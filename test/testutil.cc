@@ -260,6 +260,19 @@ long testutil::get_page_size(void)
 	return sysconf(_SC_PAGESIZE);
 }
 
+void testutil::assert_get_record_data(uint32_t *id, size_t *size, void **data)
+{
+	const gchar *cmd = "../src/cockroach-record-data-tool";
+	const char *argv[] = {cmd, "list", "--dump", NULL};
+	exec_command_info exec_info;
+	exec_info.argv = argv;
+	exec_info.save_stdout = true;
+	exec_command(&exec_info);
+
+	// get last 2lines
+	string last0, last1;
+}
+
 // ---------------------------------------------------------------------------
 // Private methods
 // ---------------------------------------------------------------------------
