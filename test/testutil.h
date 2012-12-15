@@ -57,8 +57,8 @@ public:
 	                                       target_probe_info *probe_info);
 	static void assert_measured_time_format(string &line,
 	                                        target_probe_info *probe_info);
-	static void exec_test_helper(const char *recipe_path, const char *arg,
-	                             exec_command_info *exec_info);
+	static void run_target_exe(const char *recipe_path, const char *arg,
+	                           exec_command_info *exec_info);
 };
 
 #endif

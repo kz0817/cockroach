@@ -231,14 +231,14 @@ void testutil::assert_measured_time_format(string &line,
 
 }
 
-void testutil::exec_test_helper(const char *recipe_path, const char *arg,
-                                exec_command_info *exec_info)
+void testutil::run_target_exe(const char *recipe_path, const char *arg,
+                              exec_command_info *exec_info)
 {
 	add_test_libs_dir_to_ld_library_path_if_needed();
 	setenv("LD_PRELOAD", "../src/.libs/cockroach.so", 1);
 	setenv("COCKROACH_RECIPE", recipe_path, 1);
 
-	const char *cmd = ".libs/helper-bin";
+	const char *cmd = ".libs/target-exe";
 	const char *argv[] = {cmd, arg, NULL};
 	exec_info->argv = argv;
 	exec_info->save_stdout = true;

@@ -19,7 +19,7 @@ void teardown(void)
 static void assert_func(const char *target_func, const char *expected_stdout)
 {
 	exec_command_info exec_info;
-	testutil::exec_test_helper(recipe_file, target_func, &exec_info);
+	testutil::run_target_exe(recipe_file, target_func, &exec_info);
 	cut_assert_equal_string(expected_stdout, exec_info.stdout_str.c_str());
 
 	target_probe_info probe_info(exec_info.child_pid,

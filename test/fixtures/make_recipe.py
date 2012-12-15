@@ -21,7 +21,7 @@ def make_measure_time_one(probe_type, install_type, func_name,
         addr + " " + save_instr
 
 def make_measure_time():
-    target_program = "helper-bin"
+    target_program = "target-exe"
     make_measure_time_one("T", "REL32", "func1", "0")
     make_measure_time_one("T", "REL32", "func1a")
     make_measure_time_one("T", "REL32", "func1b", "6")

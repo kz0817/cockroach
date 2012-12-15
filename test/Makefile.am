@@ -6,7 +6,7 @@ if WITH_CUTTER
 TESTS = run-test.sh
 TESTS_ENVIRONMENT = NO_MAKE=yes CUTTER="$(CUTTER)"
 
-bin_PROGRAMS = helper-bin
+bin_PROGRAMS = target-exe
 
 noinst_LTLIBRARIES = \
 test-measure-time.la \
@@ -24,12 +24,12 @@ LIBS = $(CUTTER_LIBS) $(CPPCUTTER_LIBS)
 NORM_LIB_LDFLAGS = -rpath $(libdir)
 
 # Testees
-libtargets_la_SOURCES = targets.c
+libtargets_la_SOURCES = target-func-lib.c
 libtargets_la_LDFLAGS = $(NORM_LIB_LDFLAGS)
 
-helper_bin_SOURCES = helper-bin.c
-helper_bin_LDFLAGS =
-helper_bin_LDADD = ./libtargets.la
+target_exe_SOURCES = target-exe.c
+target_exe_LDFLAGS =
+target_exe_LDADD = ./libtargets.la
 
 # Testers
 libtestutil_la_SOURCES = testutil.cc
