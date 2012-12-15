@@ -42,4 +42,9 @@ void test_save_instr_size_6(void)
 	assert_func("func1b", "3");
 }
 
+void test_data_record(void)
+{
+	assert_func("func1", "3");
+}
+
 }
