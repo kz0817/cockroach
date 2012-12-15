@@ -18,7 +18,7 @@ int (*funcX_ptr)(int , int) = funcX;
 int main(int argc, char *argv[])
 {
 	if (argc < 2)
-		return EXIT_SUCCESS;
+		return EXIT_FAILURE;
 	char *first_arg = argv[1];
 
 	if (strcmp(first_arg, "hello") == 0) {
@@ -51,6 +51,15 @@ int main(int argc, char *argv[])
 	}
 	else if (strcmp(first_arg, "func2") == 0) {
 		printf("%d", func2(1,2));
+	}
+	else if (strcmp(first_arg, "sum") == 0) {
+		if (argc < 3) {
+			fprintf(stderr, "Number of arg.(%d) must be greater "
+			                "than 3\n", argc);
+			return EXIT_FAILURE;
+		}
+		int num = atoi(argv[2]);
+		printf("%d", sum_up_to(num));
 	}
 
 	return EXIT_SUCCESS;
