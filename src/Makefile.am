@@ -12,11 +12,14 @@ cockroach_la_LDFLAGS = \
   -module -no-undefined \
   -export-dynamic
 
-bin_PROGRAMS = cockroach-time-measure-tool
+bin_PROGRAMS = cockroach-time-measure-tool cockroach-record-data-tool
 cockroach_time_measure_tool_SOURCES = \
   cockroach-time-measure-tool.cc \
   cockroach-time-measure.cc
-
 cockroach_time_measure_tool_CXXFLAGS = -Wall -g
-cockroach_time_measure_tool_LDFLAGS = \
-  -lrt
+cockroach_time_measure_tool_LDFLAGS = -lrt
+
+cockroach_record_data_tool_SOURCES = \
+  cockroach-record-data-tool.cc data_on_shm.cc utils.cc
+cockroach_record_data_tool_CXXFLAGS = -Wall -g
+cockroach_record_data_tool_LDFLAGS = -lrt -ldl

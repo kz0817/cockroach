@@ -17,23 +17,7 @@ using namespace std;
 
 #include "cockroach-probe.h"
 #include "utils.h"
-
-#define COCKROACH_DATA_SHM_NAME "cockroach_data"
-
-#define DEFAULT_SHM_ADD_UNIT_SIZE (1024*1024) // 1MiB
-#define DEFAULT_SHM_WINDOW_SIZE   DEFAULT_SHM_ADD_UNIT_SIZE
-
-struct primary_header_t {
-	sem_t sem;
-	uint64_t size;
-	uint64_t head_index;
-	uint64_t count;
-};
-
-struct item_header_t {
-	uint32_t id;
-	size_t size;
-};
+#include "data_on_shm.h"
 
 struct map_info_t {
 	int used_count;
@@ -65,27 +49,9 @@ static map_info_queue_t &get_unused_map_info_queu(void)
 	return q;
 }
 
-static int lock_shm(primary_header_t *header)
-{
-top:
-	int ret = sem_wait(&header->sem);
-	if (ret == 0)
-		return 0;
-	if (errno == EINTR)
-		goto top;
-	return -1;
-}
-
-static int unlock_shm(primary_header_t *header)
-{
-	int ret = sem_post(&header->sem); if (ret == 0)
-		return 0;
-	return -1;
-}
-
 static void lock_shm(void)
 {
-	if (lock_shm(g_primary_header) == -1) {
+	if (lock_data_shm(g_primary_header) == -1) {
 		ROACH_ERR("Failed: cockroach_lock_shm: %d\n", errno);
 		ROACH_ABORT();
 	}
@@ -93,7 +59,7 @@ static void lock_shm(void)
 
 static void unlock_shm(void)
 {
-	if (unlock_shm(g_primary_header) == -1) {
+	if (unlock_data_shm(g_primary_header) == -1) {
 		ROACH_ERR("Failed: cockroach_unlock_shm: %d\n", errno);
 		ROACH_ABORT();
 	}
@@ -112,6 +78,7 @@ static void open_shm_if_needed(void)
 		return;
 	}
 
+	bool created_shm = false;
 	size_t shm_size = sizeof(primary_header_t);
 	g_shm_fd = shm_open(COCKROACH_DATA_SHM_NAME, O_RDWR, 0644);
 	if (g_shm_fd == -1) {
@@ -128,6 +95,7 @@ static void open_shm_if_needed(void)
 			ROACH_ABORT();
 		}
 		ROACH_INFO("created: SHM for data\n");
+		created_shm = true;
 	}
 
 	void *ptr = mmap(NULL, shm_size,
@@ -137,12 +105,18 @@ static void open_shm_if_needed(void)
 		ROACH_ABORT();
 	}
 	g_primary_header = (primary_header_t *)ptr;
-	int shared = 1;
-	unsigned int sem_count = 1;
-	sem_init(&g_primary_header->sem, shared, sem_count);
-	g_primary_header->size = shm_size;
-	g_primary_header->head_index = shm_size;
-	g_primary_header->count = 0;
+	if (created_shm)
+		init_primary_header(g_primary_header, shm_size);
+	else {
+		int fmt_ver = g_primary_header->format_version;
+		if (fmt_ver != COCKROACH_DATA_SHM_FORMAT_VERSION) {
+			ROACH_ERR("Format version unmatched: expected: %d, "
+			          "actual: %d\n",
+			          COCKROACH_DATA_SHM_FORMAT_VERSION, fmt_ver);
+			ROACH_ABORT();
+		}
+	}
+
 	pthread_mutex_unlock(&g_shm_mutex);
 }
 
@@ -233,8 +207,8 @@ static void alloc_item_slot(size_t size, item_slot_t *item_slot)
 	open_shm_if_needed();
 
 	lock_shm();
-	uint64_t new_index = g_primary_header->head_index
-	                     + (sizeof(item_header_t) + size);
+	uint64_t head_index = g_primary_header->head_index;
+	uint64_t new_index = head_index + (sizeof(item_header_t) + size);
 
 	// extend shm size if it is smaller than the size with the requested.
 	if (new_index > g_primary_header->size) {
@@ -257,7 +231,7 @@ static void alloc_item_slot(size_t size, item_slot_t *item_slot)
 	g_primary_header->count++;
 
 	uint64_t shm_size = g_primary_header->size;
-	uint64_t shm_head_index = g_primary_header->head_index;
+	uint64_t shm_head_index = head_index;
 	unlock_shm();
 
 	// map window
@@ -300,6 +274,43 @@ static void basic_record_data_func(size_t size, void *buf, void *priv)
 // --------------------------------------------------------------------------
 // exported functions
 // --------------------------------------------------------------------------
+primary_header_t *get_primary_header(int *shm_fd)
+{
+	open_shm_if_needed();
+	if (shm_fd)
+		*shm_fd = g_shm_fd;
+	return g_primary_header;
+}
+
+void init_primary_header(primary_header_t *header, size_t shm_size)
+{
+	static const int shared = 1;
+	static const unsigned int sem_count = 1;
+	header->format_version = COCKROACH_DATA_SHM_FORMAT_VERSION;
+	sem_init(&header->sem, shared, sem_count);
+	header->size = shm_size;
+	header->head_index = shm_size;
+	header->count = 0;
+}
+
+int lock_data_shm(primary_header_t *header)
+{
+top:
+	int ret = sem_wait(&header->sem);
+	if (ret == 0)
+		return 0;
+	if (errno == EINTR)
+		goto top;
+	return -1;
+}
+
+int unlock_data_shm(primary_header_t *header)
+{
+	int ret = sem_post(&header->sem); if (ret == 0)
+		return 0;
+	return -1;
+}
+
 void cockroach_record_data_on_shm_with_func(uint32_t id, size_t size,
                                             record_data_func_t record_data_func,
                                             void *priv)
