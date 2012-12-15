@@ -148,7 +148,8 @@ void testutil::exec_command(exec_command_info *arg)
 	cppcut_assert_equal(0, errno_stderr);
 	cppcut_assert_equal(1, WIFEXITED(arg->status),
 	                    cut_message("%s", stderr_buf.c_str()));
-	cppcut_assert_equal(EXIT_SUCCESS, WEXITSTATUS(arg->status));
+	cppcut_assert_equal(EXIT_SUCCESS, WEXITSTATUS(arg->status),
+	                    cut_message("%s", stderr_buf.c_str()));
 }
 
 void testutil::exec_time_measure_tool(const char *arg, exec_command_info *exec_info)
@@ -231,15 +232,24 @@ void testutil::assert_measured_time_format(string &line,
 
 }
 
-void testutil::run_target_exe(const char *recipe_path, const char *arg,
+void testutil::run_target_exe(const char *recipe_path, string arg_str,
                               exec_command_info *exec_info)
 {
 	add_test_libs_dir_to_ld_library_path_if_needed();
 	setenv("LD_PRELOAD", "../src/.libs/cockroach.so", 1);
 	setenv("COCKROACH_RECIPE", recipe_path, 1);
 
-	const char *cmd = ".libs/target-exe";
-	const char *argv[] = {cmd, arg, NULL};
+	// split arg
+	vector<string> arg_vect;
+	split(arg_vect, arg_str, is_any_of(" "));
+
+	static const char *cmd = ".libs/target-exe";
+	const char *argv[arg_vect.size() + 2];
+	argv[0] = cmd;
+	for (size_t i = 0; i < arg_vect.size(); i++)
+		argv[1+i] = arg_vect[i].c_str();
+	argv[arg_vect.size()+1] = NULL;
+
 	exec_info->argv = argv;
 	exec_info->save_stdout = true;
 	exec_command(exec_info);

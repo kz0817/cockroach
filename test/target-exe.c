@@ -18,12 +18,13 @@ int cmd_sum(int argc, char *argv[])
 {
 	if (argc < 3) {
 		fprintf(stderr,
-		        "Number of arg.(%d) must be greater than 3\n",
-		        argc);
+		        "[%s] Number of arg.(%d) must be greater than 3.\n",
+		        __func__, argc);
 		return EXIT_FAILURE;
 	}
 	int num = atoi(argv[2]);
 	printf("%d", sum_up_to(num));
+	return EXIT_SUCCESS;
 }
 
 int main(int argc, char *argv[])

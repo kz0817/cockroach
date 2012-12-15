@@ -1,22 +1,44 @@
 #include <cockroach-probe.h>
 
 extern "C"
-void user_probe_init(probe_init_arg_t *t)
+void user_probe_init(probe_init_arg_t *arg)
 {
 }
 
 extern "C"
-void user_probe(probe_arg_t *)
+void user_probe(probe_arg_t *arg)
 {
 }
 
+#define USER_DATA_ID 0x318
+
+struct user_data {
+	int id;
+	int call_times;
+};
+
+struct user_record_t {
+	int call_times;
+	unsigned long arg0;
+};
+
 extern "C"
-void data_recorder_init(probe_init_arg_t *t)
+void data_recorder_init(probe_init_arg_t *arg)
 {
+	user_data *priv = new user_data();
+	priv->id = USER_DATA_ID;
+	priv->call_times = 0;
+	arg->priv_data = priv;
+
 }
 
 extern "C"
-void data_recorder_(probe_arg_t *)
+void data_recorder(probe_arg_t *arg)
 {
+	user_data *priv = (user_data *)arg->priv_data;
+	user_record_t record;
+	record.call_times = priv->call_times++;
+	record.arg0 = arg->rdi;
+	cockroach_record_data_on_shm(priv->id, sizeof(user_record_t), &record);
 }
 

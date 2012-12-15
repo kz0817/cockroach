@@ -46,13 +46,15 @@ def make_user_prbe_one(probe_type, install_type, func_name, user_probe_func,
   print "# " + func_name
   print probe_type + " " + install_type + " " + target_module + " " + \
         addr + " " + save_instr + " " + user_probe_module + " " + \
-        user_probe_func + " " + user_probe_init_func,
+        user_probe_func + " " + user_probe_init_func
 
 def make_user_probe():
     make_user_prbe_one("P", "REL32", "func1", "user_probe")
     make_user_prbe_one("P", "REL32", "func1b", "user_probe", "6")
     make_user_prbe_one("P", "REL32", "func1a", "user_probe",
                        user_probe_init_func="user_probe_init")
+    make_user_prbe_one("P", "REL32", "sum_up_to", "data_recorder",
+                       user_probe_init_func="data_recorder_init")
 
 command_map = {"measure-time":make_measure_time, "user-probe":make_user_probe}
 
