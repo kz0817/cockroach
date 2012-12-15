@@ -234,6 +234,18 @@ static const instr_info instr_info_push_rBPr13 = {
 	parser_push_rBPr13,
 };
 
+// 0x7e Jcc, jb- Short displacement jump on condition
+static void parser_jcc_LE_NG(opecode *op, uint8_t *code)
+{
+	op->set_rel_jump_addr(REL8, *code);
+	op->inc_length(1);
+}
+
+static const instr_info instr_info_jcc_LE_NG  = {
+	1,
+	parser_jcc_LE_NG,
+};
+
 // 0x81 Immediate Group 1 (MI): sub, cmp
 static void parser_imm_grp1_Ev_Iz(opecode *op, uint8_t *code)
 {
@@ -467,7 +479,7 @@ static const instr_info *first_byte_instr_array[0x100] =
 	NULL,                         // 0x7b
 	NULL,                         // 0x7c
 	NULL,                         // 0x7d
-	NULL,                         // 0x7e
+	&instr_info_jcc_LE_NG,        // 0x7e
 	NULL,                         // 0x7f
 
 	NULL,                         // 0x80

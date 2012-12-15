@@ -1,5 +1,6 @@
 #include <set>
 #include <queue>
+#include <cstring>
 using namespace std;
 
 #include <pthread.h>
@@ -290,8 +291,18 @@ static void dec_used_count(map_info_t *map_info)
 	pthread_mutex_unlock(&g_map_info_mutex);
 }
 
-void cockroach_record_data_on_shm(uint32_t id, size_t size,
-                                  record_data_func_t record_data_func)
+static void basic_record_data_func(size_t size, void *buf, void *priv)
+{
+	void *src = priv;
+	memcpy(buf, src, size);
+}
+
+// --------------------------------------------------------------------------
+// exported functions
+// --------------------------------------------------------------------------
+void cockroach_record_data_on_shm_with_func(uint32_t id, size_t size,
+                                            record_data_func_t record_data_func,
+                                            void *priv)
 {
 	if (id >= COCKROACH_RECORD_ID_RESERVED_BEGIN) {
 		ROACH_ERR("id: %d is RESERVED. IGNORED.\n", id);
@@ -303,6 +314,12 @@ void cockroach_record_data_on_shm(uint32_t id, size_t size,
 	item_header_t *item_header = item_slot.header;
 	item_header->id = id;
 	item_header->size = size;
-	(*record_data_func)(size, item_slot.data);
+	(*record_data_func)(size, item_slot.data, priv);
 	dec_used_count(item_slot.map_info);
+}
+
+void cockroach_record_data_on_shm(uint32_t id, size_t size, void *data)
+{
+	cockroach_record_data_on_shm_with_func(id, size,
+	                                       basic_record_data_func, data);
 }

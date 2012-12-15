@@ -24,6 +24,8 @@ opecode::opecode(uint8_t *orig_addr)
   m_disp(0),
   m_immediate_type(IMM_INVALID),
   m_immediate(0),
+  m_rel_jump_type(REL_INVALID),
+  m_rel_jump_value(0),
   m_relocator(NULL),
   m_relocated_code_size(0)
 {
@@ -102,6 +104,12 @@ void opecode::set_immediate(opecode_imm_t imm_type, uint64_t imm)
 {
 	m_immediate_type = imm_type;
 	m_immediate = imm;
+}
+
+void opecode::set_rel_jump_addr(rel_jump_t rel_type, int32_t value)
+{
+	m_rel_jump_type = rel_type;
+	m_rel_jump_value = value;
 }
 
 void opecode::copy_code(uint8_t *addr)

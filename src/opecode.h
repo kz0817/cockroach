@@ -23,6 +23,13 @@ enum opecode_imm_t {
 	IMM64,
 };
 
+enum rel_jump_t {
+	REL_INVALID,
+	REL8,
+	REL16,
+	REL32,
+};
+
 class opecode {
 	uint8_t *m_original_addr;
 	int      m_length;
@@ -38,6 +45,8 @@ class opecode {
 	uint32_t       m_disp;
 	opecode_imm_t m_immediate_type;
 	uint64_t      m_immediate;
+	rel_jump_t    m_rel_jump_type;
+	int32_t       m_rel_jump_value;
 	opecode_relocator *m_relocator;
 	int                m_relocated_code_size;
 public:
@@ -55,6 +64,7 @@ public:
 	              uint8_t *disp_orig_addr);
 	uint32_t get_disp(void) const;
 	void set_immediate(opecode_imm_t imm_type, uint64_t imm);
+	void set_rel_jump_addr(rel_jump_t rel_type, int32_t value);
 	void copy_code(uint8_t *addr);
 	opecode_relocator *get_relocator(void);
 };

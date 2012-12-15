@@ -46,10 +46,14 @@ struct probe_init_arg_t {
 typedef void (*probe_init_func_t)(probe_init_arg_t *t);
 typedef void (*probe_func_t)(probe_arg_t *t);
 
-typedef void (*record_data_func_t)(size_t size, void *buf);
+typedef void (*record_data_func_t)(size_t size, void *buf, void *priv);
 
 void cockroach_set_return_probe(probe_func_t probe, probe_arg_t *arg);
-void cockroach_record_data_to_shm(uint32_t id, size_t size, void *data);
+void cockroach_record_data_on_shm(uint32_t id, size_t size, void *data);
+void
+cockroach_record_data_on_shm_with_func(uint32_t id, size_t size,
+                                       record_data_func_t record_data_func,
+                                       void *priv);
 
 #ifdef __cplusplus
 }
