@@ -1,6 +1,6 @@
-* support user specific share mem data structure.
 * support symbol in a recipe file.
 * support the installation of a probe to targets that is loaded later.
+* short_jump_relocator.
 * fix configure.ac to disable test when boost and the lib is missing.
 * resolve the symbolic link of the target lib. in the recipe.
 * test cases for disassembler.
@@ -12,6 +12,7 @@
 * Check the overlap of overwritten code
 * support multiple probe in the same address.
 * support call/jmp address replacement installation
+* merge time measure tool and record data tool
 * support Built-in TSC counter probe.
 * support i386.
 * support CJADDR installation.
