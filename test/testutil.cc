@@ -8,6 +8,8 @@ using namespace std;
 #include <boost/foreach.hpp>
 #include <boost/thread.hpp>
 #include <boost/format.hpp>
+#include <boost/tokenizer.hpp>
+#include <boost/lexical_cast.hpp>
 using namespace boost;
 
 #include <sys/types.h> 
@@ -18,6 +20,27 @@ using namespace boost;
 
 #include "testutil.h"
 
+typedef char_separator<char> char_separator_t;
+
+// ---------------------------------------------------------------------------
+// struct: record_data_tool_output
+// ---------------------------------------------------------------------------
+record_data_tool_output::record_data_tool_output(void)
+: id(0),
+  size(0),
+  data(NULL)
+{
+}
+
+record_data_tool_output::~record_data_tool_output()
+{
+	if (data)
+		delete [] data;
+}
+
+// ---------------------------------------------------------------------------
+// struct: exec_command_info
+// ---------------------------------------------------------------------------
 exec_command_info::exec_command_info(const char *_argv[])
 : save_stdout(false),
   save_stderr(false),
@@ -152,7 +175,8 @@ void testutil::exec_command(exec_command_info *arg)
 	                    cut_message("%s", stderr_buf.c_str()));
 }
 
-void testutil::exec_time_measure_tool(const char *arg, exec_command_info *exec_info)
+void
+testutil::exec_time_measure_tool(const char *arg, exec_command_info *exec_info)
 {
 	const gchar *cmd = "../src/cockroach-time-measure-tool";
 	const char *argv[] = {cmd, arg, NULL};
@@ -260,7 +284,7 @@ long testutil::get_page_size(void)
 	return sysconf(_SC_PAGESIZE);
 }
 
-void testutil::assert_get_record_data(uint32_t *id, size_t *size, void **data)
+void testutil::assert_get_record_data(record_data_tool_output *tool_out)
 {
 	const gchar *cmd = "../src/cockroach-record-data-tool";
 	const char *argv[] = {cmd, "list", "--dump", NULL};
@@ -269,8 +293,35 @@ void testutil::assert_get_record_data(uint32_t *id, size_t *size, void **data)
 	exec_info.save_stdout = true;
 	exec_command(&exec_info);
 
-	// get last 2lines
-	string last0, last1;
+	// extract the last two lines
+	string line0, line1;
+	char_separator_t sep("\n");
+	tokenizer<char_separator_t> tokens(exec_info.stdout_str, sep);
+
+	int num_lines = 0;
+	tokenizer<char_separator_t>::iterator it = tokens.begin();
+	for (; it != tokens.end(); ++it, num_lines++) {
+		line0 = line1;
+		line1 = *it;
+	}
+	cppcut_assert_equal(true, num_lines >= 2,
+	                    cut_message("num_lines: %d", num_lines));
+
+	// parse output
+	static const int NUM_ITEM_HEADER_ELEM = 2;
+	int num_item_header_elem = sscanf(line0.c_str(), "%x %zd",
+	                                  &tool_out->id, &tool_out->size);
+	cppcut_assert_equal(NUM_ITEM_HEADER_ELEM, num_item_header_elem);
+
+	uint8_t *buf = new uint8_t[tool_out->size];
+	char_separator_t sep_spc(" ");
+	tokenizer<char_separator_t> raw_data(line1, sep_spc);
+	size_t idx = 0;
+	for (it = raw_data.begin(); it != raw_data.end(); ++it, idx++) {
+		cppcut_assert_equal(true, idx < tool_out->size);
+		buf[idx] = strtol(it->c_str(), NULL, 16);
+	}
+	tool_out->data = buf;
 }
 
 // ---------------------------------------------------------------------------

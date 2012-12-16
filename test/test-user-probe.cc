@@ -1,7 +1,12 @@
 #include <cstdio>
 #include <cppcutter.h>
 #include <glib.h>
+
+#include <boost/format.hpp>
+using namespace boost;
+
 #include "testutil.h"
+#include "user-probe.h"
 
 namespace test_user_probe {
 
@@ -29,6 +34,9 @@ static void assert_func(const char *arg, const char *expected_stdout)
 	assert_func_base(arg, expected_stdout, &exec_info);
 }
 
+//
+// Tests
+//
 void test_user_probe(void)
 {
 	assert_func("func1", "3");
@@ -46,15 +54,18 @@ void test_save_instr_size_6(void)
 
 void test_data_record(void)
 {
+	const unsigned long arg_num = 5;
+	string arg = (format("sum %ld") % arg_num).str();
 	exec_command_info exec_info;
-	assert_func_base("sum 5", "15", &exec_info);
-	//assert_func("sum 0", "15");
-	//target_probe_info probe_info(exec_info.child_pid,
-	//                             recipe_file, "sum_up_to");
-	uint32_t id;
-	size_t size;
-	void *data;
-	testutil::assert_get_record_data(&id, &size, &data);
+	assert_func_base(arg.c_str(), "15", &exec_info);
+
+	// check the output
+	record_data_tool_output tool_out;
+	testutil::assert_get_record_data(&tool_out);
+	cppcut_assert_equal(sizeof(user_record_t), tool_out.size);
+	user_record_t *record
+	  = reinterpret_cast<user_record_t *>(tool_out.data);
+	cppcut_assert_equal(record->arg0, arg_num);
 }
 
 }

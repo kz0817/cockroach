@@ -6,6 +6,15 @@ using namespace std;
 
 #include <glib.h>
 
+struct record_data_tool_output {
+	uint32_t id;
+	size_t size;
+	uint8_t *data;
+
+	record_data_tool_output(void);
+	virtual ~record_data_tool_output();
+};
+
 struct exec_command_info {
 	// intput
 	bool save_stdout;
@@ -25,7 +34,7 @@ struct exec_command_info {
 
 	// constructor
 	exec_command_info(const char *argv[] = NULL);
-	~exec_command_info();
+	virtual ~exec_command_info();
 };
 
 class target_probe_info {
@@ -59,8 +68,7 @@ public:
 	                                        target_probe_info *probe_info);
 	static void run_target_exe(const char *recipe_path, string arg_str,
 	                           exec_command_info *exec_info);
-	static void assert_get_record_data(uint32_t *id, size_t *size,
-	                                   void **data);
+	static void assert_get_record_data(record_data_tool_output *tool_out);
 };
 
 #endif
