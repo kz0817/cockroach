@@ -324,6 +324,22 @@ void testutil::assert_get_record_data(record_data_tool_output *tool_out)
 	tool_out->data = buf;
 }
 
+void
+testutil::exec_record_data_tool(const char *arg, exec_command_info *exec_info)
+{
+	const gchar *cmd = "../src/cockroach-record-data-tool";
+	const char *argv[] = {cmd, arg, NULL};
+	exec_info->argv = argv;
+	exec_info->save_stdout = true;
+	exec_command(exec_info);
+}
+
+void testutil::reset_record_data(void)
+{
+	exec_command_info exec_info;
+	exec_record_data_tool("reset", &exec_info);
+}
+
 // ---------------------------------------------------------------------------
 // Private methods
 // ---------------------------------------------------------------------------

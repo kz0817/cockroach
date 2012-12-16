@@ -34,6 +34,27 @@ static void assert_func(const char *arg, const char *expected_stdout)
 	assert_func_base(arg, expected_stdout, &exec_info);
 }
 
+static void assert_exec_data_record(int num_call = 1)
+{
+	// exec
+	const unsigned long arg_num = 5;
+	string expected_stdout;
+	exec_command_info exec_info;
+	string arg = (format("sum %ld %d") % arg_num % num_call).str();
+	for (int i = 0; i < num_call; i++)
+		expected_stdout += "15";
+	assert_func_base(arg.c_str(), expected_stdout.c_str(), &exec_info);
+
+	// check the output
+	record_data_tool_output tool_out;
+	testutil::assert_get_record_data(&tool_out);
+	cppcut_assert_equal(sizeof(user_record_t), tool_out.size);
+	user_record_t *record
+	  = reinterpret_cast<user_record_t *>(tool_out.data);
+	cppcut_assert_equal(record->arg0, arg_num);
+}
+
+
 //
 // Tests
 //
@@ -54,18 +75,16 @@ void test_save_instr_size_6(void)
 
 void test_data_record(void)
 {
-	const unsigned long arg_num = 5;
-	string arg = (format("sum %ld") % arg_num).str();
-	exec_command_info exec_info;
-	assert_func_base(arg.c_str(), "15", &exec_info);
+	testutil::reset_record_data();
+	assert_exec_data_record();
+}
 
-	// check the output
-	record_data_tool_output tool_out;
-	testutil::assert_get_record_data(&tool_out);
-	cppcut_assert_equal(sizeof(user_record_t), tool_out.size);
-	user_record_t *record
-	  = reinterpret_cast<user_record_t *>(tool_out.data);
-	cppcut_assert_equal(record->arg0, arg_num);
+void test_data_record_many_times(void)
+{
+	int shm_window_sz = 1024*1024;
+	int num_call = 10 * shm_window_sz / sizeof(user_record_t);
+	testutil::reset_record_data();
+	assert_exec_data_record(num_call);
 }
 
 }

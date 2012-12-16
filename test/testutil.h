@@ -69,6 +69,9 @@ public:
 	static void run_target_exe(const char *recipe_path, string arg_str,
 	                           exec_command_info *exec_info);
 	static void assert_get_record_data(record_data_tool_output *tool_out);
+	static void exec_record_data_tool(const char *arg,
+	                                  exec_command_info *exec_info);
+	static void reset_record_data(void);
 };
 
 #endif

@@ -16,6 +16,7 @@ int (*funcX_ptr)(int , int) = funcX;
 
 int cmd_sum(int argc, char *argv[])
 {
+	int i;
 	if (argc < 3) {
 		fprintf(stderr,
 		        "[%s] Number of arg.(%d) must be greater than 3.\n",
@@ -23,7 +24,11 @@ int cmd_sum(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 	int num = atoi(argv[2]);
-	printf("%d", sum_up_to(num));
+	int num_exec = 1;
+	if (argc >= 4)
+		num_exec = atoi(argv[3]);
+	for (i = 0; i < num_exec; i++)
+		printf("%d", sum_up_to(num));
 	return EXIT_SUCCESS;
 }
 
