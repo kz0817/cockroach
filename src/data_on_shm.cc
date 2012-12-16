@@ -34,10 +34,10 @@ static int               g_shm_fd = 0;
 static pthread_mutex_t   g_shm_mutex = PTHREAD_MUTEX_INITIALIZER;
 static primary_header_t *g_primary_header = NULL;
 static pthread_mutex_t   g_map_info_mutex = PTHREAD_MUTEX_INITIALIZER;
+static map_info_t       *g_latest_map_info = NULL;
 
 static size_t g_shm_add_unit_size = DEFAULT_SHM_ADD_UNIT_SIZE;
 static size_t g_shm_window_size   = DEFAULT_SHM_WINDOW_SIZE;
-static map_info_t       *g_latest_map_info = NULL;
 
 static void lock_shm(void)
 {
@@ -235,6 +235,8 @@ static void dec_used_count(map_info_t *map_info)
 	if (map_info->used_count == 0) {
 		if (g_latest_map_info != map_info)
 			free_map(map_info);
+		// If g_latest_map_info == map, map_info will be freed
+		// when the new map_info is created in create_new_map_info().
 	}
 	pthread_mutex_unlock(&g_map_info_mutex);
 }
@@ -280,7 +282,8 @@ top:
 
 int unlock_data_shm(primary_header_t *header)
 {
-	int ret = sem_post(&header->sem); if (ret == 0)
+	int ret = sem_post(&header->sem);
+	if (ret == 0)
 		return 0;
 	return -1;
 }
