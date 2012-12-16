@@ -1,5 +1,3 @@
-#include <set>
-#include <queue>
 #include <cstring>
 using namespace std;
 
@@ -32,8 +30,6 @@ struct item_slot_t {
 	uint8_t       *data;
 };
 
-typedef queue<map_info_t *> map_info_queue_t;
-
 static int               g_shm_fd = 0;
 static pthread_mutex_t   g_shm_mutex = PTHREAD_MUTEX_INITIALIZER;
 static primary_header_t *g_primary_header = NULL;
@@ -42,12 +38,6 @@ static pthread_mutex_t   g_map_info_mutex = PTHREAD_MUTEX_INITIALIZER;
 static size_t g_shm_add_unit_size = DEFAULT_SHM_ADD_UNIT_SIZE;
 static size_t g_shm_window_size   = DEFAULT_SHM_WINDOW_SIZE;
 static map_info_t       *g_latest_map_info = NULL;
-
-static map_info_queue_t &get_unused_map_info_queu(void)
-{
-	static map_info_queue_t q;
-	return q;
-}
 
 static void lock_shm(void)
 {
@@ -151,19 +141,6 @@ static void free_map(map_info_t *map_info)
 	delete map_info;
 }
 
-/**
- * This function must be called while g_map_info_mutex is being taken.
- */
-static void free_unused_maps(void)
-{
-	map_info_queue_t &unused_map_info_queue = get_unused_map_info_queu();
-	while (!unused_map_info_queue.empty()) {
-		map_info_t *map_info = unused_map_info_queue.front();
-		free_map(map_info);
-		unused_map_info_queue.pop();
-	}
-}
-
 static
 map_info_t *create_new_map_info(uint64_t shm_head_index, uint64_t shm_size)
 {
@@ -188,11 +165,10 @@ map_info_t *create_new_map_info(uint64_t shm_head_index, uint64_t shm_size)
 	map_info->size = map_length;
 
 	pthread_mutex_lock(&g_map_info_mutex);
-	g_latest_map_info = map_info;
-
 	// TO BE CONSIDERED: Is here the best to unmap and free object ?
-	free_unused_maps();
-
+	if (g_latest_map_info && g_latest_map_info->used_count == 0)
+		free_map(g_latest_map_info);
+	g_latest_map_info = map_info;
 	pthread_mutex_unlock(&g_map_info_mutex);
 
 	return map_info;
@@ -259,8 +235,6 @@ static void dec_used_count(map_info_t *map_info)
 	if (map_info->used_count == 0) {
 		if (g_latest_map_info != map_info)
 			free_map(map_info);
-		else
-			get_unused_map_info_queu().push(map_info);
 	}
 	pthread_mutex_unlock(&g_map_info_mutex);
 }
