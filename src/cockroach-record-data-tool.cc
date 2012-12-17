@@ -90,6 +90,38 @@ static bool command_info(vector<string> &args)
 	return true;
 }
 
+static bool
+check_data_size_consistency(primary_header_t *header_all_map,
+                            item_header_t *item, uint64_t shm_size,
+                            uint64_t i, uint64_t count)
+{
+	unsigned long item_index;
+	item_index = (unsigned long)item - (unsigned long)header_all_map;
+
+	unsigned long item_header_tail_index;
+	item_header_tail_index = item_index + sizeof(item_header_t);
+	if (item_header_tail_index > shm_size) {
+		printf("Inconsitency data size: SHM may be broken: "
+		       "count: %"PRIu64"/%"PRIu64", "
+		       "item_header_tail_index: %"PRIu64", "
+		       "item_index: %ld, shm_size: %"PRIu64"\n",
+		       i, count, item_header_tail_index, item_index, shm_size);
+		return false;
+	}
+
+	unsigned long item_data_tail_index;
+	item_data_tail_index = item_header_tail_index + item->size;
+	if (item_data_tail_index > shm_size) {
+		printf("Inconsitency data size: SHM may be broken: "
+		       "count: %"PRIu64"/%"PRIu64", "
+		       "item_data_tail_index: %"PRIu64", "
+		       "item_heder_index: %ld, shm_size: %"PRIu64"\n",
+		       i, count, item_data_tail_index, item_index, shm_size);
+		return false;
+	}
+	return true;
+}
+
 static void dump_data(item_header_t *item)
 {
 	uint8_t *data = (uint8_t *)(item + 1);
@@ -137,8 +169,15 @@ static bool command_list(vector<string> &args)
 	}
 
 	// print data
-	item_header_t *item = (item_header_t *)(header + 1);
+	primary_header_t *header_all_map = (primary_header_t *)ptr;
+	item_header_t *item = (item_header_t *)(header_all_map + 1);
 	for (uint64_t i = 0; i < count; i++) {
+		// check the size
+		bool chk = check_data_size_consistency(header_all_map, item,
+		                                       shm_size, i, count);
+		if (!chk)
+			return false;
+		// print data
 		printf("%08x %zd\n", item->id, item->size);
 		if (is_dump)
 			dump_data(item);
