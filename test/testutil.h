@@ -2,6 +2,7 @@
 #define testutil_h
 
 #include <string>
+#include <list>
 using namespace std;
 
 #include <glib.h>
@@ -68,7 +69,10 @@ public:
 	                                        target_probe_info *probe_info);
 	static void run_target_exe(const char *recipe_path, string arg_str,
 	                           exec_command_info *exec_info);
-	static void assert_get_record_data(record_data_tool_output *tool_out);
+	static void assert_get_record_data(list<record_data_tool_output> &tool_out);
+	static void assert_parse_record_data_output
+	              (string *line,
+	               list<record_data_tool_output> &tool_output_list);
 	static void exec_record_data_tool(const char *arg,
 	                                  exec_command_info *exec_info);
 	static void reset_record_data(void);

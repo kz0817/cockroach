@@ -284,7 +284,30 @@ long testutil::get_page_size(void)
 	return sysconf(_SC_PAGESIZE);
 }
 
-void testutil::assert_get_record_data(record_data_tool_output *tool_out)
+void
+testutil::assert_parse_record_data_output
+  (string *line, list<record_data_tool_output> &tool_output_list)
+{
+	tool_output_list.push_back(record_data_tool_output());
+	record_data_tool_output &tool_out = tool_output_list.back();
+	static const int NUM_ITEM_HEADER_ELEM = 2;
+	int num_item_header_elem = sscanf(line[0].c_str(), "%x %zd",
+	                                  &tool_out.id, &tool_out.size);
+	cppcut_assert_equal(NUM_ITEM_HEADER_ELEM, num_item_header_elem);
+
+	uint8_t *buf = new uint8_t[tool_out.size];
+	char_separator_t sep_spc(" ");
+	tokenizer<char_separator_t> raw_data(line[1], sep_spc);
+	size_t idx = 0;
+	tokenizer<char_separator_t>::iterator it;
+	for (it = raw_data.begin(); it != raw_data.end(); ++it, idx++) {
+		cppcut_assert_equal(true, idx < tool_out.size);
+		buf[idx] = strtol(it->c_str(), NULL, 16);
+	}
+	tool_out.data = buf;
+}
+
+void testutil::assert_get_record_data(list<record_data_tool_output> &tool_output_list)
 {
 	const gchar *cmd = "../src/cockroach-record-data-tool";
 	const char *argv[] = {cmd, "list", "--dump", NULL};
@@ -294,34 +317,19 @@ void testutil::assert_get_record_data(record_data_tool_output *tool_out)
 	exec_command(&exec_info);
 
 	// extract the last two lines
-	string line0, line1;
+	string line[2];
 	char_separator_t sep("\n");
 	tokenizer<char_separator_t> tokens(exec_info.stdout_str, sep);
 
 	int num_lines = 0;
 	tokenizer<char_separator_t>::iterator it = tokens.begin();
 	for (; it != tokens.end(); ++it, num_lines++) {
-		line0 = line1;
-		line1 = *it;
+		line[0] = *it;
+		++it;
+		cppcut_assert_equal(false, it == tokens.end());
+		line[1] = *it;
+		assert_parse_record_data_output(line, tool_output_list);
 	}
-	cppcut_assert_equal(true, num_lines >= 2,
-	                    cut_message("num_lines: %d", num_lines));
-
-	// parse output
-	static const int NUM_ITEM_HEADER_ELEM = 2;
-	int num_item_header_elem = sscanf(line0.c_str(), "%x %zd",
-	                                  &tool_out->id, &tool_out->size);
-	cppcut_assert_equal(NUM_ITEM_HEADER_ELEM, num_item_header_elem);
-
-	uint8_t *buf = new uint8_t[tool_out->size];
-	char_separator_t sep_spc(" ");
-	tokenizer<char_separator_t> raw_data(line1, sep_spc);
-	size_t idx = 0;
-	for (it = raw_data.begin(); it != raw_data.end(); ++it, idx++) {
-		cppcut_assert_equal(true, idx < tool_out->size);
-		buf[idx] = strtol(it->c_str(), NULL, 16);
-	}
-	tool_out->data = buf;
 }
 
 void
