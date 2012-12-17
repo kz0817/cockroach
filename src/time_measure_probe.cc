@@ -25,8 +25,7 @@ static size_t g_shm_window_size = 0;
 static off_t g_shm_window_offset = 0;
 static pthread_mutex_t g_shm_window_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-struct time_measure_data {
-	struct timeval t0;
+struct time_measure_data { struct timespec t0;
 	unsigned long target_addr;
 	unsigned long func_ret_addr;
 	pid_t pid;
@@ -151,10 +150,10 @@ static measured_time_shm_slot *get_shm_data_slot(void)
 	return slot;
 }
 
-static double calc_diff_time(timeval *tv0, timeval *tv1)
+static double calc_diff_time(timespec *tv0, timespec *tv1)
 {
-	double t0 = tv0->tv_sec + tv0->tv_usec/1.0e6;
-	double t1 = tv1->tv_sec + tv1->tv_usec/1.0e6;
+	double t0 = tv0->tv_sec + tv0->tv_nsec/1.0e9;
+	double t1 = tv1->tv_sec + tv1->tv_nsec/1.0e9;
 	return t1 - t0;
 }
 
@@ -162,8 +161,11 @@ static void roach_time_measure_ret_probe(probe_arg_t *arg)
 {
 	time_measure_data *priv =
 	   static_cast<time_measure_data*>(arg->priv_data);
-	timeval t1;
-	gettimeofday(&t1, NULL);
+	struct timespec t1;
+	if (clock_gettime(CLOCK_MONOTONIC_RAW, &t1) == -1) {
+		ROACH_ERR("Failed: clock_gettime: %d\n", errno);
+		return;
+	}
 	double dt = calc_diff_time(&priv->t0, &t1);
 	measured_time_shm_slot *slot = get_shm_data_slot();
 	slot->dt = dt;
@@ -187,7 +189,10 @@ void roach_time_measure_probe(probe_arg_t *arg)
 {
 	time_measure_data *data =
 	  static_cast<time_measure_data*>(arg->priv_data);
-	gettimeofday(&data->t0, NULL);
+	if (clock_gettime(CLOCK_MONOTONIC_RAW, &data->t0) == -1) {
+		ROACH_ERR("Failed: clock_gettime: %d\n", errno);
+		return;
+	}
 	data->func_ret_addr = arg->func_ret_addr;
 	cockroach_set_return_probe(roach_time_measure_ret_probe, arg);
 }
