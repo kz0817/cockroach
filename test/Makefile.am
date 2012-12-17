@@ -16,7 +16,7 @@ user_probe.la
 
 endif
 
-AM_CFLAGS = -g -Wall $(GLIB_CFLAGS) $(CUTTER_CFLAGS)
+AM_CFLAGS = -g -Wall $(GLIB_CFLAGS) $(CUTTER_CFLAGS) -I../src
 AM_CXXFLAGS = $(AM_CFLAGS)
 AM_LDFLAGS = -module -rpath $(libdir) -avoid-version -no-undefined
 LIBS = $(CUTTER_LIBS) $(CPPCUTTER_LIBS)
@@ -43,7 +43,7 @@ test_user_probe_la_LIBADD = ./libtestutil.la
 
 # User probe
 user_probe_la_SOURCES = user-probe.cc
-user_probe_la_CXXFLAGS = $(AM_CXXFLAGS) -I../src
+user_probe_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 echo-cutter:
 	@echo $(CUTTER)

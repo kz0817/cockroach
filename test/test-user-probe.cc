@@ -22,7 +22,7 @@ void teardown(void)
 
 static void
 assert_func_base(const char *arg, const char *expected_stdout,
-             exec_command_info *exec_info)
+                 exec_command_info *exec_info)
 {
 	testutil::run_target_exe(recipe_file, arg, exec_info);
 	cut_assert_equal_string(expected_stdout, exec_info->stdout_str.c_str());

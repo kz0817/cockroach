@@ -238,7 +238,8 @@ void testutil::assert_measured_time_format(string &line,
 
 	// time
 	double dt = atof(tokens[IDX_TIME_MEASURED_TIME_LIST].c_str());
-	cppcut_assert_equal(true, dt > 1.0e-6);
+	//cppcut_assert_equal(true, dt > 1.0e-6);
+	cppcut_assert_equal(true, dt >= 0);
 
 	// target address (just compare below a page file size)
 	unsigned long expected_target_addr = probe_info->get_target_addr();

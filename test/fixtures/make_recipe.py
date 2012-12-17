@@ -27,6 +27,7 @@ def make_measure_time():
     make_measure_time_one("T", "REL32", "func1b", "6")
     make_measure_time_one("T", "ABS64", "func2")
     make_measure_time_one("T", "REL32", "funcX", target_module=target_program)
+    make_measure_time_one("T", "REL32", "sum_up_to")
 
 def make_user_prbe_one(probe_type, install_type, func_name, user_probe_func,
                        save_instr="", user_probe_module="user_probe.so",

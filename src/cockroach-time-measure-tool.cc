@@ -96,6 +96,29 @@ static bool command_info(vector<string> &args)
 	return true;
 }
 
+static bool
+check_data_size_consistency(measured_time_shm_header *header_all_map,
+                            measured_time_shm_slot *slot, uint64_t shm_size,
+                            uint64_t i, uint64_t count)
+{
+	unsigned long slot_index;
+	slot_index = (unsigned long)slot - (unsigned long)header_all_map;
+
+	unsigned long slot_tail_index;
+	slot_tail_index = slot_index + MEASURED_TIME_SHM_SLOT_SIZE;
+	if (slot_tail_index > shm_size) {
+		printf("Inconsitency data size: SHM may be broken: "
+		       "count: %"PRIu64"/%"PRIu64", "
+		       "slot_tail_index: %"PRIu64", "
+		       "slot_index: %ld, shm_size: %"PRIu64"\n",
+		       i, count, slot_tail_index, slot_index, shm_size);
+		return false;
+	}
+
+	return true;
+}
+
+
 static bool command_list(vector<string> &args)
 {
 	int shm_fd;
@@ -125,8 +148,16 @@ static bool command_list(vector<string> &args)
 	}
 
 	// print data
-	measured_time_shm_slot *slot = (measured_time_shm_slot*)(header + 1);
+	measured_time_shm_header *header_all_map =
+	  (measured_time_shm_header *)ptr;
+	measured_time_shm_slot *slot =
+	  (measured_time_shm_slot*)(header_all_map + 1);
 	for (uint64_t i = 0; i < count; i++, slot++) {
+		// check the size
+		bool chk = check_data_size_consistency(header_all_map, slot,
+		                                       shm_size, i, count);
+		if (!chk)
+			return false;
 		printf("%.15e %016lx %016lx %d %d\n",
 		       slot->dt, slot->target_addr, slot->func_ret_addr,
 		       slot->pid, slot->tid);
