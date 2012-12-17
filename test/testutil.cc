@@ -206,21 +206,15 @@ void testutil::assert_measured_time_lines(int expected_num_line,
                                           string &lines,
                                           target_probe_info *probe_info)
 {
-	vector<string> split_lines;
-	split(split_lines, lines,
-	      is_any_of("\n"), token_compress_on);
-	size_t num_lines = split_lines.size();
-
-	// remove the last empty component
-	if (num_lines > 0) {
-		string &last_line = split_lines.back();
-		if (last_line.empty())
-			split_lines.pop_back();
-	}
-
-	cppcut_assert_equal(expected_num_line, (int)split_lines.size());
-	BOOST_FOREACH(string line, split_lines)
+	int num_lines = 0;
+	char_separator_t sep("\n");
+	tokenizer<char_separator_t> tokens(lines, sep);
+	tokenizer<char_separator_t>::iterator it;
+	for (it = tokens.begin(); it != tokens.end(); ++it, num_lines++) {
+		string line = *it;
 		assert_measured_time_format(line, probe_info);
+	}
+	cppcut_assert_equal(expected_num_line, num_lines);
 }
 
 void testutil::assert_measured_time_format(string &line,
@@ -244,9 +238,8 @@ void testutil::assert_measured_time_format(string &line,
 	// target address (just compare below a page file size)
 	unsigned long expected_target_addr = probe_info->get_target_addr();
 	expected_target_addr &= (get_page_size() - 1);
-	unsigned long actual_target_addr;
-	sscanf(tokens[IDX_TARGET_ADDR_MEASURED_TIME_LIST].c_str(),
-	       "%lx", &actual_target_addr);
+	unsigned long actual_target_addr =
+	  strtol(tokens[IDX_TARGET_ADDR_MEASURED_TIME_LIST].c_str(), NULL, 16);
 	actual_target_addr &= (get_page_size() - 1);
 	cppcut_assert_equal(expected_target_addr, actual_target_addr);
 
