@@ -1,0 +1,2 @@
+* How to trace test code
+LD_PRELOAD=../src/.libs/cockroach.so COCKROACH_RECIPE=`pwd`/misc/trace-user-probe-load.recipe DATA_RECORD_CALL_TIMES=100 ./run-test.sh -t /test_user_probe/ -n /many_times/
