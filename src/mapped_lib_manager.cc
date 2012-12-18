@@ -107,3 +107,8 @@ const mapped_lib_info *mapped_lib_manager::get_lib_info(const char *name)
 	}
 	return it->second;
 }
+
+void mapped_lib_manager::update(void)
+{
+	ROACH_BUG("Not implemented\n");
+}

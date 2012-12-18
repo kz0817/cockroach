@@ -5,6 +5,7 @@
 #include <string>
 using namespace std;
 
+#include <pthread.h>
 #include <errno.h>
 #include <dlfcn.h>
 
@@ -19,9 +20,13 @@ static int (*g_orig_dlclose)(void *) = NULL;
 // probe type, install type, target lib, and address
 static const size_t NUM_RECIPE_MIN_TOKENS = 4;
 static const size_t NUM_RECIPE_MIN_USER_PROBE_TOKENS = 2; // probe_lib and symbol 
+static pthread_mutex_t g_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 typedef list<probe *> probe_list_t;
 typedef probe_list_t::iterator  probe_list_itr;
+
+typedef map<string, probe*> libpath_probe_map_t;
+typedef libpath_probe_map_t::iterator libpath_probe_map_itr;
 
 typedef map<string, void *> user_probe_lib_handle_map_t;
 typedef user_probe_lib_handle_map_t::iterator user_probe_lib_handle_map_itr;
@@ -29,6 +34,7 @@ typedef user_probe_lib_handle_map_t::iterator user_probe_lib_handle_map_itr;
 class cockroach {
 	mapped_lib_manager m_mapped_lib_mgr;
 	probe_list_t m_probe_list;
+	libpath_probe_map_t m_waiting_probe_map;
 
 	static user_probe_lib_handle_map_t &get_user_probe_lib_handle_map(void);
 	static void _parse_one_recipe(const char *line, void *arg);
@@ -39,6 +45,7 @@ class cockroach {
 public:
 	cockroach(void);
 	virtual ~cockroach();
+	void *dlopen_hook(const char *filename, int flag, void *handle);
 };
 
 cockroach::cockroach(void)
@@ -68,14 +75,18 @@ cockroach::cockroach(void)
 	parse_recipe(recipe_file);
 
 	// install probes for libraries that have already been mapped.
-	probe_list_itr probe = m_probe_list.begin();
-	for (; probe != m_probe_list.end(); ++probe) {
-		const char *target_name = (*probe)->get_target_lib_path();
+	probe_list_itr it = m_probe_list.begin();
+	for (; it != m_probe_list.end(); ++it) {
+		probe *aprobe = *it;
+		const char *target_name = aprobe->get_target_lib_path();
 		const mapped_lib_info* lib_info;
 		lib_info = m_mapped_lib_mgr.get_lib_info(target_name);
-		if (!lib_info)
+		if (!lib_info) {
+			string basename = utils::get_basename(target_name);
+			m_waiting_probe_map[basename] = aprobe;
 			continue;
-		(*probe)->install(lib_info);
+		}
+		aprobe->install(lib_info);
 	}
 }
 
@@ -254,8 +265,29 @@ cockroach::add_user_probe(probe *user_probe, vector<string> &tokens, size_t &idx
 	user_probe->set_probe(NULL, probe_func, probe_init_func);
 }
 
+void *cockroach::dlopen_hook(const char *filename, int flag, void *handle)
+{
+	string basename = utils::get_basename(filename);
+	pthread_mutex_lock(&g_mutex);
+	libpath_probe_map_itr it = m_waiting_probe_map.find(basename);
+	if (it != m_waiting_probe_map.end()) {
+		probe *aprobe = it->second;
+		const char *target_name = aprobe->get_target_lib_path();
+		m_mapped_lib_mgr.update();
+		const mapped_lib_info* lib_info;
+		lib_info = m_mapped_lib_mgr.get_lib_info(target_name);
+		if (lib_info) {
+			aprobe->install(lib_info);
+			m_waiting_probe_map.erase(it);
+		}
+	}
+	pthread_mutex_unlock(&g_mutex);
+
+	return handle;
+}
+
 // make an instance
-static cockroach roach;
+static cockroach roach_obj;
 
 // --------------------------------------------------------------------------
 // wrapper functions
@@ -271,14 +303,9 @@ extern "C"
 void *dlopen(const char *filename, int flag)
 {
 	void *handle = (*g_orig_dlopen)(filename, flag);
-	/*
-	map<string, workaround_runner *>::iterator it;
-	it = g_dlopen_runner_map.find(filename);
-	if (it != g_dlopen_runner_map.end()) {
-		workaround_runner *runner = it->second;
-		runner->dlopen_hook_start(handle, filename);
-	}*/
-	return handle;
+	if (handle == NULL)
+		return NULL;
+	return roach_obj.dlopen_hook(filename, flag, handle);
 }
 
 /**

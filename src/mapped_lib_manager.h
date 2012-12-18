@@ -13,6 +13,7 @@ class mapped_lib_manager {
 public:
 	mapped_lib_manager(void);
 	const mapped_lib_info *get_lib_info(const char *name);
+	void update(void);
 };
 
 #endif
