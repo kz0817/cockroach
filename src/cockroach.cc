@@ -20,7 +20,7 @@ static int (*g_orig_dlclose)(void *) = NULL;
 static const size_t NUM_RECIPE_MIN_TOKENS = 4;
 static const size_t NUM_RECIPE_MIN_USER_PROBE_TOKENS = 2; // probe_lib and symbol 
 
-typedef list<probe> probe_list_t;
+typedef list<probe *> probe_list_t;
 typedef probe_list_t::iterator  probe_list_itr;
 
 typedef map<string, void *> user_probe_lib_handle_map_t;
@@ -34,10 +34,11 @@ class cockroach {
 	static void _parse_one_recipe(const char *line, void *arg);
 	void parse_recipe(const char *recipe_file);
 	void parse_one_recipe(const char *line);
-	void add_user_probe(probe &user_probe, vector<string> &tokens,
+	void add_user_probe(probe *user_probe, vector<string> &tokens,
 	                    size_t &idx);
 public:
 	cockroach(void);
+	virtual ~cockroach();
 };
 
 cockroach::cockroach(void)
@@ -69,13 +70,20 @@ cockroach::cockroach(void)
 	// install probes for libraries that have already been mapped.
 	probe_list_itr probe = m_probe_list.begin();
 	for (; probe != m_probe_list.end(); ++probe) {
-		const char *target_name = probe->get_target_lib_path();
+		const char *target_name = (*probe)->get_target_lib_path();
 		const mapped_lib_info* lib_info;
 		lib_info = m_mapped_lib_mgr.get_lib_info(target_name);
 		if (!lib_info)
 			continue;
-		probe->install(lib_info);
+		(*probe)->install(lib_info);
 	}
+}
+
+cockroach::~cockroach()
+{
+	probe_list_itr it = m_probe_list.begin();
+	for (; it != m_probe_list.end(); ++it)
+		delete *it;
 }
 
 user_probe_lib_handle_map_t &cockroach::get_user_probe_lib_handle_map(void)
@@ -160,23 +168,23 @@ void cockroach::parse_one_recipe(const char *line)
 	}
 
 	// register probe
-	probe probe(probe_type, install_type);
-	probe.set_target_address(target_lib.c_str(), target_addr,
-	                         overwrite_length);
+	probe *a_probe = new probe(probe_type, install_type);
+	a_probe->set_target_address(target_lib.c_str(), target_addr,
+	                            overwrite_length);
 
 	if (probe_type == PROBE_TYPE_BUILT_IN_TIME_MEASURE) {
-		probe.set_probe(NULL, roach_time_measure_probe,
-		                      roach_time_measure_probe_init);
+		a_probe->set_probe(NULL, roach_time_measure_probe,
+		                   roach_time_measure_probe_init);
 	}
 	else if (probe_type == PROBE_TYPE_USER) {
 		if (tokens.size() - idx < NUM_RECIPE_MIN_USER_PROBE_TOKENS) {
 			ROACH_ERR("Token is too short: %s: %d\n", line, errno);
 			ROACH_ABORT();
 		}
-		add_user_probe(probe, tokens, idx);
+		add_user_probe(a_probe, tokens, idx);
 	}
 
-	m_probe_list.push_back(probe);
+	m_probe_list.push_back(a_probe);
 }
 
 void cockroach::_parse_one_recipe(const char *line, void *arg)
@@ -198,7 +206,7 @@ void cockroach::parse_recipe(const char *recipe_file)
 }
 
 void
-cockroach::add_user_probe(probe &user_probe, vector<string> &tokens, size_t &idx)
+cockroach::add_user_probe(probe *user_probe, vector<string> &tokens, size_t &idx)
 {
 	// check number of arguments
 	string &probe_lib_name = tokens[idx++];
@@ -243,7 +251,7 @@ cockroach::add_user_probe(probe &user_probe, vector<string> &tokens, size_t &idx
 		}
 	}
 
-	user_probe.set_probe(NULL, probe_func, probe_init_func);
+	user_probe->set_probe(NULL, probe_func, probe_init_func);
 }
 
 // make an instance
