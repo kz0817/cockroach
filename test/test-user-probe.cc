@@ -88,7 +88,7 @@ void test_data_record_many_times(void)
 {
 	int shm_window_sz = 1024*1024;
 	int num_call = 10 * shm_window_sz / sizeof(user_record_t);
-	char *env = getenv("DATA_RECORD_CALL_TIMES");
+	char *env = getenv("LOOP_TEST_CALL_TIMES");
 	if (env)
 		num_call = strtol(env, NULL, 10);
 	testutil::reset_record_data();

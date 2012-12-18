@@ -86,6 +86,9 @@ void test_call_many_times(void)
 {
 	const int shm_window_sz = 1024*1024;
 	int num_call = 10 * shm_window_sz / MEASURED_TIME_SHM_SLOT_SIZE;
+	char *env = getenv("LOOP_TEST_CALL_TIMES");
+	if (env)
+		num_call = strtol(env, NULL, 10);
 	assert_exec_sum_and_chk(num_call);
 }
 
