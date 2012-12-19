@@ -297,20 +297,23 @@ void *cockroach::dlopen_hook(const char *filename, int flag, void *handle)
 		return handle;
 	}
 
-	// get mapped_lib_info for the probes
-	probe_list_t &probe_list = it->second;
-	m_mapped_lib_mgr.update();
-	const mapped_lib_info* lib_info;
-	lib_info = m_mapped_lib_mgr.get_lib_info(basename.c_str());
-	if (!lib_info) {
-		ROACH_BUG("Failed to find lib_info: %s (%s)",
-		          filename, basename.c_str());
+	// get the base address at which the shared library is mapped
+	void *addr_init = dlsym(handle, "_init");
+	if (addr_init == NULL) {
+		ROACH_ERR("Failed to call dlsym(\"_init\"): %s\n", dlerror());
+		ROACH_ABORT();
+	}
+	Dl_info dlinfo;
+	if (dladdr(addr_init, &dlinfo) == 0) {
+		ROACH_ERR("Failed to call dladdr(): %s\n", dlerror());
+		ROACH_ABORT();
 	}
 
 	// install probes in the list
+	probe_list_t &probe_list = it->second;
 	probe_list_itr probe_ptr_itr = probe_list.begin();
 	for (; probe_ptr_itr != probe_list.end(); ++probe_ptr_itr)
-		(*probe_ptr_itr)->install(lib_info);
+		(*probe_ptr_itr)->install(dlinfo.dli_fbase);
 	m_waiting_probe_map.erase(it);
 	pthread_mutex_unlock(&m_mutex);
 	return handle;
@@ -332,6 +335,7 @@ static cockroach roach_obj;
 extern "C"
 void *dlopen(const char *filename, int flag)
 {
+	fprintf(stderr, "***** filename: %s\n", filename);
 	void *handle = (*g_orig_dlopen)(filename, flag);
 	if (handle == NULL)
 		return NULL;

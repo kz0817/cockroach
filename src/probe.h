@@ -64,6 +64,7 @@ class probe {
 	                              int copy_code_size);
 	int get_minimum_overwrite_length(void);
 	int get_overwrite_code_length(void);
+	void install_core(unsigned long target_addr);
 public:
 	probe(probe_type_t probe_type, install_type_t install_type);
 	void set_target_address(const char *target_lib_path, unsigned long addr,
@@ -73,6 +74,7 @@ public:
 
 	const char *get_target_lib_path(void);
 	void install(const mapped_lib_info *lib_info);
+	void install(void *mapped_addr);
 };
 
 #endif

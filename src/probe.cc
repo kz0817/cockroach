@@ -392,10 +392,24 @@ void probe::install(const mapped_lib_info *lib_info)
 	           "overwrite len: %d, install: %d\n",
 	           lib_info->get_path(), m_offset_addr, lib_info->get_addr(),
 	           m_overwrite_length, m_install_type);
-	// basic variables
 	unsigned long target_addr = m_offset_addr;
 	if (!lib_info->is_exe())
 		target_addr += lib_info->get_addr();
+	install_core(target_addr);
+}
+
+void probe::install(void *mapped_addr)
+{
+	ROACH_INFO("install: func: %08lx, mapped addr: %016lx, "
+	           "overwrite len: %d, install: %d\n",
+	           m_offset_addr, mapped_addr,
+	           m_overwrite_length, m_install_type);
+	unsigned long target_addr = (unsigned long)mapped_addr + m_offset_addr;
+	install_core(target_addr);
+}
+
+void probe::install_core(unsigned long target_addr)
+{
 	void *target_addr_ptr = (void *)target_addr;
 
 	// detect overwrite length if needed
