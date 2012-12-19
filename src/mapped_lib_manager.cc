@@ -65,6 +65,19 @@ void mapped_lib_manager::_parse_mapped_lib_line(const char *line, void *arg)
 	obj->parse_mapped_lib_line(line);
 }
 
+void mapped_lib_manager::parse_proc_maps(void)
+{
+	static const char *map_file_path = "/proc/self/maps";
+	bool ret = utils::read_one_line_loop
+	                   (map_file_path,
+	                    mapped_lib_manager::_parse_mapped_lib_line, this);
+	if (!ret) {
+		ROACH_ERR("Failed to parse recipe file: %s (%d)\n",
+		          map_file_path, errno);
+		ROACH_ABORT();
+	}
+}
+
 // --------------------------------------------------------------------------
 // public functions
 // --------------------------------------------------------------------------
@@ -82,15 +95,7 @@ mapped_lib_manager::mapped_lib_manager()
 	m_exe_path = string(buf, len);
 
 	// lookup mapped files
-	const char *map_file_path = "/proc/self/maps";
-	bool ret = utils::read_one_line_loop
-	                   (map_file_path,
-	                    mapped_lib_manager::_parse_mapped_lib_line, this);
-	if (!ret) {
-		printf("Failed to parse recipe file: %s (%d)\n", map_file_path,
-		       errno);
-		exit(EXIT_FAILURE);
-	}
+	parse_proc_maps();
 }
 
 const mapped_lib_info *mapped_lib_manager::get_lib_info(const char *name)
@@ -110,5 +115,7 @@ const mapped_lib_info *mapped_lib_manager::get_lib_info(const char *name)
 
 void mapped_lib_manager::update(void)
 {
-	ROACH_BUG("Not implemented\n");
+	m_lib_info_path_map.clear();
+	m_lib_info_filename_map.clear();
+	parse_proc_maps();
 }

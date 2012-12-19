@@ -17,27 +17,28 @@ using namespace std;
 static void *(*g_orig_dlopen)(const char *, int) = NULL;
 static int (*g_orig_dlclose)(void *) = NULL;
 
-// probe type, install type, target lib, and address
-static const size_t NUM_RECIPE_MIN_TOKENS = 4;
-static const size_t NUM_RECIPE_MIN_USER_PROBE_TOKENS = 2; // probe_lib and symbol 
-static pthread_mutex_t g_mutex = PTHREAD_MUTEX_INITIALIZER;
-
 typedef list<probe *> probe_list_t;
 typedef probe_list_t::iterator  probe_list_itr;
 
-typedef map<string, probe*> libpath_probe_map_t;
-typedef libpath_probe_map_t::iterator libpath_probe_map_itr;
+typedef map<string, probe_list_t> libpath_probe_list_map_t;
+typedef libpath_probe_list_map_t::iterator libpath_probe_list_map_itr;
 
 typedef map<string, void *> user_probe_lib_handle_map_t;
 typedef user_probe_lib_handle_map_t::iterator user_probe_lib_handle_map_itr;
 
+// probe type, install type, target lib, and address
+static const size_t NUM_RECIPE_MIN_TOKENS = 4;
+static const size_t NUM_RECIPE_MIN_USER_PROBE_TOKENS = 2; // probe_lib and symbol 
+
 class cockroach {
 	mapped_lib_manager m_mapped_lib_mgr;
 	probe_list_t m_probe_list;
-	libpath_probe_map_t m_waiting_probe_map;
+	libpath_probe_list_map_t m_waiting_probe_map;
+	static pthread_mutex_t m_mutex;
 
 	static user_probe_lib_handle_map_t &get_user_probe_lib_handle_map(void);
 	static void _parse_one_recipe(const char *line, void *arg);
+	void add_probe_to_waiting_probe_map(probe *aprobe);
 	void parse_recipe(const char *recipe_file);
 	void parse_one_recipe(const char *line);
 	void add_user_probe(probe *user_probe, vector<string> &tokens,
@@ -47,6 +48,8 @@ public:
 	virtual ~cockroach();
 	void *dlopen_hook(const char *filename, int flag, void *handle);
 };
+
+pthread_mutex_t cockroach::m_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 cockroach::cockroach(void)
 {
@@ -82,8 +85,7 @@ cockroach::cockroach(void)
 		const mapped_lib_info* lib_info;
 		lib_info = m_mapped_lib_mgr.get_lib_info(target_name);
 		if (!lib_info) {
-			string basename = utils::get_basename(target_name);
-			m_waiting_probe_map[basename] = aprobe;
+			add_probe_to_waiting_probe_map(aprobe);
 			continue;
 		}
 		aprobe->install(lib_info);
@@ -101,6 +103,25 @@ user_probe_lib_handle_map_t &cockroach::get_user_probe_lib_handle_map(void)
 {
 	static user_probe_lib_handle_map_t map;
 	return map;
+}
+
+void cockroach::add_probe_to_waiting_probe_map(probe *aprobe)
+{
+	const char *target_name = aprobe->get_target_lib_path();
+	const string basename = utils::get_basename(target_name);
+	libpath_probe_list_map_itr it = m_waiting_probe_map.find(basename);
+	if (it == m_waiting_probe_map.end()) {
+		pair<libpath_probe_list_map_itr, bool> ret;
+		ret = m_waiting_probe_map.insert(pair<string, probe_list_t>
+		                                   (basename, probe_list_t()));
+		if (!ret.second) {
+			ROACH_ERR("Failed to insert: %s\n", basename.c_str());
+			ROACH_ABORT();
+		}
+		it = ret.first;
+	}
+	probe_list_t &probe_list = it->second;;
+	probe_list.push_back(aprobe);
 }
 
 void cockroach::parse_one_recipe(const char *line)
@@ -267,22 +288,31 @@ cockroach::add_user_probe(probe *user_probe, vector<string> &tokens, size_t &idx
 
 void *cockroach::dlopen_hook(const char *filename, int flag, void *handle)
 {
+	// check if the mapped library is one of the targets
 	string basename = utils::get_basename(filename);
-	pthread_mutex_lock(&g_mutex);
-	libpath_probe_map_itr it = m_waiting_probe_map.find(basename);
-	if (it != m_waiting_probe_map.end()) {
-		probe *aprobe = it->second;
-		const char *target_name = aprobe->get_target_lib_path();
-		m_mapped_lib_mgr.update();
-		const mapped_lib_info* lib_info;
-		lib_info = m_mapped_lib_mgr.get_lib_info(target_name);
-		if (lib_info) {
-			aprobe->install(lib_info);
-			m_waiting_probe_map.erase(it);
-		}
+	pthread_mutex_lock(&m_mutex);
+	libpath_probe_list_map_itr it = m_waiting_probe_map.find(basename);
+	if (it == m_waiting_probe_map.end()) {
+		pthread_mutex_unlock(&m_mutex);
+		return handle;
 	}
-	pthread_mutex_unlock(&g_mutex);
 
+	// get mapped_lib_info for the probes
+	probe_list_t &probe_list = it->second;
+	m_mapped_lib_mgr.update();
+	const mapped_lib_info* lib_info;
+	lib_info = m_mapped_lib_mgr.get_lib_info(basename.c_str());
+	if (!lib_info) {
+		ROACH_BUG("Failed to find lib_info: %s (%s)",
+		          filename, basename.c_str());
+	}
+
+	// install probes in the list
+	probe_list_itr probe_ptr_itr = probe_list.begin();
+	for (; probe_ptr_itr != probe_list.end(); ++probe_ptr_itr)
+		(*probe_ptr_itr)->install(lib_info);
+	m_waiting_probe_map.erase(it);
+	pthread_mutex_unlock(&m_mutex);
 	return handle;
 }
 

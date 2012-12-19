@@ -10,6 +10,7 @@ class mapped_lib_manager {
 
 	static void _parse_mapped_lib_line(const char *line, void *arg);
 	void parse_mapped_lib_line(const char *line);
+	void parse_proc_maps(void);
 public:
 	mapped_lib_manager(void);
 	const mapped_lib_info *get_lib_info(const char *name);
