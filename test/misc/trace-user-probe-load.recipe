@@ -6,3 +6,9 @@ T REL32 test-user-probe.so 0000000000008f60
 
 # testutil::assert_get_record_data(std::list<record_data_tool_output, std::allocator<record_data_tool_output> >&)
 T REL32 libtestutil.so 000000000001d9f0
+
+# exec_command_info::exec_command_info(char const**)
+T REL32 libtestutil.so 000000000001c230
+
+#testutil::assert_parse_record_data_output(std::basic_string<char, std::char_traits<char>, std::allocator<char> >*, std::list<record_data_tool_output, std::allocator<record_data_tool_output> >&)
+T REL32 libtestutil.so 000000000001cd00
