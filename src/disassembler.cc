@@ -312,6 +312,17 @@ static const instr_info instr_info_mov_Ev_Gv = {
 	parser_mov_Ev_Gv,
 };
 
+// 0x8b MOV (RM)
+static void parser_mov_Gv_Ev(opecode *op, uint8_t *code)
+{
+	parse_operand(op, code);
+}
+
+static const instr_info instr_info_mov_Gv_Ev = {
+	1,
+	parser_mov_Gv_Ev,
+};
+
 // 0x8d LEA (RM)
 static void parser_lea_Gv_M(opecode *op, uint8_t *code)
 {
@@ -509,7 +520,7 @@ static const instr_info *first_byte_instr_array[0x100] =
 	NULL,                         // 0x88
 	&instr_info_mov_Ev_Gv,        // 0x89
 	NULL,                         // 0x8a
-	NULL,                         // 0x8b
+	&instr_info_mov_Gv_Ev,        // 0x8b
 	NULL,                         // 0x8c
 	&instr_info_lea_Gv_M,         // 0x8d
 	NULL,                         // 0x8e
