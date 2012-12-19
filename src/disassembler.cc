@@ -68,6 +68,11 @@ static const mod_rm_info_t mod_rm_esp = {
 	DISP_NONE,
 };
 
+static const mod_rm_info_t mod_rm_esi = {
+	false,
+	DISP_NONE,
+};
+
 static const mod_rm_info_t mod_rm_edi = {
 	false,
 	DISP_NONE,
@@ -85,7 +90,7 @@ static const mod_rm_info_t *mod_rm_matrix[4][8] =
 	 NULL, NULL, NULL, NULL},
 
 	{&mod_rm_eax, NULL, &mod_rm_edx, &mod_rm_ebx,
-	 &mod_rm_esp, NULL, NULL, &mod_rm_edi},
+	 &mod_rm_esp, NULL, &mod_rm_esi, &mod_rm_edi},
 };
 
 //
@@ -232,6 +237,17 @@ static void parser_push_rBPr13(opecode *op, uint8_t *code)
 static const instr_info instr_info_push_rBPr13 = {
 	1,
 	parser_push_rBPr13,
+};
+
+// 0x56 PUSH
+static void parser_push_rSIr14(opecode *op, uint8_t *code)
+{
+	// no operand
+}
+
+static const instr_info instr_info_push_rSIr14 = {
+	1,
+	parser_push_rSIr14,
 };
 
 // 0x7e Jcc, jb- Short displacement jump on condition
@@ -437,7 +453,7 @@ static const instr_info *first_byte_instr_array[0x100] =
 	&instr_info_push_rBXr11,      // 0x53
 	&instr_info_push_rSPr12,      // 0x54
 	&instr_info_push_rBPr13,      // 0x55
-	NULL,                         // 0x56
+	&instr_info_push_rSIr14,      // 0x55
 	NULL,                         // 0x57
 	NULL,                         // 0x58
 	NULL,                         // 0x59
