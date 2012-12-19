@@ -154,7 +154,9 @@ side_code_area_manager::find_region_within_rel32(unsigned long addr0,
 			return REGION_NOT_FOUND;
 		if (is_within_rel32(addr0, ref_addr))
 			return addr0;
-		mid_addr = get_page_boundary_ceil(ref_addr - 0x80000000UL);
+		// we allocate a relocation block at 1GB lower from
+		// the target code.
+		mid_addr = get_page_boundary_ceil(ref_addr - 0x40000000UL);
 		if (mid_addr + region_size <= addr1)
 			return mid_addr;
 	} else {
