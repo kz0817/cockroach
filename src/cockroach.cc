@@ -335,7 +335,6 @@ static cockroach roach_obj;
 extern "C"
 void *dlopen(const char *filename, int flag)
 {
-	fprintf(stderr, "***** filename: %s\n", filename);
 	void *handle = (*g_orig_dlopen)(filename, flag);
 	if (handle == NULL)
 		return NULL;
