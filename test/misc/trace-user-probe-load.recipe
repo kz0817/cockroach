@@ -1,2 +1,8 @@
 # _ZN15test_user_probeL23assert_exec_data_recordEm
 T REL32 test-user-probe.so 0000000000009190
+
+# _ZN15test_user_probeL16assert_func_baseEPKcS1_P17exec_command_info
+T REL32 test-user-probe.so 0000000000008f60
+
+# testutil::assert_get_record_data(std::list<record_data_tool_output, std::allocator<record_data_tool_output> >&)
+T REL32 libtestutil.so 000000000001d9f0
