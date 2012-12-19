@@ -1,5 +1,5 @@
+* support function that measures time between address to address.
 * support symbol in a recipe file.
-* support the installation of a probe to targets that is loaded later.
 * short_jump_relocator.
 * fix configure.ac to disable test when boost and the lib is missing.
 * resolve the symbolic link of the target lib. in the recipe.
