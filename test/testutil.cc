@@ -148,7 +148,8 @@ void testutil::exec_command(exec_command_info *arg)
 	                               &fd_stdin, &fd_stdout, &fd_stderr,
 	                               &arg->error);
 	gcut_assert_error(arg->error);
-	cppcut_assert_equal(TRUE, ret);
+	gboolean expected = TRUE;
+	cppcut_assert_equal(expected, ret);
 	thread_group thr_grp;
 	if (arg->save_stdout) {
 		thr_grp.create_thread(bind(read_fd_thread, ref(fd_stdout),
@@ -169,7 +170,7 @@ void testutil::exec_command(exec_command_info *arg)
 	thr_grp.join_all();
 	cppcut_assert_equal(0, errno_stdout);
 	cppcut_assert_equal(0, errno_stderr);
-	cppcut_assert_equal(1, WIFEXITED(arg->status),
+	cut_assert_equal_int(1, WIFEXITED(arg->status),
 	                    cut_message("%s", stderr_buf.c_str()));
 	cppcut_assert_equal(EXIT_SUCCESS, WEXITSTATUS(arg->status),
 	                    cut_message("%s", stderr_buf.c_str()));
