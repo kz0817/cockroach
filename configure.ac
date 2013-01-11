@@ -7,7 +7,7 @@ AC_PROG_CXX
 AM_PROG_CC_C_O
 
 dnl cutter
-CUTTER_REQUIRED=1.1.7
+CUTTER_REQUIRED=1.2.2
 have_cutter=no
 
 m4_ifdef([AC_CHECK_GCUTTER], [
