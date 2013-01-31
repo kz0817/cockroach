@@ -5,6 +5,7 @@
 #include <string>
 using namespace std;
 
+#include <unistd.h>
 #include <pthread.h>
 #include <errno.h>
 #include <dlfcn.h>
@@ -268,8 +269,10 @@ void cockroach::parse_recipe(const char *recipe_file)
 	                                     cockroach::_parse_one_recipe,
 	                                     this);
 	if (!ret) {
-		ROACH_ERR("Failed to parse recipe file: %s (%d)\n", recipe_file,
-		          errno);
+		char *cwd = get_current_dir_name();
+		ROACH_ERR("Failed to parse recipe file: %s (%d), cwd: %s\n",
+		          recipe_file, errno, cwd);
+		free(cwd);
 		ROACH_ABORT();
 	}
 }
