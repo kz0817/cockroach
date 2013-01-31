@@ -1,0 +1,94 @@
+#!/usr/bin/env python
+import sys
+import subprocess
+
+g_target_lib_list = {}
+
+def print_usage():
+    sys.stderr.write("Usage:\n")
+    sys.stderr.write("$ cockroach-make-recipe --lib target_lib [--symbols symbol1 symbol2 ...] [--lib target_lib2.so --symbols [symbol1 symbol2 ...] ...]\n")
+    sys.stderr.write("\n")
+    sys.stderr.write("If --symbols is omitted, all symbols in the library are targets.\n")
+    sys.stderr.write("\n")
+
+def parse_arg():
+    if len(sys.argv) <= 1:
+        print_usage()
+        sys.exit(-1)
+
+    curr_mode = ""
+    curr_target_lib = ""
+    curr_symbols = []
+
+    for curr_word in sys.argv[1:]:
+        if curr_word == "--lib":
+            curr_mode = "lib"
+            if curr_target_lib != "":
+                g_target_lib_list[curr_target_lib] = curr_symbols
+                curr_symbols = []
+                curr_target_lib = ""
+        elif curr_word == "--symbols":
+            if curr_target_lib == "":
+                raise "--lib is not specified.\n"
+            curr_mode = "symbols"
+        elif curr_mode == "lib":
+            curr_target_lib = curr_word
+        elif curr_mode == "symbols":
+            curr_symbols.append(curr_word)
+
+    # flush pending symbols
+    if curr_target_lib != "":
+        g_target_lib_list[curr_target_lib] = curr_symbols
+
+def demangle(symbol):
+    p1 = subprocess.Popen(["c++filt", "-i",  symbol], stdout=subprocess.PIPE)
+    output = p1.communicate()[0]
+    splited = output.split("\n")
+    if len(splited) < 1:
+        return ""
+    return splited[0]
+
+def output_recipe_symbol_time_measure(target_lib, addr, symbol):
+    demangled_symbol = demangle(symbol)
+    if demangled_symbol != "" and symbol == demangled_symbol:
+        print "# %s" % symbol
+    else:
+        print "# %s %s" % (symbol, demangled_symbol)
+    print "T REL32 %s %s" % (target_lib, addr)
+
+def output_recipe_symbol(target_lib, symbol):
+    p1 = subprocess.Popen(["nm", target_lib], stdout=subprocess.PIPE)
+    p2 = subprocess.Popen(["grep","^[0-9a-f]*\ [Tt]\ "], stdin=p1.stdout,
+                          stdout=subprocess.PIPE)
+    lines_one = p2.communicate()[0]
+
+def output_recipe_all_symbols(target_lib):
+    p1 = subprocess.Popen(["nm", target_lib], stdout=subprocess.PIPE)
+    p2 = subprocess.Popen(["grep","^[0-9a-f]*\ [Tt]\ "], stdin=p1.stdout,
+                          stdout=subprocess.PIPE)
+    lines_one = p2.communicate()[0]
+    lines = lines_one.split("\n")
+    for line in lines:
+        splited = line.split(" ")
+        if len(splited) != 3:
+            continue
+        (addr, sym_type, symbol) = (splited[0], splited[1], splited[2])
+        output_recipe_symbol_time_measure(target_lib, addr, symbol)
+
+def output_recipe_lib(target_lib, symbols):
+    if len(symbols) == 0:
+        output_recipe_all_symbols(target_lib)
+        return
+
+    for symbol in symbols:
+        output_recipe_symbol(target_lib, symbol)
+
+def output_recipe():
+    for target_lib, symbols in g_target_lib_list.items():
+        output_recipe_lib(target_lib, symbols);
+
+# main code
+parse_arg()
+output_recipe()
+
+

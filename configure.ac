@@ -43,6 +43,7 @@ fi
 AC_OUTPUT([
 Makefile
 src/Makefile
+utils/Makefile
 test/Makefile
 test/fixtures/Makefile
 ])
