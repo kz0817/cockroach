@@ -12,3 +12,7 @@ T REL32 libtestutil.so 000000000001c230
 
 #testutil::assert_parse_record_data_output(std::basic_string<char, std::char_traits<char>, std::allocator<char> >*, std::list<record_data_tool_output, std::allocator<record_data_tool_output> >&)
 T REL32 libtestutil.so 000000000001cd00
+
+# strtol
+T REL32 libc-2.15.so 000000000003ca40
+

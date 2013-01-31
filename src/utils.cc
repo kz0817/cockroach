@@ -7,6 +7,8 @@ using namespace std;
 #include <sys/types.h> 
 #include <syscall.h>
 #include <dlfcn.h>
+#include <errno.h>
+#include <limits.h>
 #include "utils.h"
 
 cockroach_original_func_addr_table_t *utils::m_original_func_table = NULL;
@@ -91,6 +93,11 @@ bool utils::is_absolute_path(const char *path)
 	return (path[0] == '/');
 }
 
+bool utils::is_absolute_path(string &path)
+{
+	return is_absolute_path(path.c_str());
+}
+
 bool utils::read_one_line_loop(const char *path,
                                one_line_parser_t parser, void *arg)
 {
@@ -171,3 +178,15 @@ pid_t utils::get_tid(void)
 	return g_tls_thread_id;
 }
 
+string utils::get_self_exe_name(void)
+{
+	const static int BUF_LEN = PATH_MAX;
+	char buf[BUF_LEN];
+	ssize_t len = readlink("/proc/self/exe", buf, BUF_LEN);
+	if (len == -1) {
+		ROACH_ERR("Failed to readlink(\"/proc/self/exe\"): %d\n",
+		          errno);
+		ROACH_ABORT();
+	}
+	return string(buf, len);
+}

@@ -10,11 +10,15 @@ using namespace boost;
 
 namespace test_measure_time {
 
-static const char *recipe_file = "fixtures/test-measure-time.recipe";
+static const char *g_default_recipe_file = "fixtures/test-measure-time.recipe";
+static const char *g_recipe_file = NULL;
+static int g_expected_num_lines = 0;
 
 void setup(void)
 {
 	testutil::reset_time_list();
+	g_recipe_file = g_default_recipe_file;
+	g_expected_num_lines = 1;
 }
 
 void teardown(void)
@@ -24,18 +28,18 @@ void teardown(void)
 static void assert_func_base(const char *arg, const char *expected_stdout,
                              exec_command_info *exec_info)
 {
-	testutil::run_target_exe(recipe_file, arg, exec_info);
+	testutil::run_target_exe(g_recipe_file, arg, exec_info);
 	cut_assert_equal_string(expected_stdout, exec_info->stdout_str.c_str());
 }
 
-static void assert_func(const char *arg, const char *expected_stdout)
+static void _assert_func(const char *arg, const char *expected_stdout)
 {
 	exec_command_info exec_info;
 	assert_func_base(arg, expected_stdout, &exec_info);
-	target_probe_info probe_info(exec_info.child_pid,
-	                             recipe_file, arg);
-	testutil::assert_measured_time(1, &probe_info);
+	target_probe_info probe_info(exec_info.child_pid, g_recipe_file, arg);
+	testutil::assert_measured_time(g_expected_num_lines, &probe_info);
 }
+#define assert_func(A,E) cut_trace(_assert_func(A,E))
 
 static void assert_exec_sum_and_chk(size_t num_call = 1)
 {
@@ -49,7 +53,7 @@ static void assert_exec_sum_and_chk(size_t num_call = 1)
 	assert_func_base(arg.c_str(), expected_stdout.c_str(), &exec_info);
 
 	target_probe_info probe_info(exec_info.child_pid,
-	                             recipe_file, "sum_up_to");
+	                             g_recipe_file, "sum_up_to");
 	testutil::assert_measured_time(num_call, &probe_info);
 }
 
@@ -90,6 +94,33 @@ void test_call_many_times(void)
 	if (env)
 		num_call = strtol(env, NULL, 10);
 	assert_exec_sum_and_chk(num_call);
+}
+
+// target_exe
+void test_target_exe(void)
+{
+	g_recipe_file = "fixtures/test-measure-time-target-exe.recipe";
+	test_save_instr_size_0();
+}
+
+void test_target_exe_different_name(void)
+{
+	g_recipe_file = "fixtures/test-measure-time-no-target-exe.recipe";
+	g_expected_num_lines = 0;
+	test_save_instr_size_0();
+}
+
+void test_target_exe_abs(void)
+{
+	g_recipe_file = "fixtures/test-measure-time-target-exe-abs.recipe";
+	test_save_instr_size_0();
+}
+
+void test_target_exe_abs_different_name(void)
+{
+	g_recipe_file = "fixtures/test-measure-time-no-target-exe-abs.recipe";
+	g_expected_num_lines = 0;
+	test_save_instr_size_0();
 }
 
 }

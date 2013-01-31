@@ -57,7 +57,7 @@ Format of recipe file
 * comment line
 # A comment line begins from '#'
 
-* target limitation (not implemented)
+* target limitation
 TARGET_EXE <exe_path>
 
 <exe_path> can be a file name or an absolute path. If this parameter is
@@ -67,6 +67,8 @@ case, LD_PRELOAD should be added in the command line to run the parent
 program and cockroach is loaded in the parent program. If you want to avoid
 cockroach from installing probes in the parent, you can use
 'TARGET_EXE target_program' line in the recipe.
+
+Note: This line must be written above probe definitions.
 
 * probe definition
 probe_type install_type lib_name symbol|offset(hex) [save_instruction_size(decimal)]

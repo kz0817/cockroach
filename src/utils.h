@@ -42,6 +42,7 @@ public:
 	static vector<string> split(const char *line, const char separator = ' ');
 	static string get_basename(string &path);
 	static string get_basename(const char *path);
+	static bool is_absolute_path(string &path);
 	static bool is_absolute_path(const char *path);
 	static bool is_hex_number(const char *word);
 	static bool is_hex_number(string &word);
@@ -54,6 +55,7 @@ public:
 	                                        void (*func1)(void));
 	static void abort(void);
 	static pid_t get_tid(void);
+	static string get_self_exe_name(void);
 };
 
 #endif

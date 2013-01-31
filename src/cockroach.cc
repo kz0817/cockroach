@@ -41,12 +41,16 @@ class cockroach {
 	void add_probe_to_waiting_probe_map(probe *aprobe);
 	void parse_recipe(const char *recipe_file);
 	void parse_one_recipe(const char *line);
+	void parse_target_exe(vector<string> &target_exe_line);
 	void add_user_probe(probe *user_probe, vector<string> &tokens,
 	                    size_t &idx);
 public:
 	cockroach(void);
 	virtual ~cockroach();
 	void *dlopen_hook(const char *filename, int flag, void *handle);
+};
+
+class not_target_exe_exception {
 };
 
 pthread_mutex_t cockroach::m_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -75,7 +79,12 @@ cockroach::cockroach(void)
 		ROACH_ERR("Not defined environment variable: COCKROACH_RECIPE\n");
 		exit(EXIT_FAILURE);
 	}
-	parse_recipe(recipe_file);
+
+	try {
+		parse_recipe(recipe_file);
+	} catch (not_target_exe_exception e) {
+		return;
+	}
 
 	// install probes for libraries that have already been mapped.
 	probe_list_itr it = m_probe_list.begin();
@@ -135,6 +144,12 @@ void cockroach::parse_one_recipe(const char *line)
 	// check if this is the comment line
 	if (tokens[idx].at(0) == '#') // comment line
 		return;
+
+	// check TARGET_EXE
+	if (tokens[idx] == "TARGET_EXE") {
+		parse_target_exe(tokens);
+		return;
+	}
 
 	// check the numbe of tokens
 	if (tokens.size() < NUM_RECIPE_MIN_TOKENS) {
@@ -223,6 +238,28 @@ void cockroach::_parse_one_recipe(const char *line, void *arg)
 {
 	cockroach *obj = static_cast<cockroach *>(arg);
 	obj->parse_one_recipe(line);
+}
+
+void cockroach::parse_target_exe(vector<string> &target_exe_line)
+{
+	if (target_exe_line.size() != 2) {
+		ROACH_ERR("target_exe_line.size() != 2: actual: %zd\n",
+		          target_exe_line.size());
+		ROACH_ABORT();
+	}
+	string &target_exe = target_exe_line[1];
+	string my_name = utils::get_self_exe_name();
+	bool matched = false;
+	if (utils::is_absolute_path(target_exe)) {
+		if (target_exe == my_name)
+			matched = true;
+	} else {
+		string my_basename = utils::get_basename(my_name);
+		if (target_exe == my_basename)
+			matched = true;
+	}
+	if (!matched)
+		throw not_target_exe_exception();
 }
 
 void cockroach::parse_recipe(const char *recipe_file)

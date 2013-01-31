@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
 import sys
+import os
 import subprocess
+
+target_program = "target-exe"
 
 def make_measure_time_one(probe_type, install_type, func_name,
                           save_instr="", target_module="libtargets.so.0.0.0"):
@@ -21,7 +24,7 @@ def make_measure_time_one(probe_type, install_type, func_name,
         addr + " " + save_instr
 
 def make_measure_time():
-    target_program = "target-exe"
+    global target_program
     make_measure_time_one("T", "REL32", "func1", "0")
     make_measure_time_one("T", "REL32", "func1a")
     make_measure_time_one("T", "REL32", "func1b", "6")
@@ -57,8 +60,37 @@ def make_user_probe():
     make_user_prbe_one("P", "REL32", "sum_up_to", "data_recorder",
                        user_probe_init_func="data_recorder_init")
 
-command_map = {"measure-time":make_measure_time, "user-probe":make_user_probe}
+def make_measure_time_target_exe():
+  global target_program
+  print "TARGET_EXE " + target_program
+  make_measure_time()
 
+def get_test_libs_path():
+  return os.path.abspath(os.getcwd() + "/../.libs")
+
+def make_measure_time_no_target_exe():
+  global target_program
+  print "TARGET_EXE " + target_program + "_suffix_for_making_wrong_name"
+  make_measure_time()
+
+def make_measure_time_target_exe_abs():
+  global target_program
+  print "TARGET_EXE " + get_test_libs_path() + "/" + target_program
+  make_measure_time()
+
+def make_measure_time_no_target_exe_abs():
+  global target_program
+  print "TARGET_EXE " + get_test_libs_path() + "/" + \
+        target_program + "_suffix_for_making_wrong_name"
+  make_measure_time()
+
+command_map = {
+  "measure-time":make_measure_time, "user-probe":make_user_probe,
+  "measure-time-target-exe":make_measure_time_target_exe,
+  "measure-time-no-target-exe":make_measure_time_no_target_exe,
+  "measure-time-target-exe-abs":make_measure_time_target_exe_abs,
+  "measure-time-no-target-exe-abs":make_measure_time_no_target_exe_abs
+}
 
 # -----------------------------------------------------------------------------
 # start
