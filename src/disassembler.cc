@@ -349,7 +349,7 @@ static const instr_info instr_info_mov_rSIr14_Iv = {
 // 0xc3 RET
 static void parser_not_impl(opecode *op, uint8_t *code)
 {
-	ROACH_BUG("Not implemented\n");
+	// nothing to do
 }
 
 static const instr_info instr_info_ret = {

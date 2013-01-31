@@ -417,11 +417,21 @@ void probe::install_core(unsigned long target_addr)
 	if (m_overwrite_length_auto_detect) {
 		uint8_t *code_ptr = (uint8_t *)target_addr;
 		int parsed_length = 0;
+		bool met_ret_code = false;
 		while (parsed_length < get_minimum_overwrite_length()) {
+			if (met_ret_code) {
+				ROACH_ERR("Met return code @ %d\n.",
+				          parsed_length);
+				ROACH_ABORT();
+			}
+
 			opecode *op = disassembler::parse(code_ptr);
 			parsed_length += op->get_length();
 			code_ptr += op->get_length();
 			relocated_opecode_list.push_back(op);
+
+			if (is_opecode_ret(op))
+				met_ret_code = true;
 		}
 		m_overwrite_length = parsed_length;
 	}
@@ -531,6 +541,13 @@ void probe::install_core(unsigned long target_addr)
 	overwrite_jump_code(target_addr_ptr, 
 	                    side_code_area, m_overwrite_length);
 }
+bool probe::is_opecode_ret(const opecode *ope) const
+{
+	if (ope->get_length() != 1)
+		return false;
+	return *ope->get_code() == OPCODE_RET;
+}
+
 #endif // __x86_64__
 
 // ---------------------------------------------------------------------------

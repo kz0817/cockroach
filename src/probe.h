@@ -7,6 +7,7 @@ using namespace std;
 #include <stdint.h>
 #include "cockroach-probe.h"
 #include "mapped_lib_info.h"
+#include "opecode.h"
 
 typedef void (*label_func_t)(void);
 
@@ -65,6 +66,8 @@ class probe {
 	int get_minimum_overwrite_length(void);
 	int get_overwrite_code_length(void);
 	void install_core(unsigned long target_addr);
+	bool is_opecode_ret(const opecode *ope) const;
+
 public:
 	probe(probe_type_t probe_type, install_type_t install_type);
 	void set_target_address(const char *target_lib_path, unsigned long addr,
