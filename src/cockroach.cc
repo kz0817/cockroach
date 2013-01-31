@@ -15,7 +15,10 @@ using namespace std;
 #include "probe.h"
 #include "time_measure_probe.h"
 
-static void *(*g_orig_dlopen)(const char *, int) = NULL;
+typedef void *(*dlopen_func_t)(const char *, int);
+
+static dlopen_func_t g_orig_dlopen = NULL;
+static dlopen_func_t g_libc_dlopen_mode = NULL;
 static int (*g_orig_dlclose)(void *) = NULL;
 
 typedef list<probe *> probe_list_t;
@@ -63,7 +66,7 @@ cockroach::cockroach(void)
 
 	ROACH_INFO("started cockroach (%s): %s (%d)\n", __DATE__,
 	           utils::get_self_exe_name().c_str(), getpid());
-	g_orig_dlopen = (void *(*)(const char *, int))dlsym(RTLD_NEXT, "dlopen");
+	g_orig_dlopen = (dlopen_func_t)dlsym(RTLD_NEXT, "dlopen");
 	if (!g_orig_dlopen) {
 		ROACH_ERR("Failed to call dlsym() for dlopen.\n");
 		exit(EXIT_FAILURE);
@@ -101,6 +104,12 @@ cockroach::cockroach(void)
 		}
 		aprobe->install(lib_info);
 	}
+
+	// hook internal dlopen() for glibc 
+	g_libc_dlopen_mode =
+	  (dlopen_func_t)dlsym(RTLD_DEFAULT, "__libc_dlopen_mode");
+	if (!g_libc_dlopen_mode)
+		return;
 }
 
 cockroach::~cockroach()
@@ -376,6 +385,9 @@ static cockroach roach_obj;
 extern "C"
 void *dlopen(const char *filename, int flag)
 {
+	if (g_libc_dlopen_mode)
+		return (*g_orig_dlopen)(filename, flag);
+
 	void *handle = (*g_orig_dlopen)(filename, flag);
 	if (handle == NULL)
 		return NULL;

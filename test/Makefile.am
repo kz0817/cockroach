@@ -12,7 +12,8 @@ noinst_LTLIBRARIES = \
 test-measure-time.la \
 test-user-probe.la \
 libtargets.la libtestutil.la \
-user_probe.la
+user_probe.la \
+libimplicitdlopener.la libimplicitopentarget.la
 
 endif
 
@@ -28,8 +29,15 @@ libtargets_la_SOURCES = target-func-lib.c
 libtargets_la_LDFLAGS = $(NORM_LIB_LDFLAGS)
 
 target_exe_SOURCES = target-exe.c
-target_exe_LDFLAGS =
+target_exe_LDFLAGS = -ldl
 target_exe_LDADD = ./libtargets.la
+
+libimplicitopentarget_la_SOURCES = implicitopentarget.c
+libimplicitopentarget_la_LDFLAGS = $(NORM_LIB_LDFLAGS)
+
+libimplicitdlopener_la_SOURCES = implicitdlopener.c
+libimplicitdlopener_la_LIBADD = ./libimplicitopentarget.la
+libimplicitdlopener_la_LDFLAGS = $(NORM_LIB_LDFLAGS)
 
 # Testers
 libtestutil_la_SOURCES = testutil.cc
