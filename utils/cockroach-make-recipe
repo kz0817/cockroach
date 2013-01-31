@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import sys
+import os
 import subprocess
 
 g_target_lib_list = {}
@@ -48,13 +49,19 @@ def demangle(symbol):
         return ""
     return splited[0]
 
+def readlinkAndBasename(path):
+    linksrc = path
+    if os.path.islink(path):
+        linksrc = os.readlink(path)
+    return os.path.basename(linksrc)
+
 def output_recipe_symbol_time_measure(target_lib, addr, symbol):
     demangled_symbol = demangle(symbol)
     if demangled_symbol != "" and symbol == demangled_symbol:
         print "# %s" % symbol
     else:
         print "# %s %s" % (symbol, demangled_symbol)
-    print "T REL32 %s %s" % (target_lib, addr)
+    print "T REL32 %s %s" % (readlinkAndBasename(target_lib), addr)
 
 def output_recipe_symbol(target_lib, symbol):
     p1 = subprocess.Popen(["nm", target_lib], stdout=subprocess.PIPE)
