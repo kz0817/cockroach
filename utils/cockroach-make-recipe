@@ -64,7 +64,7 @@ def output_recipe_symbol_time_measure(target_lib, addr, symbol):
     print "T REL32 %s %s" % (readlinkAndBasename(target_lib), addr)
 
 def output_recipe_symbol(target_lib, symbol):
-    p1 = subprocess.Popen(["nm", target_lib], stdout=subprocess.PIPE)
+    p1 = subprocess.Popen(["nm", "-D", target_lib], stdout=subprocess.PIPE)
     p2 = subprocess.Popen(["grep","^[0-9a-f]*\ [Tt]\ "], stdin=p1.stdout,
                           stdout=subprocess.PIPE)
     lines_one = p2.communicate()[0]
