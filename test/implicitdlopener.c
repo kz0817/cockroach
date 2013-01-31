@@ -7,5 +7,7 @@ int implicit_dlopener_extlib_2x(int a)
 
 int implicit_dlopener_3x(int a)
 {
-	return a * 3;
+	asm volatile("push %rax");
+	asm volatile("pop %rax");
+	return 3 * a;
 }
