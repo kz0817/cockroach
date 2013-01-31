@@ -32,7 +32,35 @@ int cmd_sum(int argc, char *argv[])
 	return EXIT_SUCCESS;
 }
 
-int cmd_dlopen(int argc, char *argv[])
+int cmd_dlopen_local(int argc, char *argv[])
+{
+	if (argc < 3) {
+		fprintf(stderr, "[%s] Number of arg. is short.\n", __func__);
+		return EXIT_FAILURE;
+	}
+	int num = atoi(argv[2]);
+
+	const char *targetlib = "libimplicitdlopener.so";
+	void *handle = dlopen(targetlib, RTLD_LAZY);
+	if (!handle) {
+		fprintf(stderr, "failed to dlopen: %s, %s\n",
+		        targetlib, dlerror());
+		return EXIT_FAILURE;
+	}
+
+	const char *func_name = "implicit_dlopener_3x";
+	int (*implicit_dlopener_local)(int a) = dlsym(handle, func_name);
+	if (!implicit_dlopener_local) {
+	fprintf(stderr, "failed to dlsym: %s, %s\n",
+		        func_name, dlerror());
+		return EXIT_FAILURE;
+	}
+	int ret = (*implicit_dlopener_local)(num);
+	printf("%d", ret);
+	return EXIT_SUCCESS;
+}
+
+int cmd_dlopen_extlib(int argc, char *argv[])
 {
 	if (argc < 3) {
 		fprintf(stderr, "[%s] Number of arg. is short.\n", __func__);
@@ -102,8 +130,10 @@ int main(int argc, char *argv[])
 	}
 	else if (strcmp(first_arg, "sum") == 0)
 		ret = cmd_sum(argc, argv);
-	else if (strcmp(first_arg, "dlopen") == 0)
-		ret = cmd_dlopen(argc, argv);
+	else if (strcmp(first_arg, "dlopen-local") == 0)
+		ret = cmd_dlopen_local(argc, argv);
+	else if (strcmp(first_arg, "dlopen-extlib") == 0)
+		ret = cmd_dlopen_extlib(argc, argv);
 	else {
 		fprintf(stderr, "Unknown command: %s\n", first_arg);
 		ret = EXIT_FAILURE;

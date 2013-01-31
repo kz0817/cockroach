@@ -5,6 +5,8 @@ import os
 import subprocess
 
 target_program = "target-exe"
+implicitdlopener = "libimplicitdlopener.so"
+implicitopentarget = "libimplicitopentarget.so"
 
 def make_measure_time_one(probe_type, install_type, func_name,
                           save_instr="", target_module="libtargets.so.0.0.0"):
@@ -25,12 +27,18 @@ def make_measure_time_one(probe_type, install_type, func_name,
 
 def make_measure_time():
     global target_program
+    global implicitdlopener
+    global implicitopentarget
     make_measure_time_one("T", "REL32", "func1", "0")
     make_measure_time_one("T", "REL32", "func1a")
     make_measure_time_one("T", "REL32", "func1b", "6")
     make_measure_time_one("T", "ABS64", "func2")
     make_measure_time_one("T", "REL32", "funcX", target_module=target_program)
     make_measure_time_one("T", "REL32", "sum_up_to")
+    make_measure_time_one("T", "REL32", "implicit_dlopener_3x",
+                          target_module=implicitdlopener)
+    make_measure_time_one("T", "REL32", "implicit_open_target_2x",
+                          target_module=implicitopentarget)
 
 def make_user_prbe_one(probe_type, install_type, func_name, user_probe_func,
                        save_instr="", user_probe_module="user_probe.so",

@@ -123,4 +123,10 @@ void test_target_exe_abs_different_name(void)
 	test_save_instr_size_0();
 }
 
+// dlopen
+void test_dlopen(void)
+{
+	assert_func("dlopen-local 3", "9");
+}
+
 }

@@ -1,4 +1,4 @@
-int implicit_open_target_func1(int a)
+int implicit_open_target_2x(int a)
 {
 	return a * 2;
 }
