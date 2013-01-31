@@ -84,15 +84,7 @@ void mapped_lib_manager::parse_proc_maps(void)
 mapped_lib_manager::mapped_lib_manager()
 {
 	// get the executable path
-	const static int BUF_LEN = PATH_MAX;
-	char buf[BUF_LEN];
-	ssize_t len = readlink("/proc/self/exe", buf, BUF_LEN);
-	if (len == -1) {
-		ROACH_ERR("Failed to readlink(\"/proc/self/exe\"): %d\n",
-		          errno);
-		ROACH_ABORT();
-	}
-	m_exe_path = string(buf, len);
+	m_exe_path = utils::get_self_exe_name();
 
 	// lookup mapped files
 	parse_proc_maps();
