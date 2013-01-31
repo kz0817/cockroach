@@ -5,8 +5,8 @@ import os
 import subprocess
 
 target_program = "target-exe"
-implicitdlopener = "libimplicitdlopener.so"
-implicitopentarget = "libimplicitopentarget.so"
+implicitdlopener = "libimplicitdlopener.so.0.0.0"
+implicitopentarget = "libimplicitopentarget.so.0.0.0"
 
 def make_measure_time_one(probe_type, install_type, func_name,
                           save_instr="", target_module="libtargets.so.0.0.0"):

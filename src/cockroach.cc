@@ -18,7 +18,6 @@ using namespace std;
 typedef void *(*dlopen_func_t)(const char *, int);
 
 static dlopen_func_t g_orig_dlopen = NULL;
-static dlopen_func_t g_libc_dlopen_mode = NULL;
 static int (*g_orig_dlclose)(void *) = NULL;
 
 typedef list<probe *> probe_list_t;
@@ -35,6 +34,7 @@ static const size_t NUM_RECIPE_MIN_TOKENS = 4;
 static const size_t NUM_RECIPE_MIN_USER_PROBE_TOKENS = 2; // probe_lib and symbol 
 
 class cockroach {
+	bool m_flag_not_target;
 	mapped_lib_manager m_mapped_lib_mgr;
 	probe_list_t m_probe_list;
 	libpath_probe_list_map_t m_waiting_probe_map;
@@ -48,6 +48,8 @@ class cockroach {
 	void parse_target_exe(vector<string> &target_exe_line);
 	void add_user_probe(probe *user_probe, vector<string> &tokens,
 	                    size_t &idx);
+	void dlopen_hook_each(probe_list_t &probe_list, void *handle,
+	                      const mapped_lib_info *lib_info);
 public:
 	cockroach(void);
 	virtual ~cockroach();
@@ -60,6 +62,7 @@ class not_target_exe_exception {
 pthread_mutex_t cockroach::m_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 cockroach::cockroach(void)
+: m_flag_not_target(false)
 {
 	// Init original funcs
 	utils::init_original_func_addr_table();
@@ -88,6 +91,7 @@ cockroach::cockroach(void)
 	try {
 		parse_recipe(recipe_file);
 	} catch (not_target_exe_exception e) {
+		m_flag_not_target = true;
 		return;
 	}
 
@@ -104,12 +108,6 @@ cockroach::cockroach(void)
 		}
 		aprobe->install(lib_info);
 	}
-
-	// hook internal dlopen() for glibc 
-	g_libc_dlopen_mode =
-	  (dlopen_func_t)dlsym(RTLD_DEFAULT, "__libc_dlopen_mode");
-	if (!g_libc_dlopen_mode)
-		return;
 }
 
 cockroach::~cockroach()
@@ -338,35 +336,46 @@ cockroach::add_user_probe(probe *user_probe, vector<string> &tokens, size_t &idx
 
 void *cockroach::dlopen_hook(const char *filename, int flag, void *handle)
 {
-	// check if the mapped library is one of the targets
-	string basename = utils::get_basename(filename);
-	pthread_mutex_lock(&m_mutex);
-	libpath_probe_list_map_itr it = m_waiting_probe_map.find(basename);
-	if (it == m_waiting_probe_map.end()) {
-		pthread_mutex_unlock(&m_mutex);
+	if (m_flag_not_target)
 		return handle;
-	}
 
+	m_mapped_lib_mgr.update();
+
+	// check if the mapped library is one of the targets
+	vector<string> matched_names;
+	pthread_mutex_lock(&m_mutex);
+	libpath_probe_list_map_itr it = m_waiting_probe_map.begin();
+	for (; it != m_waiting_probe_map.end(); ++it) {
+		const string &target_name = it->first;
+		const mapped_lib_info* lib_info;
+		lib_info = m_mapped_lib_mgr.get_lib_info(target_name.c_str());
+		if (!lib_info)
+			continue;
+		dlopen_hook_each(it->second, handle, lib_info);
+		matched_names.push_back(target_name);
+	}
+	for (size_t i = 0; i < matched_names.size(); i++) {
+		string &target_name = matched_names[i];
+		m_waiting_probe_map.erase(target_name);
+	}
+	pthread_mutex_unlock(&m_mutex);
+	return handle;
+}
+
+void cockroach::dlopen_hook_each(probe_list_t &probe_list, void *handle,
+                                 const mapped_lib_info *lib_info)
+{
 	// get the base address at which the shared library is mapped
 	void *addr_init = dlsym(handle, "_init");
 	if (addr_init == NULL) {
 		ROACH_ERR("Failed to call dlsym(\"_init\"): %s\n", dlerror());
 		ROACH_ABORT();
 	}
-	Dl_info dlinfo;
-	if (dladdr(addr_init, &dlinfo) == 0) {
-		ROACH_ERR("Failed to call dladdr(): %s\n", dlerror());
-		ROACH_ABORT();
-	}
 
 	// install probes in the list
-	probe_list_t &probe_list = it->second;
 	probe_list_itr probe_ptr_itr = probe_list.begin();
 	for (; probe_ptr_itr != probe_list.end(); ++probe_ptr_itr)
-		(*probe_ptr_itr)->install(dlinfo.dli_fbase);
-	m_waiting_probe_map.erase(it);
-	pthread_mutex_unlock(&m_mutex);
-	return handle;
+		(*probe_ptr_itr)->install(lib_info);
 }
 
 // make an instance
@@ -385,9 +394,6 @@ static cockroach roach_obj;
 extern "C"
 void *dlopen(const char *filename, int flag)
 {
-	if (g_libc_dlopen_mode)
-		return (*g_orig_dlopen)(filename, flag);
-
 	void *handle = (*g_orig_dlopen)(filename, flag);
 	if (handle == NULL)
 		return NULL;

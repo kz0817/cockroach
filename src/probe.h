@@ -77,7 +77,7 @@ public:
 
 	const char *get_target_lib_path(void);
 	void install(const mapped_lib_info *lib_info);
-	void install(void *mapped_addr);
+	void install(void *mapped_addr = NULL);
 };
 
 #endif
