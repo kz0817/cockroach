@@ -61,7 +61,8 @@ cockroach::cockroach(void)
 	// Init original funcs
 	utils::init_original_func_addr_table();
 
-	ROACH_INFO("started cockroach (%s)\n", __DATE__);
+	ROACH_INFO("started cockroach (%s): %s (%d)\n", __DATE__,
+	           utils::get_self_exe_name().c_str(), getpid());
 	g_orig_dlopen = (void *(*)(const char *, int))dlsym(RTLD_NEXT, "dlopen");
 	if (!g_orig_dlopen) {
 		ROACH_ERR("Failed to call dlsym() for dlopen.\n");
