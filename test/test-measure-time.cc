@@ -126,7 +126,12 @@ void test_target_exe_abs_different_name(void)
 // dlopen
 void test_dlopen(void)
 {
-	assert_func("dlopen-local 3", "9");
+	assert_func("implicit_dlopener_3x", "6");
+}
+
+void test_dlopen_extlib(void)
+{
+	assert_func("implicit_open_target_2x", "4");
 }
 
 }

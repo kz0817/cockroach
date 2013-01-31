@@ -205,6 +205,16 @@ static const instr_info instr_info_rex_w = {
 	PREFIX_REX_W,
 };
 
+// 0x50 PUSH
+static void parser_push_rAXr8(opecode *op, uint8_t *code)
+{
+	// no operand
+}
+
+static const instr_info instr_info_push_rAXr8 = {
+	1,
+	parser_push_rAXr8,
+};
 
 // 0x53 PUSH
 static void parser_push_rBXr11(opecode *op, uint8_t *code)
@@ -248,6 +258,17 @@ static void parser_push_rSIr14(opecode *op, uint8_t *code)
 static const instr_info instr_info_push_rSIr14 = {
 	1,
 	parser_push_rSIr14,
+};
+
+// 0x58 POP
+static void parser_pop_rAXr8(opecode *op, uint8_t *code)
+{
+	// no operand
+}
+
+static const instr_info instr_info_pop_rAXr8 = {
+	1,
+	parser_pop_rAXr8,
 };
 
 // 0x7e Jcc, jb- Short displacement jump on condition
@@ -444,7 +465,6 @@ static const instr_info *first_byte_instr_array[0x100] =
 	NULL,                         // 0x4e
 	NULL,                         // 0x4f
 /*
-	&instr_info_push_ax,          // 0x50
 	&instr_info_push_cx,          // 0x51
 	&instr_info_push_dx,          // 0x52
 	&instr_info_push_si,          // 0x56
@@ -458,7 +478,7 @@ static const instr_info *first_byte_instr_array[0x100] =
 	&instr_info_pop_si,           // 0x5e
 	&instr_info_pop_di,           // 0x5f
 */
-	NULL,                         // 0x50
+	&instr_info_push_rAXr8,       // 0x50
 	NULL,                         // 0x51
 	NULL,                         // 0x52
 	&instr_info_push_rBXr11,      // 0x53
@@ -466,7 +486,7 @@ static const instr_info *first_byte_instr_array[0x100] =
 	&instr_info_push_rBPr13,      // 0x55
 	&instr_info_push_rSIr14,      // 0x55
 	NULL,                         // 0x57
-	NULL,                         // 0x58
+	&instr_info_pop_rAXr8,        // 0x58
 	NULL,                         // 0x59
 	NULL,                         // 0x5a
 	NULL,                         // 0x5b
