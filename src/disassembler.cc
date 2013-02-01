@@ -48,6 +48,11 @@ static const mod_rm_info_t mod_rm_sib_disp8 = {
 	DISP8,
 };
 
+static const mod_rm_info_t mod_rm_esi_disp8 = {
+	false,
+	DISP8,
+};
+
 static const mod_rm_info_t mod_rm_eax = {
 	false,
 	DISP_NONE,
@@ -94,7 +99,7 @@ static const mod_rm_info_t *mod_rm_matrix[4][8] =
 	 &mod_rm_sib, &mod_rm_disp32, NULL, NULL},
 
 	{NULL, &mod_rm_ecx_disp8, NULL, NULL,
-	 &mod_rm_sib_disp8, NULL, NULL, NULL},
+	 &mod_rm_sib_disp8, NULL, &mod_rm_esi_disp8, NULL},
 
 	{NULL, NULL, NULL, NULL,
 	 NULL, NULL, NULL, NULL},
@@ -291,6 +296,20 @@ static void parser_jcc_LE_NG(opecode *op, uint8_t *code)
 static const instr_info instr_info_jcc_LE_NG  = {
 	1,
 	parser_jcc_LE_NG,
+};
+
+// 0x80 Immediate Group 1 (MI): sub, cmp
+static void parser_imm_grp1_Eb_Ib(opecode *op, uint8_t *code)
+{
+	code = parse_operand(op, code);
+	uint8_t imm = parse_immediate8(code, op);
+	op->set_immediate(IMM8, imm);
+	code++;
+}
+
+static const instr_info instr_info_imm_grp1_Eb_Ib = {
+	1,
+	parser_imm_grp1_Eb_Ib,
 };
 
 // 0x81 Immediate Group 1 (MI): sub, cmp
@@ -526,7 +545,7 @@ static const instr_info *first_byte_instr_array[0x100] =
 	&instr_info_jcc_LE_NG,        // 0x7e
 	NULL,                         // 0x7f
 
-	NULL,                         // 0x80
+	&instr_info_imm_grp1_Eb_Ib,   // 0x80
 	&instr_info_imm_grp1_Ev_Iz,   // 0x81
 	NULL,                         // 0x82
 	&instr_info_imm_grp1_Ev_Ib,   // 0x83
