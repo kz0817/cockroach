@@ -2,8 +2,10 @@
 import sys
 import os
 import subprocess
+import sets;
 
 g_target_lib_list = {}
+g_registered_lib_addr_map = {}
 
 def print_usage():
     sys.stderr.write("Usage:\n")
@@ -55,7 +57,19 @@ def readlinkAndBasename(path):
         linksrc = os.readlink(path)
     return os.path.basename(linksrc)
 
+def register_lib_addr(target_lib, addr):
+    global g_registered_lib_addr_map;
+    if target_lib not in g_registered_lib_addr_map:
+        g_registered_lib_addr_map[target_lib] = sets.Set()
+    addr_set = g_registered_lib_addr_map[target_lib]
+    if addr in addr_set:
+        return False
+    addr_set.add(addr)
+    return True
+
 def output_recipe_symbol_time_measure(target_lib, addr, symbol):
+    if not register_lib_addr(target_lib, addr):
+        return
     demangled_symbol = demangle(symbol)
     if demangled_symbol != "" and symbol == demangled_symbol:
         print "# %s" % symbol
