@@ -1,0 +1,34 @@
+#!/bin/sh
+
+print_usage()
+{
+  echo "Usage:"
+  echo "$ cockroach recipefile command arguments ..."
+}
+
+if [ -z $COCKROACH_SO_PATH ]; then
+  bin_path=`cd $(dirname $0); pwd`
+  lib_path=`dirname $bin_path`/lib
+  COCKROACH_SO_PATH=$lib_path/cockroach.so
+fi
+
+if [ ! -f $COCKROACH_SO_PATH ]; then
+  echo Error: Not found cockroach: $COCKROACH_SO_PATH
+  echo Note: You can give the path of cockroach.so with the environment variable: COCKROACH_SO_PATH.
+  exit 1
+fi
+
+if [ $# -lt 2 ]; then
+  print_usage
+  exit 1
+fi
+
+recipe_path=$1
+if [ ! -f $recipe_path ]; then
+  echo Error: Not found the reciepe file: $recipe_path
+  exit 1
+fi
+recipe_abs_path=`cd $(dirname $recipe_path); pwd`/`basename $recipe_path`
+
+LD_PRELOAD=$COCKROACH_SO_PATH COCKROACH_RECIPE=$recipe_abs_path $2 $3 $4 $5 $6 $7 $8 $9
+

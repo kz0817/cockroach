@@ -1,1 +1,1 @@
-bin_SCRIPTS = cockroach-make-recipe
+bin_SCRIPTS = cockroach cockroach-make-recipe
