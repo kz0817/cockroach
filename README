@@ -45,11 +45,16 @@ $ sudo make install
 ==============================
 How to run
 ==============================
-Cockroach is loaded into the target program by LD_PRELOAD environment
-variable. The recipe file is also specified by the COCKROACH_RECIPE
-environment variable.
+$ cockroach recipe_file target_progam args
+
+Actually, the above 'cockroach' is a shell script and runs the following
+command internally.
 
 $ LD_PRELOAD=cockroach.so COCKROACH_RECIPE=<path>/recipe_file target_program args
+
+The body of the cockroach is a shared library loaded into the target program
+by LD_PRELOAD environment variable. The recipe file is also specified by
+the COCKROACH_RECIPE environment variable.
 
 ==============================
 Format of recipe file

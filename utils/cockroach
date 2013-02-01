@@ -30,5 +30,15 @@ if [ ! -f $recipe_path ]; then
 fi
 recipe_abs_path=`cd $(dirname $recipe_path); pwd`/`basename $recipe_path`
 
-LD_PRELOAD=$COCKROACH_SO_PATH COCKROACH_RECIPE=$recipe_abs_path $2 $3 $4 $5 $6 $7 $8 $9
+command="$2"
+shift 2
+while [ -n $1 ]
+do
+  args="$args $1"
+  shift
+  if [ $# -eq 0 ]; then
+    break
+  fi
+done
 
+LD_PRELOAD=$COCKROACH_SO_PATH COCKROACH_RECIPE=$recipe_abs_path $command $args
