@@ -53,6 +53,11 @@ static const mod_rm_info_t mod_rm_eax = {
 	DISP_NONE,
 };
 
+static const mod_rm_info_t mod_rm_ecx = {
+	false,
+	DISP_NONE,
+};
+
 static const mod_rm_info_t mod_rm_edx = {
 	false,
 	DISP_NONE,
@@ -64,6 +69,11 @@ static const mod_rm_info_t mod_rm_ebx = {
 };
 
 static const mod_rm_info_t mod_rm_esp = {
+	false,
+	DISP_NONE,
+};
+
+static const mod_rm_info_t mod_rm_ebp = {
 	false,
 	DISP_NONE,
 };
@@ -89,8 +99,8 @@ static const mod_rm_info_t *mod_rm_matrix[4][8] =
 	{NULL, NULL, NULL, NULL,
 	 NULL, NULL, NULL, NULL},
 
-	{&mod_rm_eax, NULL, &mod_rm_edx, &mod_rm_ebx,
-	 &mod_rm_esp, NULL, &mod_rm_esi, &mod_rm_edi},
+	{&mod_rm_eax, &mod_rm_ecx, &mod_rm_edx, &mod_rm_ebx,
+	 &mod_rm_esp, &mod_rm_ebp, &mod_rm_esi, &mod_rm_edi},
 };
 
 //
@@ -464,27 +474,14 @@ static const instr_info *first_byte_instr_array[0x100] =
 	NULL,                         // 0x4d
 	NULL,                         // 0x4e
 	NULL,                         // 0x4f
-/*
-	&instr_info_push_cx,          // 0x51
-	&instr_info_push_dx,          // 0x52
-	&instr_info_push_si,          // 0x56
-	&instr_info_push_di,          // 0x57
-	&instr_info_pop_ax,           // 0x58
-	&instr_info_pop_cx,           // 0x59
-	&instr_info_pop_dx,           // 0xab
-	&instr_info_pop_bx,           // 0x5b
-	&instr_info_pop_sp,           // 0x5c
-	&instr_info_pop_bp,           // 0x5d
-	&instr_info_pop_si,           // 0x5e
-	&instr_info_pop_di,           // 0x5f
-*/
+
 	&instr_info_push_rAXr8,       // 0x50
 	NULL,                         // 0x51
 	NULL,                         // 0x52
 	&instr_info_push_rBXr11,      // 0x53
 	&instr_info_push_rSPr12,      // 0x54
 	&instr_info_push_rBPr13,      // 0x55
-	&instr_info_push_rSIr14,      // 0x55
+	&instr_info_push_rSIr14,      // 0x56
 	NULL,                         // 0x57
 	&instr_info_pop_rAXr8,        // 0x58
 	NULL,                         // 0x59
@@ -980,7 +977,8 @@ opecode *disassembler::parse(uint8_t *code_start)
 			instr = second_byte_instr_array_0f[*code];
 		if (instr == NULL) {
 			ROACH_ERR("Failed to parse code byte: %p: %02x, "
-			          "instr: %02x\n", code, *code, instr_2byte);
+			          "instr_2byte: %02x\n",
+			          code, *code, instr_2byte);
 			ROACH_ABORT();
 		}
 		instr_2byte = 0;
