@@ -65,6 +65,12 @@ static const mod_rm_info_t mod_rm_esi_disp8 = {
 	false,
 };
 
+static const mod_rm_info_t mod_rm_esi_disp32 = {
+	false,
+	DISP32,
+	false,
+};
+
 static const mod_rm_info_t mod_rm_direct_eax = {
 	false,
 	DISP_NONE,
@@ -122,7 +128,7 @@ static const mod_rm_info_t *mod_rm_matrix[4][8] =
 	 &mod_rm_sib_disp8, NULL, &mod_rm_esi_disp8, NULL},
 
 	{NULL, NULL, NULL, NULL,
-	 NULL, NULL, NULL, NULL},
+	 NULL, NULL, &mod_rm_esi_disp32, NULL},
 
 	{&mod_rm_direct_eax, &mod_rm_direct_ecx,
 	 &mod_rm_direct_edx, &mod_rm_direct_ebx,
