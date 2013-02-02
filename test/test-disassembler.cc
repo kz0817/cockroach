@@ -23,10 +23,15 @@ void teardown(void)
 // ---------------------------------------------------------------------------
 // Test code
 // ---------------------------------------------------------------------------
+#ifdef __x86_64__
+
 void test_mov_Ev_Iz(void)
 {
 	g_ope = disassembler::parse((uint8_t *)target_mov_Ev_Iz);
 	cppcut_assert_equal(7, g_ope->get_length());
 }
 
+#endif //  __x86_64__
+
 } // namespace test_disassember
+
