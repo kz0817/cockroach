@@ -453,6 +453,18 @@ static const instr_info instr_info_ret = {
 	parser_not_impl,
 };
 
+// 0xc7 MOV (MI)
+static void parser_mov_Ev_Iz(opecode *op, uint8_t *code)
+{
+	parse_operand(op, code);
+}
+
+static const instr_info instr_info_mov_Ev_Iz = {
+	1,
+	parser_mov_Ev_Iz,
+};
+
+
 static const instr_info *first_byte_instr_array[0x100] = 
 {
 	NULL,                         // 0x00
@@ -669,7 +681,7 @@ static const instr_info *first_byte_instr_array[0x100] =
 	NULL,                         // 0xc4
 	NULL,                         // 0xc5
 	NULL,                         // 0xc6
-	NULL,                         // 0xc7
+	&instr_info_mov_Ev_Iz,        // 0xc7
 	NULL,                         // 0xc8
 	NULL,                         // 0xc9
 	NULL,                         // 0xca
