@@ -8,6 +8,7 @@ class opecode_relocator;
 
 #define PREFIX_REX_B (1 << 1)
 #define PREFIX_REX_W (1 << 8)
+#define PREFIX_REX_WB (PREFIX_REX_W|PREFIX_REX_B)
 
 enum opecode_disp_t {
 	DISP_NONE,

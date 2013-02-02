@@ -242,6 +242,13 @@ static const instr_info instr_info_rex_w = {
 	PREFIX_REX_W,
 };
 
+// 0x48 REX.W Prefix
+static const instr_info instr_info_rex_wb = {
+	1,
+	NULL,
+	PREFIX_REX_WB,
+};
+
 // 0x50 PUSH
 static void parser_push_rAXr8(opecode *op, uint8_t *code)
 {
@@ -519,7 +526,7 @@ static const instr_info *first_byte_instr_array[0x100] =
 	NULL,                         // 0x46
 	NULL,                         // 0x47
 	&instr_info_rex_w,            // 0x48
-	NULL,                         // 0x49
+	&instr_info_rex_wb,           // 0x49
 	NULL,                         // 0x4a
 	NULL,                         // 0x4b
 	NULL,                         // 0x4c
