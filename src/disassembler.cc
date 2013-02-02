@@ -16,6 +16,7 @@ typedef void (*code_parser_t)(opecode *op, uint8_t *code);
 struct mod_rm_info_t {
 	const bool sib;
 	const opecode_disp_t disp_type;
+	const bool direct_addressing;
 };
 
 struct instr_info {
@@ -31,72 +32,91 @@ struct instr_info {
 static const mod_rm_info_t mod_rm_sib = {
 	true,
 	DISP_NONE,
+	false,
 };
 
 static const mod_rm_info_t mod_rm_disp32 = {
 	false,
 	DISP32,
-};
-
-static const mod_rm_info_t mod_rm_ecx_disp8 = {
 	false,
-	DISP8,
-};
-
-static const mod_rm_info_t mod_rm_sib_disp8 = {
-	true,
-	DISP8,
-};
-
-static const mod_rm_info_t mod_rm_esi_disp8 = {
-	false,
-	DISP8,
-};
-
-static const mod_rm_info_t mod_rm_eax = {
-	false,
-	DISP_NONE,
-};
-
-static const mod_rm_info_t mod_rm_ecx = {
-	false,
-	DISP_NONE,
-};
-
-static const mod_rm_info_t mod_rm_edx = {
-	false,
-	DISP_NONE,
-};
-
-static const mod_rm_info_t mod_rm_ebx = {
-	false,
-	DISP_NONE,
-};
-
-static const mod_rm_info_t mod_rm_esp = {
-	false,
-	DISP_NONE,
-};
-
-static const mod_rm_info_t mod_rm_ebp = {
-	false,
-	DISP_NONE,
 };
 
 static const mod_rm_info_t mod_rm_esi = {
 	false,
 	DISP_NONE,
+	false,
 };
 
-static const mod_rm_info_t mod_rm_edi = {
+static const mod_rm_info_t mod_rm_ecx_disp8 = {
+	false,
+	DISP8,
+	false,
+};
+
+static const mod_rm_info_t mod_rm_sib_disp8 = {
+	true,
+	DISP8,
+	false,
+};
+
+static const mod_rm_info_t mod_rm_esi_disp8 = {
+	false,
+	DISP8,
+	false,
+};
+
+static const mod_rm_info_t mod_rm_direct_eax = {
 	false,
 	DISP_NONE,
+	true,
+};
+
+static const mod_rm_info_t mod_rm_direct_ecx = {
+	false,
+	DISP_NONE,
+	true,
+};
+
+static const mod_rm_info_t mod_rm_direct_edx = {
+	false,
+	DISP_NONE,
+	true,
+};
+
+static const mod_rm_info_t mod_rm_direct_ebx = {
+	false,
+	DISP_NONE,
+	true,
+};
+
+static const mod_rm_info_t mod_rm_direct_esp = {
+	false,
+	DISP_NONE,
+	true,
+};
+
+static const mod_rm_info_t mod_rm_direct_ebp = {
+	false,
+	DISP_NONE,
+	true,
+};
+
+static const mod_rm_info_t mod_rm_direct_esi = {
+	false,
+	DISP_NONE,
+	true,
+};
+
+static const mod_rm_info_t mod_rm_direct_edi = {
+	false,
+	DISP_NONE,
+	true,
 };
 
 static const mod_rm_info_t *mod_rm_matrix[4][8] = 
 {
 	{NULL, NULL, NULL, NULL,
-	 &mod_rm_sib, &mod_rm_disp32, NULL, NULL},
+	 &mod_rm_sib, &mod_rm_disp32, &mod_rm_esi, NULL},
 
 	{NULL, &mod_rm_ecx_disp8, NULL, NULL,
 	 &mod_rm_sib_disp8, NULL, &mod_rm_esi_disp8, NULL},
@@ -104,8 +124,10 @@ static const mod_rm_info_t *mod_rm_matrix[4][8] =
 	{NULL, NULL, NULL, NULL,
 	 NULL, NULL, NULL, NULL},
 
-	{&mod_rm_eax, &mod_rm_ecx, &mod_rm_edx, &mod_rm_ebx,
-	 &mod_rm_esp, &mod_rm_ebp, &mod_rm_esi, &mod_rm_edi},
+	{&mod_rm_direct_eax, &mod_rm_direct_ecx,
+	 &mod_rm_direct_edx, &mod_rm_direct_ebx,
+	 &mod_rm_direct_esp, &mod_rm_direct_ebp,
+	 &mod_rm_direct_esi, &mod_rm_direct_edi},
 };
 
 //
