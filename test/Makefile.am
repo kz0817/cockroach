@@ -27,7 +27,7 @@ NORM_LIB_LDFLAGS = -rpath $(libdir)
 
 # Testers
 test_disassembler_la_SOURCES = test-disassembler.cc test-disassembler-target.S
-test_disassembler_la_LIBADD = ../src/cockroach.la
+test_disassembler_la_LIBADD = ../src/libcockroach.la
 
 # Testees
 libtargets_la_SOURCES = target-func-lib.c

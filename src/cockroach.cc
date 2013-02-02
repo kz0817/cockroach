@@ -1,7 +1,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
-#include <list>
 #include <string>
 using namespace std;
 
@@ -10,54 +9,20 @@ using namespace std;
 #include <errno.h>
 #include <dlfcn.h>
 
+#include "cockroach.h"
 #include "utils.h"
-#include "mapped_lib_manager.h"
-#include "probe.h"
 #include "time_measure_probe.h"
 
-typedef void *(*dlopen_func_t)(const char *, int);
-
-static dlopen_func_t g_orig_dlopen = NULL;
-static int (*g_orig_dlclose)(void *) = NULL;
-
-typedef list<probe *> probe_list_t;
-typedef probe_list_t::iterator  probe_list_itr;
-
-typedef map<string, probe_list_t> libpath_probe_list_map_t;
-typedef libpath_probe_list_map_t::iterator libpath_probe_list_map_itr;
-
-typedef map<string, void *> user_probe_lib_handle_map_t;
-typedef user_probe_lib_handle_map_t::iterator user_probe_lib_handle_map_itr;
 
 // probe type, install type, target lib, and address
 static const size_t NUM_RECIPE_MIN_TOKENS = 4;
 static const size_t NUM_RECIPE_MIN_USER_PROBE_TOKENS = 2; // probe_lib and symbol 
 
-class cockroach {
-	bool m_flag_not_target;
-	mapped_lib_manager m_mapped_lib_mgr;
-	probe_list_t m_probe_list;
-	libpath_probe_list_map_t m_waiting_probe_map;
-	static pthread_mutex_t m_mutex;
-
-	static user_probe_lib_handle_map_t &get_user_probe_lib_handle_map(void);
-	static void _parse_one_recipe(const char *line, void *arg);
-	void add_probe_to_waiting_probe_map(probe *aprobe);
-	void parse_recipe(const char *recipe_file);
-	void parse_one_recipe(const char *line);
-	void parse_target_exe(vector<string> &target_exe_line);
-	void add_user_probe(probe *user_probe, vector<string> &tokens,
-	                    size_t &idx);
-	void dlopen_hook_each(probe_list_t &probe_list, void *handle,
-	                      const mapped_lib_info *lib_info);
-public:
-	cockroach(void);
-	virtual ~cockroach();
-	void *dlopen_hook(const char *filename, int flag, void *handle);
-};
-
 class not_target_exe_exception {
 };
+
+dlopen_func_t  cockroach::m_orig_dlopen = NULL;
+dlclose_func_t cockroach::m_orig_dlclose = NULL;
 
 pthread_mutex_t cockroach::m_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -69,14 +34,14 @@ cockroach::cockroach(void)
 
 	ROACH_INFO("started cockroach (%s): %s (%d)\n", __DATE__,
 	           utils::get_self_exe_name().c_str(), getpid());
-	g_orig_dlopen = (dlopen_func_t)dlsym(RTLD_NEXT, "dlopen");
-	if (!g_orig_dlopen) {
+	m_orig_dlopen = (dlopen_func_t)dlsym(RTLD_NEXT, "dlopen");
+	if (!m_orig_dlopen) {
 		ROACH_ERR("Failed to call dlsym() for dlopen.\n");
 		exit(EXIT_FAILURE);
 	}
 
-	g_orig_dlclose = (int (*)(void *))dlsym(RTLD_NEXT, "dlclose");
-	if (!g_orig_dlclose) {
+	m_orig_dlclose = (dlclose_func_t)dlsym(RTLD_NEXT, "dlclose");
+	if (!m_orig_dlclose) {
 		ROACH_ERR("Failed to call dlsym() for dlclose.\n");
 		exit(EXIT_FAILURE);
 	}
@@ -377,35 +342,3 @@ void cockroach::dlopen_hook_each(probe_list_t &probe_list, void *handle,
 	for (; probe_ptr_itr != probe_list.end(); ++probe_ptr_itr)
 		(*probe_ptr_itr)->install(lib_info);
 }
-
-// make an instance
-static cockroach roach_obj;
-
-// --------------------------------------------------------------------------
-// wrapper functions
-// --------------------------------------------------------------------------
-/**
- * dlopen() wrapper to call dlopen_hook_start() if necesary.
- *
- * @param filename of dynamic library (full path).
- * @param flag dlopen() flags.
- * @returns an opaque "handle" for the dynamic library.
- */
-extern "C"
-void *dlopen(const char *filename, int flag)
-{
-	void *handle = (*g_orig_dlopen)(filename, flag);
-	if (handle == NULL)
-		return NULL;
-	return roach_obj.dlopen_hook(filename, flag, handle);
-}
-
-/**
- * just calling glibc dlclose().
- */
-extern "C"
-int dlclose(void *handle) __THROW
-{
-	return (*g_orig_dlclose)(handle);
-}
-
