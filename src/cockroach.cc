@@ -30,7 +30,7 @@ cockroach::cockroach(void)
 : m_flag_not_target(false)
 {
 	// Init original funcs
-	utils::init_original_func_addr_table();
+	//utils::init_original_func_addr_table();
 
 	ROACH_INFO("started cockroach (%s): %s (%d)\n", __DATE__,
 	           utils::get_self_exe_name().c_str(), getpid());

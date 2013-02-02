@@ -11,41 +11,6 @@ using namespace std;
 #include <limits.h>
 #include "utils.h"
 
-cockroach_original_func_addr_table_t *utils::m_original_func_table = NULL;
-
-void *utils::get_func_addr(const char *symbol)
-{
-	void *ptr = dlsym(RTLD_NEXT, symbol);
-	if (!ptr)
-		ROACH_ABORT();
-	return ptr;
-}
-
-void utils::init_original_func_addr_table(void)
-{
-	// this function must be called once
-	if (m_original_func_table)
-		ROACH_ABORT();
-
-	m_original_func_table = new cockroach_original_func_addr_table_t();
-	if (!m_original_func_table)
-		ROACH_ABORT();
-
-	m_original_func_table->printf =
-	  (int (*)(const char *, ...))get_func_addr("printf");
-
-	m_original_func_table->vprintf =
-	  (int (*)(const char *, va_list))get_func_addr("vprintf"); 
-}
-
-cockroach_original_func_addr_table_t *utils::get_original_func_addr_table(void)
-{
-	// this function must be called once
-	if (m_original_func_table)
-		ROACH_ABORT();
-	return m_original_func_table;
-}
-
 vector<string> utils::split(const char *line, const char separator)
 {
 	vector<string> tokens;
