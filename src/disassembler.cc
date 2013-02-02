@@ -297,6 +297,17 @@ static const instr_info instr_info_push_rSIr14 = {
 	parser_push_rSIr14,
 };
 
+// 0x57 PUSH
+static void parser_push_rDIr15(opecode *op, uint8_t *code)
+{
+	// no operand
+}
+
+static const instr_info instr_info_push_rDIr15 = {
+	1,
+	parser_push_rDIr15,
+};
+
 // 0x58 POP
 static void parser_pop_rAXr8(opecode *op, uint8_t *code)
 {
@@ -523,7 +534,7 @@ static const instr_info *first_byte_instr_array[0x100] =
 	&instr_info_push_rSPr12,      // 0x54
 	&instr_info_push_rBPr13,      // 0x55
 	&instr_info_push_rSIr14,      // 0x56
-	NULL,                         // 0x57
+	&instr_info_push_rDIr15,      // 0x57
 	&instr_info_pop_rAXr8,        // 0x58
 	NULL,                         // 0x59
 	NULL,                         // 0x5a
