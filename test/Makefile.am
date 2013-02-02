@@ -11,6 +11,7 @@ bin_PROGRAMS = target-exe
 noinst_LTLIBRARIES = \
 test-measure-time.la \
 test-user-probe.la \
+test-disassembler.la \
 libtargets.la libtestutil.la \
 user_probe.la \
 libimplicitdlopener.la libimplicitopentarget.la
@@ -23,6 +24,10 @@ AM_LDFLAGS = -module -rpath $(libdir) -avoid-version -no-undefined
 LIBS = $(CUTTER_LIBS) $(CPPCUTTER_LIBS)
 
 NORM_LIB_LDFLAGS = -rpath $(libdir)
+
+# Testers
+test_disassembler_la_SOURCES = test-disassembler.cc test-disassembler-target.S
+test_disassembler_la_LIBADD = ../src/cockroach.la
 
 # Testees
 libtargets_la_SOURCES = target-func-lib.c
