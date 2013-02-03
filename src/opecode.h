@@ -83,6 +83,7 @@ public:
 	void copy_code(uint8_t *addr);
 	opecode_relocator *get_relocator(void);
 	const opecode_disp_t get_disp_type(void) const;
+	const mod_rm &get_mod_rm(void) const;
 };
 
 #endif // __x86_64__

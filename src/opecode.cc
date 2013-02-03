@@ -142,6 +142,11 @@ const opecode_disp_t opecode::get_disp_type(void) const
 	return m_disp_type;
 }
 
+const mod_rm &opecode::get_mod_rm(void) const
+{
+	return m_mod_rm;
+}
+
 // --------------------------------------------------------------------------
 // private functions
 // --------------------------------------------------------------------------
