@@ -147,6 +147,11 @@ const mod_rm &opecode::get_mod_rm(void) const
 	return m_mod_rm;
 }
 
+const sib &opecode::get_sib(void) const
+{
+	return m_sib;
+}
+
 // --------------------------------------------------------------------------
 // private functions
 // --------------------------------------------------------------------------

@@ -84,6 +84,7 @@ public:
 	opecode_relocator *get_relocator(void);
 	const opecode_disp_t get_disp_type(void) const;
 	const mod_rm &get_mod_rm(void) const;
+	const sib &get_sib(void) const;
 };
 
 #endif // __x86_64__
