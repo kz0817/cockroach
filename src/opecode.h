@@ -40,15 +40,22 @@ struct mod_rm {
 	mod_rm(void);
 };
 
+struct sib {
+	int ss;
+	int index;
+	int base;
+
+	// constructor
+	sib(void);
+};
+
 class opecode {
 	uint8_t *m_original_addr;
 	int      m_length;
 	uint8_t *m_code;
 	int      m_prefix;
 	mod_rm   m_mod_rm;
-	int      m_sib_ss;
-	int      m_sib_index;
-	int      m_sib_base;
+	sib      m_sib;
 	opecode_disp_t m_disp_type;
 	uint32_t       m_disp;
 	opecode_imm_t m_immediate_type;

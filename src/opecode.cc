@@ -12,6 +12,13 @@ mod_rm::mod_rm(void)
 {
 }
 
+sib::sib(void)
+: ss(-1),
+  index(-1),
+  base(-1)
+{
+}
+
 // --------------------------------------------------------------------------
 // public functions
 // --------------------------------------------------------------------------
@@ -21,9 +28,6 @@ opecode::opecode(uint8_t *orig_addr)
   m_length(0),
   m_code(NULL),
   m_prefix(0),
-  m_sib_ss(-1),
-  m_sib_index(-1),
-  m_sib_base(-1),
   m_disp_type(DISP_NONE),
   m_disp(0),
   m_immediate_type(IMM_INVALID),
@@ -77,9 +81,9 @@ void opecode::set_mod_rm(int mod, int reg, int r_m)
 
 void opecode::set_sib_param(int ss, int index, int base)
 {
-	m_sib_ss = ss;
-	m_sib_index = index;
-	m_sib_base = base;
+	m_sib.ss = ss;
+	m_sib.index = index;
+	m_sib.base = base;
 }
 
 void opecode::set_disp(opecode_disp_t disp_type, uint32_t disp,
