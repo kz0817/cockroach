@@ -17,6 +17,7 @@ libcockroach_la_LDFLAGS = -lrt -dl -lpthread
 cockroach_la_SOURCES = cockroach-instance.cc cockroach.cc
 cockroach_la_LDFLAGS = \
   -lcockroach \
+  -ldl \
   -avoid-version \
   -module -no-undefined \
   -export-dynamic
