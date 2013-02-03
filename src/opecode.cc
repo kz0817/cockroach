@@ -5,6 +5,13 @@
 #include "rip_relative_relocator.h"
 
 #ifdef __x86_64__
+mod_rm::mod_rm(void)
+: mod(-1),
+  reg(-1),
+  r_m(-1)
+{
+}
+
 // --------------------------------------------------------------------------
 // public functions
 // --------------------------------------------------------------------------
@@ -14,9 +21,6 @@ opecode::opecode(uint8_t *orig_addr)
   m_length(0),
   m_code(NULL),
   m_prefix(0),
-  m_mod_rm_mod(-1),
-  m_mod_rm_reg(-1),
-  m_mod_rm_r_m(-1),
   m_sib_ss(-1),
   m_sib_index(-1),
   m_sib_base(-1),
@@ -66,9 +70,9 @@ uint8_t *opecode::get_code(void) const
 
 void opecode::set_mod_rm(int mod, int reg, int r_m)
 {
-	m_mod_rm_mod = mod;
-	m_mod_rm_reg = reg;
-	m_mod_rm_r_m = r_m;
+	m_mod_rm.mod = mod;
+	m_mod_rm.reg = reg;
+	m_mod_rm.r_m = r_m;
 }
 
 void opecode::set_sib_param(int ss, int index, int base)
@@ -82,11 +86,11 @@ void opecode::set_disp(opecode_disp_t disp_type, uint32_t disp,
                        uint8_t *disp_orig_addr)
 {
 	// chkeck if RIP relative addressing
-	if (m_mod_rm_mod == -1 || m_mod_rm_r_m == -1) {
+	if (m_mod_rm.mod == -1 || m_mod_rm.r_m == -1) {
 		ROACH_BUG("Mod or R/M have not been set: %d, %d\n",
-		          m_mod_rm_mod, m_mod_rm_r_m == -1);
+		          m_mod_rm.mod, m_mod_rm.r_m == -1);
 	}
-	if (m_mod_rm_mod == 0 && m_mod_rm_r_m == 5) {
+	if (m_mod_rm.mod == 0 && m_mod_rm.r_m == 5) {
 		int offset = (int)(disp_orig_addr - m_original_addr);
 		m_relocator = new rip_relative_relocator(this, offset);
 	}

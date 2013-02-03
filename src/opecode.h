@@ -31,14 +31,21 @@ enum rel_jump_t {
 	REL32,
 };
 
+struct mod_rm {
+	int mod;
+	int reg;
+	int r_m;
+
+	// constructor
+	mod_rm(void);
+};
+
 class opecode {
 	uint8_t *m_original_addr;
 	int      m_length;
 	uint8_t *m_code;
 	int      m_prefix;
-	int      m_mod_rm_mod;
-	int      m_mod_rm_reg;
-	int      m_mod_rm_r_m;
+	mod_rm   m_mod_rm;
 	int      m_sib_ss;
 	int      m_sib_index;
 	int      m_sib_base;
