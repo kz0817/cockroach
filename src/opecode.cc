@@ -129,6 +129,11 @@ opecode_relocator *opecode::get_relocator(void)
 	return m_relocator;
 }
 
+const opecode_disp_t opecode::get_disp_type(void) const
+{
+	return m_disp_type;
+}
+
 // --------------------------------------------------------------------------
 // private functions
 // --------------------------------------------------------------------------
