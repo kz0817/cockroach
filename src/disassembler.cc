@@ -179,9 +179,9 @@ static int parse_disp(opecode_disp_t disp_type, uint8_t *addr, opecode *op)
 
 static const mod_rm_info_t *parse_mod_rm(uint8_t mod_rm, opecode *op)
 {
-	int mod = (mod_rm & 0xc0) >> 6;
-	int reg = (mod_rm & 0x38) >> 3;
-	int r_m = (mod_rm & 0x07);
+	mod_type mod = (mod_type)((mod_rm & 0xc0) >> 6);
+	register_type reg = (register_type)((mod_rm & 0x38) >> 3);
+	register_type r_m = (register_type)(mod_rm & 0x07);
 	const mod_rm_info_t *mod_rm_info = mod_rm_matrix[mod][r_m];
 	if (mod_rm_info == NULL)
 		ROACH_BUG("mod_rm: mod: %d, r_m: %d, NULL (not implemented)\n",
@@ -456,7 +456,10 @@ static const instr_info instr_info_ret = {
 // 0xc7 MOV (MI)
 static void parser_mov_Ev_Iz(opecode *op, uint8_t *code)
 {
-	parse_operand(op, code);
+	code = parse_operand(op, code);
+	uint8_t imm = parse_immediate32(code, op);
+	op->set_immediate(IMM32, imm);
+	code += 4;
 }
 
 static const instr_info instr_info_mov_Ev_Iz = {

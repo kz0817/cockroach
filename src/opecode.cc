@@ -6,9 +6,9 @@
 
 #ifdef __x86_64__
 mod_rm::mod_rm(void)
-: mod(-1),
-  reg(-1),
-  r_m(-1)
+: mod(MOD_REG_UNKNOWN),
+  reg(REG_UNKNOWN),
+  r_m(REG_UNKNOWN)
 {
 }
 
@@ -80,7 +80,7 @@ uint8_t *opecode::get_code(void) const
 	return m_code;
 }
 
-void opecode::set_mod_rm(int mod, int reg, int r_m)
+void opecode::set_mod_rm(mod_type mod, register_type reg, register_type r_m)
 {
 	m_mod_rm.mod = mod;
 	m_mod_rm.reg = reg;

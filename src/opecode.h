@@ -10,6 +10,26 @@ class opecode_relocator;
 #define PREFIX_REX_W (1 << 8)
 #define PREFIX_REX_WB (PREFIX_REX_W|PREFIX_REX_B)
 
+enum mod_type {
+	MOD_REG_UNKNOWN = -1,
+	MOD_REG_INDIRECT,
+	MOD_REG_INDIRECT_DISP8,
+	MOD_REG_INDIRECT_DISP32,
+	MOD_REG_DIRECT,
+};
+
+enum register_type {
+	REG_UNKNOWN = -1,
+	REG_AX,
+	REG_CX,
+	REG_DX,
+	REG_BX,
+	REG_SP,
+	REG_BP,
+	REG_SI,
+	REG_DI,
+};
+
 enum opecode_disp_t {
 	DISP_NONE,
 	DISP8,
@@ -32,9 +52,9 @@ enum rel_jump_t {
 };
 
 struct mod_rm {
-	int mod;
-	int reg;
-	int r_m;
+	mod_type      mod;
+	register_type reg;
+	register_type r_m;
 
 	// constructor
 	mod_rm(void);
@@ -87,7 +107,7 @@ public:
 	int  get_length(void) const;
 	uint8_t *get_code(void) const;
 	void add_prefix(int prefix);
-	void set_mod_rm(int mod, int reg, int r_m);
+	void set_mod_rm(mod_type mod, register_type reg, register_type r_m);
 	void set_sib_param(int ss, int index, int base);
 	void set_disp(opecode_disp_t disp_type, uint32_t disp,
 	              uint8_t *disp_orig_addr);
