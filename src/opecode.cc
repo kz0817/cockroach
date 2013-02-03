@@ -19,6 +19,18 @@ sib::sib(void)
 {
 }
 
+disp::disp(void)
+: type(DISP_NONE),
+  value(0)
+{
+}
+
+immediate::immediate(void)
+: type(IMM_INVALID),
+  value(0)
+{
+}
+
 // --------------------------------------------------------------------------
 // public functions
 // --------------------------------------------------------------------------
@@ -28,10 +40,6 @@ opecode::opecode(uint8_t *orig_addr)
   m_length(0),
   m_code(NULL),
   m_prefix(0),
-  m_disp_type(DISP_NONE),
-  m_disp(0),
-  m_immediate_type(IMM_INVALID),
-  m_immediate(0),
   m_rel_jump_type(REL_INVALID),
   m_rel_jump_value(0),
   m_relocator(NULL),
@@ -99,19 +107,14 @@ void opecode::set_disp(opecode_disp_t disp_type, uint32_t disp,
 		m_relocator = new rip_relative_relocator(this, offset);
 	}
 
-	m_disp_type = disp_type;
-	m_disp = disp;
-}
-
-uint32_t opecode::get_disp(void) const
-{
-	return m_disp;
+	m_disp.type = disp_type;
+	m_disp.value = disp;
 }
 
 void opecode::set_immediate(opecode_imm_t imm_type, uint64_t imm)
 {
-	m_immediate_type = imm_type;
-	m_immediate = imm;
+	m_immediate.type = imm_type;
+	m_immediate.value = imm;
 }
 
 void opecode::set_rel_jump_addr(rel_jump_t rel_type, int32_t value)
@@ -137,11 +140,6 @@ opecode_relocator *opecode::get_relocator(void)
 	return m_relocator;
 }
 
-const opecode_disp_t opecode::get_disp_type(void) const
-{
-	return m_disp_type;
-}
-
 const mod_rm &opecode::get_mod_rm(void) const
 {
 	return m_mod_rm;
@@ -150,6 +148,16 @@ const mod_rm &opecode::get_mod_rm(void) const
 const sib &opecode::get_sib(void) const
 {
 	return m_sib;
+}
+
+const disp &opecode::get_disp(void) const
+{
+	return m_disp;
+}
+
+const immediate &opecode::get_immediate(void) const
+{
+	return m_immediate;
 }
 
 // --------------------------------------------------------------------------

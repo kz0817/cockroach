@@ -21,7 +21,7 @@ int rip_relative_relocator::relocate(uint8_t *addr)
 {
 	const opecode *op = get_opecode();
 	int64_t diff = (uint64_t)op->get_original_addr() - (uint64_t)addr; 
-	int64_t rel = op->get_disp() + diff;
+	int64_t rel = op->get_disp().value + diff;
 	if (rel >  2147483647 || rel < -2147483648) {
 		ROACH_ERR("relative addr: %016x\n", rel);
 		ROACH_ABORT();

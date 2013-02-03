@@ -31,6 +31,7 @@ void test_mov_Ev_Iz(void)
 
 	// movl   $0x5,0x18(%rsi)
 	// c7 46 18 05 00 00 00
+	cppcut_assert_equal(DISP32, g_ope->get_disp().type);
 	cppcut_assert_equal(7, g_ope->get_length());
 }
 
