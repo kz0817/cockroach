@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <vector>
 #include <fstream>
+#include <set>
 using namespace std;
 
 #include <boost/algorithm/string.hpp>
