@@ -25,7 +25,8 @@ cockroach_la_LDFLAGS = \
 #
 # bin
 #
-bin_PROGRAMS = cockroach-time-measure-tool cockroach-record-data-tool
+bin_PROGRAMS = \
+  cockroach-loader cockroach-time-measure-tool cockroach-record-data-tool
 
 # cockroach-time-measure-tool
 cockroach_time_measure_tool_SOURCES = cockroach-time-measure-tool.cc
