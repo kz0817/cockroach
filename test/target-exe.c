@@ -122,6 +122,8 @@ int main(int argc, char *argv[])
 		ret = cmd_dlopen_local(2);
 	else if (strcmp(first_arg, "implicit_open_target_2x") == 0)
 		ret = cmd_dlopen_extlib(2);
+	else if (strcmp(first_arg, "sleep") == 0)
+		ret = sleep(3600);
 	else {
 		fprintf(stderr, "Unknown command: %s\n", first_arg);
 		ret = EXIT_FAILURE;
