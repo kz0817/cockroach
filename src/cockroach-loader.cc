@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 {
 	string cockroach_lib_path;
 	string recipe_path;
-	pid_t  target_pid;
+	pid_t  target_pid = 0;
 	for (int i = 1; i < argc; i++) {
 		string arg = argv[i];
 		if (arg == "--cockroach-lib-path") {
@@ -48,6 +48,11 @@ int main(int argc, char *argv[])
 
 	if (cockroach_lib_path.empty())
 		cockroach_lib_path = get_default_cockroach_lib_path();
+	if (target_pid == 0) {
+		printf("ERROR: You have to specify target PID.\n\n");
+		print_usage();
+		return EXIT_FAILURE;
+	}
 
 	printf("cockroach loader\n");
 	printf("lib path    : %s\n", cockroach_lib_path.c_str());
