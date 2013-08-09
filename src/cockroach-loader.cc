@@ -4,6 +4,9 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/ptrace.h>
+#include <sys/types.h> 
+#include <sys/wait.h>
+#include <sys/user.h>
 
 using namespace std;
 
@@ -11,6 +14,7 @@ struct context {
 	string cockroach_lib_path;
 	string recipe_path;
 	pid_t  target_pid;
+	struct user_regs_struct regs;
 
 	context(void)
 	: target_pid(0)
@@ -33,12 +37,38 @@ static string get_default_cockroach_lib_path(void)
 
 static bool attach(context *ctx)
 {
-	long ret = ptrace(PTRACE_ATTACH, ctx->target_pid, NULL, NULL);
-	if (ret != 0) {
+	if (ptrace(PTRACE_ATTACH, ctx->target_pid, NULL, NULL)) {
 		printf("Failed to attach the process: %d: %s\n",
 		       ctx->target_pid, strerror(errno));
 		return false;
 	}
+
+	// wait for the stop of the child
+	siginfo_t info;
+	int result = waitid(P_PID, ctx->target_pid, &info, WSTOPPED);
+	if (result == -1) {
+		printf("Failed to wait for the stop of the target: %d: %s\n",
+		       ctx->target_pid, strerror(errno));
+		return false;
+	}
+	if (info.si_code != CLD_TRAPPED) {
+		printf("waitid() returned with the unexpected code: %d\n",
+		       info.si_code);
+		return false;
+	}
+
+	return true;
+}
+
+static bool get_register_info(context *ctx)
+{
+	if (ptrace(PTRACE_GETREGS, ctx->target_pid, NULL, &ctx->regs)) {
+		printf("Failed to get register info: target: %d: %s\n",
+		       ctx->target_pid, strerror(errno));
+		return false;
+	}
+	printf("RSP: %p, RIP: %p\n",
+	       (void *)ctx->regs.rsp, (void *)ctx->regs.rip);
 	return true;
 }
 
@@ -83,6 +113,8 @@ int main(int argc, char *argv[])
 	printf("target pid  : %d\n", ctx.target_pid);
 
 	if (!attach(&ctx))
+		return EXIT_FAILURE;
+	if (!get_register_info(&ctx))
 		return EXIT_FAILURE;
 
 	return EXIT_SUCCESS;
