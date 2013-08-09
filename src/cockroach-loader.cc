@@ -49,7 +49,7 @@ static void print_usage(void)
 	printf("$ cockroach-loader [options] --recipe recipe_path pid\n");
 	printf("\n");
 	printf("Options\n");
-	printf("--cockroach-lib-path: The path of cockroach.so\n");
+	printf("  --cockroach-lib-path: The path of cockroach.so\n");
 	printf("\n");
 }
 
