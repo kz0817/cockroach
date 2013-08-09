@@ -21,7 +21,7 @@ static void print_usage(void)
 {
 	printf("Usage\n");
 	printf("\n");
-	printf("$ cockroach-loader [options] --recipe recipe_path eID\n");
+	printf("$ cockroach-loader [options] --recipe recipe_path pid\n");
 	printf("\n");
 	printf("Options\n");
 	printf("--cockroach-lib-path: The path of cockroach.so\n");
