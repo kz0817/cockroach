@@ -1,8 +1,22 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <errno.h>
+#include <string.h>
+#include <sys/ptrace.h>
 
 using namespace std;
+
+struct context {
+	string cockroach_lib_path;
+	string recipe_path;
+	pid_t  target_pid;
+
+	context(void)
+	: target_pid(0)
+	{
+	}
+};
 
 #define PRINT_USAGE_AND_EXIT_IF_THE_LAST(i, argc) \
 do { \
@@ -15,6 +29,17 @@ do { \
 static string get_default_cockroach_lib_path(void)
 {
 	return "AHO";
+}
+
+static bool attach(context *ctx)
+{
+	long ret = ptrace(PTRACE_ATTACH, ctx->target_pid, NULL, NULL);
+	if (ret != 0) {
+		printf("Failed to attach the process: %d: %s\n",
+		       ctx->target_pid, strerror(errno));
+		return false;
+	}
+	return true;
 }
 
 static void print_usage(void)
@@ -30,34 +55,35 @@ static void print_usage(void)
 
 int main(int argc, char *argv[])
 {
-	string cockroach_lib_path;
-	string recipe_path;
-	pid_t  target_pid = 0;
+	context ctx;
 	for (int i = 1; i < argc; i++) {
 		string arg = argv[i];
 		if (arg == "--cockroach-lib-path") {
 			PRINT_USAGE_AND_EXIT_IF_THE_LAST(i, argc);
-			cockroach_lib_path = arg;
+			ctx.cockroach_lib_path = arg;
 
 		} else if (arg == "--recipe") {
 			PRINT_USAGE_AND_EXIT_IF_THE_LAST(i, argc);
-			recipe_path = arg;
+			ctx.recipe_path = arg;
 		} else
-			target_pid = atoi(arg.c_str());
+			ctx.target_pid = atoi(arg.c_str());
 	}
 
-	if (cockroach_lib_path.empty())
-		cockroach_lib_path = get_default_cockroach_lib_path();
-	if (target_pid == 0) {
+	if (ctx.cockroach_lib_path.empty())
+		ctx.cockroach_lib_path = get_default_cockroach_lib_path();
+	if (ctx.target_pid == 0) {
 		printf("ERROR: You have to specify target PID.\n\n");
 		print_usage();
 		return EXIT_FAILURE;
 	}
 
 	printf("cockroach loader\n");
-	printf("lib path    : %s\n", cockroach_lib_path.c_str());
-	printf("recipe path : %s\n", recipe_path.c_str());
-	printf("target pid  : %d\n", target_pid);
+	printf("lib path    : %s\n", ctx.cockroach_lib_path.c_str());
+	printf("recipe path : %s\n", ctx.recipe_path.c_str());
+	printf("target pid  : %d\n", ctx.target_pid);
+
+	if (!attach(&ctx))
+		return EXIT_FAILURE;
 
 	return EXIT_SUCCESS;
 }
