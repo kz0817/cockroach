@@ -4,9 +4,15 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/ptrace.h>
-#include <sys/types.h> 
 #include <sys/wait.h>
 #include <sys/user.h>
+
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif // _GNU_SOURCE
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
 
 using namespace std;
 
@@ -29,6 +35,11 @@ do { \
 		return EXIT_FAILURE; \
 	} \
 } while(0)
+
+static int tkill(int tid, int signo)
+{
+	return syscall(SYS_tkill, tid, signo);
+}
 
 static string get_default_cockroach_lib_path(void)
 {
@@ -63,12 +74,23 @@ static bool attach(context *ctx)
 static bool get_register_info(context *ctx)
 {
 	if (ptrace(PTRACE_GETREGS, ctx->target_pid, NULL, &ctx->regs)) {
-		printf("Failed to get register info: target: %d: %s\n",
+		printf("Failed to get register info. target: %d: %s\n",
 		       ctx->target_pid, strerror(errno));
 		return false;
 	}
 	printf("RSP: %p, RIP: %p\n",
 	       (void *)ctx->regs.rsp, (void *)ctx->regs.rip);
+	return true;
+}
+
+static bool send_signal_and_wait(context *ctx)
+{
+	int signo = SIGUSR2;
+	if (tkill(ctx->target_pid, signo) == -1) {
+		printf("Failed to send signal. target: %d: %s. signo: %d\n",
+		       ctx->target_pid, strerror(errno), signo);
+		return false;
+	}
 	return true;
 }
 
@@ -115,6 +137,8 @@ int main(int argc, char *argv[])
 	if (!attach(&ctx))
 		return EXIT_FAILURE;
 	if (!get_register_info(&ctx))
+		return EXIT_FAILURE;
+	if (!send_signal_and_wait(&ctx))
 		return EXIT_FAILURE;
 
 	return EXIT_SUCCESS;
