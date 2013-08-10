@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <sstream>
 #include <errno.h>
 #include <string.h>
 #include <sys/ptrace.h>
@@ -46,6 +47,56 @@ static string get_default_cockroach_lib_path(void)
 	return "AHO";
 }
 
+static string get_child_code_string(int code)
+{
+	string str;
+	switch(code) {
+	case CLD_EXITED:
+		str = "CLD_EXITED";
+		break;
+	case CLD_KILLED:
+		str = "CLD_KILLED";
+		break;
+	case CLD_DUMPED:
+		str = "CLD_DUMPED";
+		break;
+	case CLD_STOPPED:
+		str = "CLD_STOPPED";
+		break;
+	case CLD_TRAPPED:
+		str = "CLD_TRAPPED";
+		break;
+	case CLD_CONTINUED:
+		str = "CLD_CONTINUED";
+		break;
+	default:
+		stringstream ss;
+		ss << "Unknown child code: " << code;
+		str = ss.str();
+		break;
+	}
+	return str;
+}
+
+static bool wait_signal(context *ctx)
+{
+	siginfo_t info;
+	int result = waitid(P_PID, ctx->target_pid, &info, WEXITED|WSTOPPED);
+	if (result == -1) {
+		printf("Failed to wait for the stop of the target: %d: %s\n",
+		       ctx->target_pid, strerror(errno));
+		return false;
+	}
+	if (info.si_code != CLD_TRAPPED) {
+		string code_string = get_child_code_string(info.si_code);
+		printf("waitid() returned with the unexpected code: %s\n",
+		       code_string.c_str());
+		return false;
+	}
+
+	return true;
+}
+
 static bool attach(context *ctx)
 {
 	if (ptrace(PTRACE_ATTACH, ctx->target_pid, NULL, NULL)) {
@@ -55,18 +106,8 @@ static bool attach(context *ctx)
 	}
 
 	// wait for the stop of the child
-	siginfo_t info;
-	int result = waitid(P_PID, ctx->target_pid, &info, WSTOPPED);
-	if (result == -1) {
-		printf("Failed to wait for the stop of the target: %d: %s\n",
-		       ctx->target_pid, strerror(errno));
+	if (!wait_signal(ctx))
 		return false;
-	}
-	if (info.si_code != CLD_TRAPPED) {
-		printf("waitid() returned with the unexpected code: %d\n",
-		       info.si_code);
-		return false;
-	}
 
 	return true;
 }
@@ -86,11 +127,20 @@ static bool get_register_info(context *ctx)
 static bool send_signal_and_wait(context *ctx)
 {
 	int signo = SIGUSR2;
+	printf("Send signal: %d (tid: %d)\n", signo, ctx->target_pid);
 	if (tkill(ctx->target_pid, signo) == -1) {
 		printf("Failed to send signal. target: %d: %s. signo: %d\n",
 		       ctx->target_pid, strerror(errno), signo);
 		return false;
 	}
+	if (ptrace(PTRACE_CONT, ctx->target_pid, NULL, NULL) == -1) {
+		printf("Failed: PTRACE_CONT. target: %d: %s. signo: %d\n",
+		       ctx->target_pid, strerror(errno), signo);
+		return false;
+	}
+	if (!wait_signal(ctx))
+		return false;
+	printf("  => stopped.\n");
 	return true;
 }
 
