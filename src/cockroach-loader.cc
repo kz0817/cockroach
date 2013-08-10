@@ -1,13 +1,16 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <set>
 #include <sstream>
 #include <errno.h>
 #include <string.h>
 #include <stdint.h>
+#include <dirent.h>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 #include <sys/user.h>
+#include <sys/types.h>
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -25,6 +28,7 @@ struct context {
 	struct user_regs_struct regs;
 	unsigned long install_trap_addr;
 	unsigned long install_trap_orig_code;
+	set<pid_t>    thread_ids;
 
 	context(void)
 	: target_pid(0),
@@ -91,19 +95,21 @@ static string get_child_code_string(int code)
 	return str;
 }
 
-static bool wait_signal(context *ctx, int *status = NULL)
+static bool wait_signal(pid_t pid, int *status = NULL,
+                        int expected_code = CLD_TRAPPED)
 {
 	siginfo_t info;
-	int result = waitid(P_PID, ctx->target_pid, &info, WEXITED|WSTOPPED);
+	int result = waitid(P_PID, pid, &info, WEXITED|WSTOPPED);
 	if (result == -1) {
 		printf("Failed to wait for the stop of the target: %d: %s\n",
-		       ctx->target_pid, strerror(errno));
+		       pid, strerror(errno));
 		return false;
 	}
-	if (info.si_code != CLD_TRAPPED) {
-		string code_string = get_child_code_string(info.si_code);
-		printf("waitid() returned with the unexpected code: %s\n",
-		       code_string.c_str());
+	if (info.si_code != expected_code) {
+		printf("waitid() returned with the unexpected code: %s "
+		       "(expected: %s)\n",
+		       get_child_code_string(info.si_code).c_str(),
+		       get_child_code_string(expected_code).c_str());
 		return false;
 	}
 	if (status)
@@ -112,17 +118,85 @@ static bool wait_signal(context *ctx, int *status = NULL)
 	return true;
 }
 
-static bool attach(context *ctx)
+static bool attach(pid_t tid)
 {
-	if (ptrace(PTRACE_ATTACH, ctx->target_pid, NULL, NULL)) {
+	if (ptrace(PTRACE_ATTACH, tid, NULL, NULL)) {
 		printf("Failed to attach the process: %d: %s\n",
-		       ctx->target_pid, strerror(errno));
+		       tid, strerror(errno));
+		return false;
+	}
+	printf("Attached: %d\n", tid);
+	return true;
+}
+
+static bool attach_all_threads(context *ctx)
+{
+	int signo = SIGSTOP;
+	if (ptrace(PTRACE_CONT, ctx->target_pid, NULL, signo) == -1) {
+		printf("Failed: PTRACE_CONT. target: %d: %s. signo: %d\n",
+		       ctx->target_pid, strerror(errno), signo);
 		return false;
 	}
 
 	// wait for the stop of the child
-	if (!wait_signal(ctx))
+	int status;
+	if (!wait_signal(ctx->target_pid, &status))
 		return false;
+	if (status != SIGSTOP) {
+		printf("wait() returned with unexpected status: %d\n", status);
+		return false;
+	}
+	printf("Child process stopped.\n");
+
+	// get all pids of threads
+	stringstream proc_task_path;
+	proc_task_path << "/proc/";
+	proc_task_path << ctx->target_pid;
+	proc_task_path << "/task";
+	DIR *dir = opendir(proc_task_path.str().c_str());
+	if (!dir) {
+		printf("Failed: open dir: %s: %s\n",
+		       proc_task_path.str().c_str(), strerror(errno));
+		return false;
+	}
+
+	errno = 0;
+	while (true) {
+		struct dirent *entry = readdir(dir);
+		if (!entry) {
+			if (!errno)
+				break;
+			printf("Failed: read dir entry: %s: %s\n",
+			       proc_task_path.str().c_str(), strerror(errno));
+			if (closedir(dir) == -1) {
+				printf("Failed: close dir: %s: %s\n",
+				       proc_task_path.str().c_str(),
+				       strerror(errno));
+			}
+			return false;
+		}
+		string dir_name(entry->d_name);
+		if (dir_name == "." || dir_name == "..")
+			continue;
+		int tid = atoi(entry->d_name);
+		printf("Found thread: %d\n", tid);
+		ctx->thread_ids.insert(tid);
+	}
+	if (closedir(dir) == -1) {
+		printf("Failed: close dir: %s: %s\n",
+		       proc_task_path.str().c_str(), strerror(errno));
+		return false;
+	}
+
+	// attach all threads
+	set<pid_t>::iterator tid = ctx->thread_ids.begin();
+	for (; tid != ctx->thread_ids.end(); ++tid) {
+		// The main thread has already been attached
+		if (*tid == ctx->target_pid)
+			continue;
+		if (!attach(*tid))
+			return false;
+	}
 
 	return true;
 }
@@ -189,7 +263,7 @@ static bool install_trap(context *ctx)
 static bool wait_install_trap(context *ctx)
 {
 	int status;
-	if (!wait_signal(ctx, &status))
+	if (!wait_signal(ctx->target_pid, &status))
 		return false;
 	printf("status: %d\n", status);
 	return true;
@@ -236,16 +310,23 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	printf("cockroach loader\n");
+	printf("cockroach loader (build:  %s %s)\n", __DATE__, __TIME__);
 	printf("lib path    : %s\n", ctx.cockroach_lib_path.c_str());
 	printf("recipe path : %s\n", ctx.recipe_path.c_str());
 	printf("target pid  : %d\n", ctx.target_pid);
 	printf("install trap: %lx\n", ctx.install_trap_addr);
 
-	if (!attach(&ctx))
+	// attach only the main thread to recieve SIGCHLD
+	if (!attach(ctx.target_pid))
 		return EXIT_FAILURE;
-	if (!get_register_info(&ctx))
+	// wait for the stop of the child
+	if (!wait_signal(ctx.target_pid))
+		return false;
+
+	if (!attach_all_threads(&ctx))
 		return EXIT_FAILURE;
+	//if (!get_register_info(&ctx))
+	//	return EXIT_FAILURE;
 	//if (!send_signal_and_wait(&ctx))
 	//	return EXIT_FAILURE;
 	if (!install_trap(&ctx))
