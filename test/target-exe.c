@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <pthread.h>
+#include <unistd.h>
 
 #define __USE_GNU
 #include <dlfcn.h>
@@ -76,6 +78,32 @@ int cmd_dlopen_extlib(int num)
 	return EXIT_SUCCESS;
 }
 
+volatile static int exit_flag = 0;
+static void *running_loop(void *arg)
+{
+	unsigned long x = 0;
+	while (1) {
+		if (exit_flag)
+			break;
+		x = x * 2 + 1;
+	}
+	return (void *)x;
+}
+
+static void create_running_threads(int num_threads)
+{
+	int i;
+	for (i = 0; i < num_threads; i++) {
+		pthread_t pid;
+		int loop_flag = 1;
+		int ret = pthread_create(&pid, NULL, running_loop, &loop_flag);
+		if (ret != 0) {
+			printf("Failed to create thread: %d\n", ret);
+			abort();
+		}
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	int ret = EXIT_SUCCESS;
@@ -124,7 +152,10 @@ int main(int argc, char *argv[])
 		ret = cmd_dlopen_extlib(2);
 	else if (strcmp(first_arg, "sleep") == 0)
 		ret = sleep(3600);
-	else {
+	else if (strcmp(first_arg, "sleep_and_loop_thr") == 0) {
+		create_running_threads(3);
+		ret = sleep(3600);
+	} else {
 		fprintf(stderr, "Unknown command: %s\n", first_arg);
 		ret = EXIT_FAILURE;
 	}

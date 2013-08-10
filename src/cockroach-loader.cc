@@ -4,6 +4,7 @@
 #include <sstream>
 #include <errno.h>
 #include <string.h>
+#include <stdint.h>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 #include <sys/user.h>
@@ -22,12 +23,17 @@ struct context {
 	string recipe_path;
 	pid_t  target_pid;
 	struct user_regs_struct regs;
+	unsigned long install_trap_addr;
+	unsigned long install_trap_orig_code;
 
 	context(void)
-	: target_pid(0)
+	: target_pid(0),
+	  install_trap_addr(0)
 	{
 	}
 };
+
+#define TRAP_INSTRUCTION 0xcc
 
 #define PRINT_USAGE_AND_EXIT_IF_THE_LAST(i, argc) \
 do { \
@@ -37,14 +43,21 @@ do { \
 	} \
 } while(0)
 
+#define INC_INDEX_AND_UPDATE_ARG(i, argv, arg) \
+do { \
+	i++; \
+	arg = argv[i]; \
+} while(0)
+
+/*
 static int tkill(int tid, int signo)
 {
 	return syscall(SYS_tkill, tid, signo);
-}
+}*/
 
 static string get_default_cockroach_lib_path(void)
 {
-	return "AHO";
+	return "cockroach.so";
 }
 
 static string get_child_code_string(int code)
@@ -78,7 +91,7 @@ static string get_child_code_string(int code)
 	return str;
 }
 
-static bool wait_signal(context *ctx)
+static bool wait_signal(context *ctx, int *status = NULL)
 {
 	siginfo_t info;
 	int result = waitid(P_PID, ctx->target_pid, &info, WEXITED|WSTOPPED);
@@ -93,6 +106,8 @@ static bool wait_signal(context *ctx)
 		       code_string.c_str());
 		return false;
 	}
+	if (status)
+		*status = info.si_status;
 
 	return true;
 }
@@ -124,6 +139,7 @@ static bool get_register_info(context *ctx)
 	return true;
 }
 
+/*
 static bool send_signal_and_wait(context *ctx)
 {
 	int signo = SIGUSR2;
@@ -138,9 +154,44 @@ static bool send_signal_and_wait(context *ctx)
 		       ctx->target_pid, strerror(errno), signo);
 		return false;
 	}
-	if (!wait_signal(ctx))
+	int status;
+	if (!wait_signal(ctx, &status))
 		return false;
-	printf("  => stopped.\n");
+	printf("  => stopped. (%d)\n", status);
+	return true;
+}*/
+
+static bool install_trap(context *ctx)
+{
+	void *addr = (void *)ctx->install_trap_addr;
+	errno = 0;
+	long orig_code = ptrace(PTRACE_PEEKTEXT, ctx->target_pid, addr, NULL);
+	if (errno && orig_code == -1) {
+		printf("Failed to PEEK_TEXT. target: %d: %s\n",
+		       ctx->target_pid, strerror(errno));
+		return false;
+	}
+	printf("code @ install trap point: %lx @ %p\n", orig_code, addr);
+
+	// install trap
+	long trap_code = orig_code;
+	*((uint8_t *)&trap_code) = TRAP_INSTRUCTION;
+	if (ptrace(PTRACE_POKETEXT, ctx->target_pid, addr, trap_code)) {
+		printf("Failed to POKETEXT. target: %d: %s\n",
+		       ctx->target_pid, strerror(errno));
+		return false;
+	}
+
+	ctx->install_trap_orig_code = orig_code;
+	return true;
+}
+
+static bool wait_install_trap(context *ctx)
+{
+	int status;
+	if (!wait_signal(ctx, &status))
+		return false;
+	printf("status: %d\n", status);
 	return true;
 }
 
@@ -151,6 +202,7 @@ static void print_usage(void)
 	printf("$ cockroach-loader [options] --recipe recipe_path pid\n");
 	printf("\n");
 	printf("Options\n");
+	printf("  --install-trap-addr: The hex. address for the installation trap.\n");
 	printf("  --cockroach-lib-path: The path of cockroach.so\n");
 	printf("\n");
 }
@@ -162,8 +214,13 @@ int main(int argc, char *argv[])
 		string arg = argv[i];
 		if (arg == "--cockroach-lib-path") {
 			PRINT_USAGE_AND_EXIT_IF_THE_LAST(i, argc);
+			INC_INDEX_AND_UPDATE_ARG(i, argv, arg);
 			ctx.cockroach_lib_path = arg;
 
+		} else if (arg == "--install-trap-addr") {
+			PRINT_USAGE_AND_EXIT_IF_THE_LAST(i, argc);
+			INC_INDEX_AND_UPDATE_ARG(i, argv, arg);
+			sscanf(arg.c_str(), "%lx", &ctx.install_trap_addr);
 		} else if (arg == "--recipe") {
 			PRINT_USAGE_AND_EXIT_IF_THE_LAST(i, argc);
 			ctx.recipe_path = arg;
@@ -183,12 +240,17 @@ int main(int argc, char *argv[])
 	printf("lib path    : %s\n", ctx.cockroach_lib_path.c_str());
 	printf("recipe path : %s\n", ctx.recipe_path.c_str());
 	printf("target pid  : %d\n", ctx.target_pid);
+	printf("install trap: %lx\n", ctx.install_trap_addr);
 
 	if (!attach(&ctx))
 		return EXIT_FAILURE;
 	if (!get_register_info(&ctx))
 		return EXIT_FAILURE;
-	if (!send_signal_and_wait(&ctx))
+	//if (!send_signal_and_wait(&ctx))
+	//	return EXIT_FAILURE;
+	if (!install_trap(&ctx))
+		return EXIT_FAILURE;
+	if (!wait_install_trap(&ctx))
 		return EXIT_FAILURE;
 
 	return EXIT_SUCCESS;
