@@ -276,17 +276,15 @@ static bool continue_all_thread(context *ctx)
 
 static bool wait_install_trap(context *ctx)
 {
-wait:
-	if (!continue_all_thread(ctx))
-		return true;
-
-	printf("Waiting for SIGTRAP.\n");
 	int status;
 	int changed_pid;
-	if (!wait_signal(ctx->target_pid, &status, &changed_pid))
-		return false;
-	printf("status: %d, changed pid: %d\n", status, changed_pid);
-	goto wait;
+	while (true) {
+		printf("Waiting for SIGTRAP.\n");
+		if (!wait_signal(ctx->target_pid, &status, &changed_pid))
+			return false;
+		if (!continue_thread(changed_pid))
+			return false;
+	}
 	return true;
 }
 
@@ -347,6 +345,8 @@ int main(int argc, char *argv[])
 	if (!attach_all_threads(&ctx))
 		return EXIT_FAILURE;
 	if (!install_trap(&ctx))
+		return EXIT_FAILURE;
+	if (!continue_all_thread(&ctx))
 		return EXIT_FAILURE;
 	if (!wait_install_trap(&ctx))
 		return EXIT_FAILURE;
