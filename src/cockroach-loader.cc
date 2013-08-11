@@ -41,6 +41,7 @@ struct context {
 };
 
 #define TRAP_INSTRUCTION 0xcc
+#define WAIT_ALL -1
 
 #define PRINT_USAGE_AND_EXIT_IF_THE_LAST(i, argc) \
 do { \
@@ -55,6 +56,23 @@ do { \
 	i++; \
 	arg = argv[i]; \
 } while(0)
+
+#ifdef __x86_64__
+/*
+static void dlopen_template(void)
+{
+	asm volatile("dlopen_template_start:");
+	asm volatile("mov $0xfedcba987654321,%rdi"); // filename
+	asm volatile("mov $0xfedcba987654321,%rsi"); // flags
+	asm volatile("call ");    // call dlopen
+	asm volatile("int $3");
+	asm volatile("dlopen_template_data_end:");
+	// The address of dlopen()      [8byte]
+	// The file name (cockroach.so)
+	asm volatile("dlopen_template_end:");
+}
+*/
+#endif // __x86_64__
 
 /*
 static int tkill(int tid, int signo)
@@ -113,7 +131,7 @@ static bool wait_signal(pid_t pid, int *status = NULL,
 	}
 	if (changed_pid)
 		*changed_pid = result;
-	printf("wait: %d, changed: %d, status: %08x (sig: %d)\n",
+	printf("wait result: %d, changed: %d, status: %08x (sig: %d)\n",
 	       pid, result, *status, WSTOPSIG(*status));
 
 	return true;
@@ -162,8 +180,7 @@ static bool attach_all_threads(context *ctx)
 		string dir_name(entry->d_name);
 		if (dir_name == "." || dir_name == "..")
 			continue;
-		int tid = atoi(entry->d_name);
-		printf("Found thread: %d\n", tid);
+		int tid = atoi(entry->d_name); printf("Found thread: %d\n", tid);
 		ctx->thread_ids.insert(tid);
 	}
 	if (closedir(dir) == -1) {
@@ -254,42 +271,31 @@ static bool install_trap(context *ctx)
 	return true;
 }
 
-static bool continue_thread(pid_t tid)
+static bool resume_thread(pid_t tid, int signo = 0)
 {
-	if (ptrace(PTRACE_CONT, tid, NULL, NULL) == -1) {
+	if (ptrace(PTRACE_CONT, tid, NULL, signo) == -1) {
 		printf("Failed: PTRACE_CONT. target: %d: %s.\n",
 		       tid, strerror(errno));
 		return false;
 	}
-	printf("CONTINUE: %d\n", tid);
+	printf("Resumed: %d (signo: %d)\n", tid, signo);
 	return true;
 }
 
-static bool continue_all_thread(context *ctx)
+static bool resume_all_thread(context *ctx)
 {
 	thread_id_set_itr tid = ctx->thread_ids.begin();
 	for (; tid != ctx->thread_ids.end(); ++tid) {
-		if (!continue_thread(*tid))
+		if (!resume_thread(*tid))
 			return false;
 	}
 	return true;
 }
 
-#ifdef __x86_64__
-static void dlopen_template(void)
-{
-	asm volatile("dlopen_template_start:");
-	asm volatile("mov %rdi"); // filename
-	asm volatile("mov %rsi"); // flags
-	asm volatile("call ");    // call dlopen
-	asm volatile("int $3");
-	asm volatile("dlopen_template_end:");
-}
-#endif // __x86_64__
-
 static bool install_load_code(context *ctx)
 {
 	printf("install...\n");
+	return false;
 }
 
 static bool wait_install_trap(context *ctx)
@@ -297,12 +303,29 @@ static bool wait_install_trap(context *ctx)
 	int status;
 	int changed_pid;
 	while (true) {
-		printf("Waiting for SIGTRAP.\n");
-		if (!wait_signal(-1, &status, &changed_pid))
+		printf("waiting for SIGTRAP.\n");
+		int signo = 0;
+		if (!wait_signal(WAIT_ALL, &status, &changed_pid))
 			return false;
-		if (WSTOPSIG(status) == SIGTRAP)
-			return install_load_code(ctx);
-		if (!continue_thread(changed_pid))
+		if (WIFSTOPPED(status)) {
+			signo = WSTOPSIG(status);
+			if (signo == SIGTRAP)
+				return install_load_code(ctx);
+		} else if (WIFEXITED(status)) {
+			int exit_code = WEXITSTATUS(status);
+			printf("The target exited: exit code: %d\n", exit_code);
+			return false;
+		} else if (WIFSIGNALED(status)) {
+			int exit_signo = WTERMSIG(status);
+			printf("The target exited by signal: %d\n", exit_signo);
+			return false;
+		} else {
+			printf("Unexpected wait result.\n");
+			return false;
+		}
+
+		// resume the thread with the signal injection
+		if (!resume_thread(changed_pid, signo))
 			return false;
 	}
 	return true;
@@ -315,8 +338,10 @@ static void print_usage(void)
 	printf("$ cockroach-loader [options] --recipe recipe_path pid\n");
 	printf("\n");
 	printf("Options\n");
-	printf("  --install-trap-addr: The hex. address for the installation trap.\n");
-	printf("  --cockroach-lib-path: The path of cockroach.so\n");
+	printf("  --install-trap-addr:\n");
+	printf("    The hex. address for the installation trap.\n");
+	printf("  --cockroach-lib-path:\n");
+	printf("     The path of cockroach.so\n");
 	printf("\n");
 }
 
@@ -366,7 +391,7 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	if (!install_trap(&ctx))
 		return EXIT_FAILURE;
-	if (!continue_all_thread(&ctx))
+	if (!resume_all_thread(&ctx))
 		return EXIT_FAILURE;
 	if (!wait_install_trap(&ctx))
 		return EXIT_FAILURE;
