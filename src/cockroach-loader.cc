@@ -21,6 +21,9 @@
 
 using namespace std;
 
+typedef set<pid_t>              thread_id_set;
+typedef thread_id_set::iterator thread_id_set_itr;
+
 struct context {
 	string cockroach_lib_path;
 	string recipe_path;
@@ -28,7 +31,7 @@ struct context {
 	struct user_regs_struct regs;
 	unsigned long install_trap_addr;
 	unsigned long install_trap_orig_code;
-	set<pid_t>    thread_ids;
+	thread_id_set thread_ids;
 
 	context(void)
 	: target_pid(0),
@@ -64,6 +67,7 @@ static string get_default_cockroach_lib_path(void)
 	return "cockroach.so";
 }
 
+/*
 static string get_child_code_string(int code)
 {
 	string str;
@@ -93,27 +97,23 @@ static string get_child_code_string(int code)
 		break;
 	}
 	return str;
-}
+}*/
 
 static bool wait_signal(pid_t pid, int *status = NULL,
-                        int expected_code = CLD_TRAPPED)
+                        pid_t *changed_pid = NULL)
 {
-	siginfo_t info;
-	int result = waitid(P_PID, pid, &info, WEXITED|WSTOPPED);
+	int status_local;
+	if (!status)
+		status = &status_local;
+	pid_t result = waitpid(pid, status, __WALL);
 	if (result == -1) {
 		printf("Failed to wait for the stop of the target: %d: %s\n",
 		       pid, strerror(errno));
 		return false;
 	}
-	if (info.si_code != expected_code) {
-		printf("waitid() returned with the unexpected code: %s "
-		       "(expected: %s)\n",
-		       get_child_code_string(info.si_code).c_str(),
-		       get_child_code_string(expected_code).c_str());
-		return false;
-	}
-	if (status)
-		*status = info.si_status;
+	if (changed_pid)
+		*changed_pid = result;
+	printf("wait: %d, changed: %d, status: %d\n", pid, result, *status);
 
 	return true;
 }
@@ -131,23 +131,6 @@ static bool attach(pid_t tid)
 
 static bool attach_all_threads(context *ctx)
 {
-	int signo = SIGSTOP;
-	if (ptrace(PTRACE_CONT, ctx->target_pid, NULL, signo) == -1) {
-		printf("Failed: PTRACE_CONT. target: %d: %s. signo: %d\n",
-		       ctx->target_pid, strerror(errno), signo);
-		return false;
-	}
-
-	// wait for the stop of the child
-	int status;
-	if (!wait_signal(ctx->target_pid, &status))
-		return false;
-	if (status != SIGSTOP) {
-		printf("wait() returned with unexpected status: %d\n", status);
-		return false;
-	}
-	printf("Child process stopped.\n");
-
 	// get all pids of threads
 	stringstream proc_task_path;
 	proc_task_path << "/proc/";
@@ -189,18 +172,25 @@ static bool attach_all_threads(context *ctx)
 	}
 
 	// attach all threads
-	set<pid_t>::iterator tid = ctx->thread_ids.begin();
+	int status;
+	pid_t changed_pid;
+	thread_id_set_itr tid = ctx->thread_ids.begin();
 	for (; tid != ctx->thread_ids.end(); ++tid) {
 		// The main thread has already been attached
 		if (*tid == ctx->target_pid)
 			continue;
 		if (!attach(*tid))
 			return false;
+		do {
+			if (!wait_signal(*tid, &status, &changed_pid))
+				return false;
+		} while (changed_pid != *tid);
 	}
 
 	return true;
 }
 
+/*
 static bool get_register_info(context *ctx)
 {
 	if (ptrace(PTRACE_GETREGS, ctx->target_pid, NULL, &ctx->regs)) {
@@ -212,6 +202,7 @@ static bool get_register_info(context *ctx)
 	       (void *)ctx->regs.rsp, (void *)ctx->regs.rip);
 	return true;
 }
+*/
 
 /*
 static bool send_signal_and_wait(context *ctx)
@@ -237,6 +228,7 @@ static bool send_signal_and_wait(context *ctx)
 
 static bool install_trap(context *ctx)
 {
+	// get the original code where the trap instruction is installed.
 	void *addr = (void *)ctx->install_trap_addr;
 	errno = 0;
 	long orig_code = ptrace(PTRACE_PEEKTEXT, ctx->target_pid, addr, NULL);
@@ -257,15 +249,44 @@ static bool install_trap(context *ctx)
 	}
 
 	ctx->install_trap_orig_code = orig_code;
+
+	return true;
+}
+
+static bool continue_thread(pid_t tid)
+{
+	if (ptrace(PTRACE_CONT, tid, NULL, NULL) == -1) {
+		printf("Failed: PTRACE_CONT. target: %d: %s.\n",
+		       tid, strerror(errno));
+		return false;
+	}
+	printf("CONTINUE: %d\n", tid);
+	return true;
+}
+
+static bool continue_all_thread(context *ctx)
+{
+	thread_id_set_itr tid = ctx->thread_ids.begin();
+	for (; tid != ctx->thread_ids.end(); ++tid) {
+		if (!continue_thread(*tid))
+			return false;
+	}
 	return true;
 }
 
 static bool wait_install_trap(context *ctx)
 {
+wait:
+	if (!continue_all_thread(ctx))
+		return true;
+
+	printf("Waiting for SIGTRAP.\n");
 	int status;
-	if (!wait_signal(ctx->target_pid, &status))
+	int changed_pid;
+	if (!wait_signal(ctx->target_pid, &status, &changed_pid))
 		return false;
-	printf("status: %d\n", status);
+	printf("status: %d, changed pid: %d\n", status, changed_pid);
+	goto wait;
 	return true;
 }
 
@@ -325,10 +346,6 @@ int main(int argc, char *argv[])
 
 	if (!attach_all_threads(&ctx))
 		return EXIT_FAILURE;
-	//if (!get_register_info(&ctx))
-	//	return EXIT_FAILURE;
-	//if (!send_signal_and_wait(&ctx))
-	//	return EXIT_FAILURE;
 	if (!install_trap(&ctx))
 		return EXIT_FAILURE;
 	if (!wait_install_trap(&ctx))
