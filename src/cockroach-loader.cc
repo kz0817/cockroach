@@ -113,7 +113,8 @@ static bool wait_signal(pid_t pid, int *status = NULL,
 	}
 	if (changed_pid)
 		*changed_pid = result;
-	printf("wait: %d, changed: %d, status: %d\n", pid, result, *status);
+	printf("wait: %d, changed: %d, status: %08x (sig: %d)\n",
+	       pid, result, *status, WSTOPSIG(*status));
 
 	return true;
 }
@@ -274,14 +275,33 @@ static bool continue_all_thread(context *ctx)
 	return true;
 }
 
+#ifdef __x86_64__
+static void dlopen_template(void)
+{
+	asm volatile("dlopen_template_start:");
+	asm volatile("mov %rdi"); // filename
+	asm volatile("mov %rsi"); // flags
+	asm volatile("call ");    // call dlopen
+	asm volatile("int $3");
+	asm volatile("dlopen_template_end:");
+}
+#endif // __x86_64__
+
+static bool install_load_code(context *ctx)
+{
+	printf("install...\n");
+}
+
 static bool wait_install_trap(context *ctx)
 {
 	int status;
 	int changed_pid;
 	while (true) {
 		printf("Waiting for SIGTRAP.\n");
-		if (!wait_signal(ctx->target_pid, &status, &changed_pid))
+		if (!wait_signal(-1, &status, &changed_pid))
 			return false;
+		if (WSTOPSIG(status) == SIGTRAP)
+			return install_load_code(ctx);
 		if (!continue_thread(changed_pid))
 			return false;
 	}
