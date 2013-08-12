@@ -1,0 +1,2 @@
+Ex.)
+sudo ../src/cockroach-loader --install-trap-addr 401010 --recipe fixtures/test-user-probe-with-loader.recipe `pidof target-exe`

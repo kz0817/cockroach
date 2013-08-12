@@ -743,6 +743,7 @@ int main(int argc, char *argv[])
 			sscanf(arg.c_str(), "%lx", &ctx.install_trap_addr);
 		} else if (arg == "--recipe") {
 			PRINT_USAGE_AND_EXIT_IF_THE_LAST(i, argc);
+			INC_INDEX_AND_UPDATE_ARG(i, argv, arg);
 			ctx.recipe_path = arg;
 		} else
 			ctx.target_pid = atoi(arg.c_str());

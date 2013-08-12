@@ -1,0 +1,8 @@
+# func1
+P REL32 libtargets.so.0.0.0 0000000000000750  user_probe.so user_probe 
+# func1b
+P REL32 libtargets.so.0.0.0 0000000000000770 6 user_probe.so user_probe 
+# func1a
+P REL32 libtargets.so.0.0.0 0000000000000760  user_probe.so user_probe user_probe_init
+# sum_up_to
+P REL32 libtargets.so.0.0.0 0000000000000730  user_probe.so data_recorder data_recorder_init
