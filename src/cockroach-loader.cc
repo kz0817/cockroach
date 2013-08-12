@@ -478,6 +478,20 @@ static bool is_install_trap(context *ctx, pid_t pid, bool *is_expected)
 	return true;
 }
 
+static bool remove_install_trap(context *ctx, pid_t pid)
+{
+	void *addr = (void *)ctx->install_trap_addr;
+	long orig_code = ctx->install_trap_orig_code;
+	if (ptrace(PTRACE_POKETEXT, pid, addr, orig_code) == -1) {
+		printf("Failed to POKETEXT for reverting install trap. "
+		       "target: %d: %s\n",
+		       ctx->target_pid, strerror(errno));
+		return false;
+	}
+	printf("Reverted install trap.\n");
+	return true;
+}
+
 bool act_install_trap(context *ctx, pid_t pid, int *signo)
 {
 	bool expected = false;
@@ -492,13 +506,19 @@ bool act_install_trap(context *ctx, pid_t pid, int *signo)
 	install_cockroach(ctx, pid);
 	ctx->loader_state = LOADER_WAIT_LAUNCH_DONE;
 	*signo = 0; // suppress the signal injection
+
+	if (!remove_install_trap(ctx, pid))
+		return false;
+
 	return true;
 }
 
 bool act_wait_launched(context *ctx, pid_t pid, int *signo)
 {
-	if (pid != ctx->launcher_tid)
+	if (pid != ctx->launcher_tid) {
+		printf("****** caught trap: %d\n", pid);
 		return true;
+	}
 
 	struct user_regs_struct regs;
 	if (!get_registers(pid, &regs))
