@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <fstream>
 #include <set>
 #include <vector>
 #include <sstream>
@@ -33,6 +34,13 @@ enum loader_state_t {
 	NUM_LOADER_STATE,
 };
 
+struct map_region {
+	unsigned long addr0;
+	unsigned long addr1;
+	string perm;
+	string path;
+};
+
 struct context {
 	string cockroach_lib_path;
 	string recipe_path;
@@ -43,13 +51,15 @@ struct context {
 	unsigned long install_trap_addr;
 	unsigned long install_trap_orig_code;
 	struct user_regs_struct regs_on_install_trap;
-	unsigned long dlopen_addr;
+	unsigned long dlopen_addr_offset;
+	unsigned long dlopen_addr; // addr. in the target space
 	pid_t         launcher_tid;
 	loader_state_t loader_state;
 
 	context(void)
 	: target_pid(0),
 	  install_trap_addr(0),
+	  dlopen_addr_offset(0),
 	  dlopen_addr(0),
 	  launcher_tid(0),
 	  loader_state(LOADER_INIT)
@@ -539,6 +549,106 @@ static bool wait_loop(context *ctx)
 	}
 }
 
+static bool disassemble_map_line(const string &line, map_region *region)
+{
+	string str;
+	vector<string> tokens;
+	for (size_t i = 0; i < line.size(); i++) {
+		if (line[i] == ' ') {
+			if (!str.empty()) {
+				tokens.push_back(str);
+				str.clear();
+			}
+		} else
+			str += line[i];
+	}
+	if (!str.empty())
+		tokens.push_back(str);
+	static const size_t EXPECTED_NUM_TOKEN = 6;
+	if (tokens.size() != EXPECTED_NUM_TOKEN)
+		return false;
+	if (sscanf(tokens[0].c_str(), "%lx-%lx", &region->addr0, &region->addr1) != 2)
+		return false;
+	region->perm = tokens[1];
+	region->path = tokens[5];
+	return true;
+}
+
+static string find_libdl_path(pid_t pid, unsigned long *addr)
+{
+	stringstream map_path;
+	map_path << "/proc/";
+	map_path << pid;
+	map_path << "/maps";
+	ifstream ifs(map_path.str().c_str());
+	if (!ifs) {
+		printf("Failed to open: %s\n", map_path.str().c_str());
+		return "";
+	}
+
+	map_region region;
+	bool found = false;
+	while (!ifs.eof()) {
+		string line;
+		getline(ifs, line);
+		if (line.empty())
+			continue;
+		if (!disassemble_map_line(line, &region))
+			continue;
+		if (region.perm != "r-xp")
+			continue;
+		if (region.path.find("/libdl") == string::npos)
+			continue;
+		found = true;
+		break;
+	}
+	if (!found) {
+		printf("Failed to found libdl. for process with pid: %d\n",
+		       pid);
+		return "";
+	}
+
+	printf("Found libdl: %lx-%lx, %s\n",
+	       region.addr0, region.addr1, region.path.c_str());
+	*addr = region.addr0;
+	return region.path;
+}
+
+static bool find_dlopen_addr(context *ctx)
+{
+	unsigned long map_addr = 0;
+	string libdl_path = find_libdl_path(getpid(), &map_addr);
+	if (libdl_path.empty())
+		return false;
+	void *handle = dlopen(libdl_path.c_str(), RTLD_LAZY);
+	if (!handle) {
+		printf("Failed to call dlopen: %s\n", dlerror());
+		return false;
+	}
+
+	// look up the address of dlopen()
+	dlerror();
+	unsigned long dlopen_addr = (unsigned long)dlsym(handle, "dlopen");
+	char *error = dlerror();
+	if (error != NULL) {
+		printf("Failed to call dlsym(dlopen): %s\n", error);
+		return false;
+	}
+	ctx->dlopen_addr_offset = dlopen_addr - map_addr;
+	printf("dlopen offset: %lx\n", ctx->dlopen_addr_offset);
+
+	dlclose(handle);
+
+	// find the mapped address of libdl in the target address
+	string target_libdl_path = find_libdl_path(ctx->target_pid, &map_addr);
+	if (target_libdl_path.empty())
+		return false;
+	ctx->dlopen_addr = map_addr + ctx->dlopen_addr_offset;
+	printf("dlopen addr (target): %lx\n", ctx->dlopen_addr);
+
+	return true;
+}
+
 static void print_usage(void)
 {
 	printf("Usage\n");
@@ -583,10 +693,18 @@ int main(int argc, char *argv[])
 	}
 
 	printf("cockroach loader (build:  %s %s)\n", __DATE__, __TIME__);
+	printf("\n");
+	printf("=== Conf. ===\n");
 	printf("lib path    : %s\n", ctx.cockroach_lib_path.c_str());
 	printf("recipe path : %s\n", ctx.recipe_path.c_str());
 	printf("target pid  : %d\n", ctx.target_pid);
 	printf("install trap: %lx\n", ctx.install_trap_addr);
+	printf("\n");
+	printf("=== Start ===\n");
+
+	// try to find the address of dlopen()
+	if (!find_dlopen_addr(&ctx))
+		return false;
 
 	// attach only the main thread to recieve SIGCHLD
 	if (!attach(ctx.target_pid))
