@@ -52,7 +52,7 @@ bool shm_param_note::shm_read(int fd, void *buf, size_t count)
 	int remain_count = count;
 	uint8_t *ptr = (uint8_t *)buf;
 	while (remain_count > 0) {
-		int read_bytes = write(fd, ptr, remain_count);
+		int read_bytes = read(fd, ptr, remain_count);
 		if (read_bytes == -1) {
 			if (errno == EINTR)
 				continue;
