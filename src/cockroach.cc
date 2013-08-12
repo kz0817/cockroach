@@ -32,7 +32,7 @@ cockroach::cockroach(void)
 	// Init original funcs
 	//utils::init_original_func_addr_table();
 
-	ROACH_INFO("started cockroach (%s): %s (%d)\n", __DATE__,
+	ROACH_INFO("started cockroach (%s %s): %s (%d)\n", __DATE__, __TIME__,
 	           utils::get_self_exe_name().c_str(), getpid());
 	m_orig_dlopen = (dlopen_func_t)dlsym(RTLD_NEXT, "dlopen");
 	if (!m_orig_dlopen) {
@@ -47,13 +47,17 @@ cockroach::cockroach(void)
 	}
 
 	// parse recipe file
-	char *recipe_file = getenv("COCKROACH_RECIPE");
-	if (!recipe_file) {
-		ROACH_ERR("Not defined environment variable: COCKROACH_RECIPE\n");
+	const char *recipe_file = getenv("COCKROACH_RECIPE");
+	if (!recipe_file)
+		m_shm_param_note.open();
+	if (!recipe_file && m_shm_param_note.has_error()) {
+		ROACH_ERR("Neither COCKROACH_RECIPE nor SHM param note.\n");
 		exit(EXIT_FAILURE);
 	}
 
 	try {
+		if (!recipe_file)
+			recipe_file = m_shm_param_note.get_recipe_file_path().c_str();
 		parse_recipe(recipe_file);
 	} catch (not_target_exe_exception e) {
 		m_flag_not_target = true;

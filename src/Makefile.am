@@ -7,7 +7,7 @@ lib_LTLIBRARIES = libcockroach.la cockroach.la
 
 # libcockroach.so
 libcockroach_la_SOURCES = \
-  utils.cc mapped_lib_manager.cc mapped_lib_info.cc \
+  utils.cc mapped_lib_manager.cc mapped_lib_info.cc shm_param_note.cc \
   probe.cc side_code_area_manager.cc disassembler.cc opecode.cc \
   opecode_relocator.cc rip_relative_relocator.cc \
   cockroach-time-measure.cc time_measure_probe.cc data_on_shm.cc

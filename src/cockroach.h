@@ -7,6 +7,7 @@ using namespace std;
 
 #include "mapped_lib_manager.h"
 #include "probe.h"
+#include "shm_param_note.h"
 
 typedef list<probe *> probe_list_t;
 typedef probe_list_t::iterator  probe_list_itr;
@@ -22,6 +23,7 @@ typedef int (*dlclose_func_t)(void *);
 
 class cockroach {
 	bool m_flag_not_target;
+	shm_param_note m_shm_param_note;
 	mapped_lib_manager m_mapped_lib_mgr;
 	probe_list_t m_probe_list;
 	libpath_probe_list_map_t m_waiting_probe_map;
@@ -30,6 +32,7 @@ class cockroach {
 	static user_probe_lib_handle_map_t &get_user_probe_lib_handle_map(void);
 	static void _parse_one_recipe(const char *line, void *arg);
 	void add_probe_to_waiting_probe_map(probe *aprobe);
+	bool open_shm_param_note(void);
 	void parse_recipe(const char *recipe_file);
 	void parse_one_recipe(const char *line);
 	void parse_target_exe(vector<string> &target_exe_line);
