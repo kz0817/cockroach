@@ -22,6 +22,8 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 
+#include "shm_param_note.h"
+
 using namespace std;
 
 typedef set<pid_t>              thread_id_set;
@@ -764,16 +766,20 @@ int main(int argc, char *argv[])
 	printf("\n");
 	printf("=== Start ===\n");
 
+	shm_param_note param_note;
+	if (!param_note.create(ctx.recipe_path))
+		return EXIT_FAILURE;
+
 	// try to find the address of dlopen()
 	if (!find_dlopen_addr(&ctx))
-		return false;
+		return EXIT_FAILURE;
 
 	// attach only the main thread to recieve SIGCHLD
 	if (!attach(ctx.target_pid))
 		return EXIT_FAILURE;
 	// wait for the stop of the child
 	if (!wait_signal(ctx.target_pid))
-		return false;
+		return EXIT_FAILURE;
 
 	if (!attach_all_threads(&ctx))
 		return EXIT_FAILURE;
