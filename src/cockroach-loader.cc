@@ -30,21 +30,19 @@ struct context {
 	string cockroach_lib_path;
 	string recipe_path;
 	pid_t  target_pid;
-	struct user_regs_struct regs;
 	unsigned long install_trap_addr;
 	unsigned long install_trap_orig_code;
 	thread_id_set thread_ids;
-	bool wait_for_install_trap;
 
 	context(void)
 	: target_pid(0),
-	  install_trap_addr(0),
-	  wait_for_install_trap(false)
+	  install_trap_addr(0)
 	{
 	}
 };
 
 #define TRAP_INSTRUCTION 0xcc
+#define TRAP_INSTRUCTION_SIZE 1
 #define WAIT_ALL -1
 
 #define PRINT_USAGE_AND_EXIT_IF_THE_LAST(i, argc) \
@@ -62,6 +60,11 @@ do { \
 } while(0)
 
 #ifdef __x86_64__
+static unsigned long get_program_counter(struct user_regs_struct *regs)
+{
+	return regs->rip;
+}
+
 void _cockroach_launcher_template(void)
 {
 	asm volatile("cockroach_launcher_template_begin:");
@@ -225,19 +228,15 @@ static bool attach_all_threads(context *ctx)
 	return true;
 }
 
-/*
-static bool get_register_info(context *ctx)
+static bool get_register_info(pid_t pid, struct user_regs_struct *regs)
 {
-	if (ptrace(PTRACE_GETREGS, ctx->target_pid, NULL, &ctx->regs)) {
+	if (ptrace(PTRACE_GETREGS, pid, NULL, regs) == -1) {
 		printf("Failed to get register info. target: %d: %s\n",
-		       ctx->target_pid, strerror(errno));
+		       pid, strerror(errno));
 		return false;
 	}
-	printf("RSP: %p, RIP: %p\n",
-	       (void *)ctx->regs.rsp, (void *)ctx->regs.rip);
 	return true;
 }
-*/
 
 /*
 static bool send_signal_and_wait(context *ctx)
@@ -345,11 +344,29 @@ static bool install_cockroach(context *ctx, pid_t pid)
 	return true;
 }
 
+static bool is_install_trap(context *ctx, pid_t pid, bool *is_expected)
+{
+	*is_expected = false;
+	struct user_regs_struct regs;
+	if (!get_register_info(pid, &regs))
+		return false;
+	unsigned long program_counter = get_program_counter(&regs);
+	unsigned long expected_addr =
+	   ctx->install_trap_addr + TRAP_INSTRUCTION_SIZE;
+	if (program_counter != expected_addr) {
+		printf("Unexpected break point: %lx\n",
+		       program_counter);
+		return true;
+	}
+
+	*is_expected = true;
+	return true;
+}
+
 static bool wait_install_trap(context *ctx)
 {
 	int status;
 	pid_t changed_pid;
-	ctx->wait_for_install_trap = true;
 	while (true) {
 		printf("waiting for SIGTRAP.\n");
 		int signo = 0;
@@ -357,9 +374,13 @@ static bool wait_install_trap(context *ctx)
 			return false;
 		if (WIFSTOPPED(status)) {
 			signo = WSTOPSIG(status);
-			if (ctx->wait_for_install_trap && signo == SIGTRAP) {
-				ctx->wait_for_install_trap = false;
-				return install_cockroach(ctx, changed_pid);
+			if (signo == SIGTRAP) {
+				bool expected = false;
+				pid_t pid = changed_pid;
+				if (!is_install_trap(ctx, pid, &expected))
+					return false;
+				if (expected)
+					break;
 			}
 		} else if (WIFEXITED(status)) {
 			int exit_code = WEXITSTATUS(status);
@@ -378,7 +399,8 @@ static bool wait_install_trap(context *ctx)
 		if (!resume_thread(changed_pid, signo))
 			return false;
 	}
-	return true;
+
+	return install_cockroach(ctx, changed_pid);
 }
 
 static void print_usage(void)
