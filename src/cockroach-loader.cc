@@ -42,6 +42,8 @@ struct map_region {
 };
 
 struct context {
+	loader_state_t loader_state;
+
 	string cockroach_lib_path;
 	string recipe_path;
 	pid_t  target_pid;
@@ -53,16 +55,17 @@ struct context {
 	struct user_regs_struct regs_on_install_trap;
 	unsigned long dlopen_addr_offset;
 	unsigned long dlopen_addr; // addr. in the target space
+	unsigned long launched_trap_addr; // addr. in the target space
 	pid_t         launcher_tid;
-	loader_state_t loader_state;
 
 	context(void)
-	: target_pid(0),
+	: loader_state(LOADER_INIT),
+	  target_pid(0),
 	  install_trap_addr(0),
 	  dlopen_addr_offset(0),
 	  dlopen_addr(0),
-	  launcher_tid(0),
-	  loader_state(LOADER_INIT)
+	  launched_trap_addr(0),
+	  launcher_tid(0)
 	{
 	}
 };
@@ -70,7 +73,7 @@ struct context {
 typedef bool (*wait_ret_action)(context *ctx, pid_t pid, int *signo);
 
 #define TRAP_INSTRUCTION 0xcc
-#define TRAP_INSTRUCTION_SIZE 1
+#define SIZE_INSTR_TRAP         1
 #define SIZE_INSTR_CALL_RIP_REL 6
 #define WAIT_ALL -1
 
@@ -95,6 +98,11 @@ static unsigned long get_program_counter(struct user_regs_struct *regs)
 	return regs->rip;
 }
 
+static unsigned long get_ax(struct user_regs_struct *regs)
+{
+	return regs->rax;
+}
+
 static void set_program_counter(struct user_regs_struct *regs, unsigned long pc)
 {
 	regs->rip = pc;
@@ -109,6 +117,7 @@ void _cockroach_launcher_template(void)
 	asm volatile("mov $0xfedcba9876543210,%rsi"); // flags
 	asm volatile("cockroach_launcher_template_call:");
 	asm volatile("call *0x1(%rip)"); // 1 means sizeof (int $3)
+	asm volatile("cockroach_launcher_template_launched_trap:");
 	asm volatile("int $3"); // To tell me (cockroach-loader) the completion
 	asm volatile("cockroach_launcher_template_data:");
 	// The address of dlopen()      [8byte]
@@ -119,6 +128,7 @@ extern "C" void cockroach_launcher_template_begin(void);
 extern "C" void cockroach_launcher_template_set_1st_arg(void);
 extern "C" void cockroach_launcher_template_set_2nd_arg(void);
 extern "C" void cockroach_launcher_template_call(void);
+extern "C" void cockroach_launcher_template_launched_trap(void);
 extern "C" void cockroach_launcher_template_data(void);
 
 static unsigned long calc_distance(void (*func0)(void), void (*func1)(void))
@@ -431,8 +441,13 @@ static bool install_cockroach(context *ctx, pid_t pid)
 	unsigned long launcher_addr = get_cockroach_launcher_addr();
 	code_block launcher_code;
 	generate_launcher_code(ctx, launcher_code, launcher_addr);
-	printf("Install cockroach. launcher: %lx, code size: %zd\n",
-	       launcher_addr, launcher_code.size());
+	ctx->launched_trap_addr
+	  = launcher_addr +
+	    calc_distance(cockroach_launcher_template_begin,
+	                  cockroach_launcher_template_launched_trap);
+	printf("Install cockroach. launcher: %lx, code size: %zd, "
+	       "completion trap: %lx\n",
+	       launcher_addr, launcher_code.size(), ctx->launched_trap_addr);
 
 	const size_t word_size = sizeof(long);
 	size_t written_size = 0;
@@ -469,7 +484,7 @@ static bool caused_by_install_trap(context *ctx, pid_t pid,
 		return false;
 	unsigned long program_counter = get_program_counter(regs);
 	unsigned long expected_addr =
-	   ctx->install_trap_addr + TRAP_INSTRUCTION_SIZE;
+	   ctx->install_trap_addr + SIZE_INSTR_TRAP;
 	if (program_counter != expected_addr) {
 		printf("Unexpected break point: %lx\n",
 		       program_counter);
@@ -540,8 +555,18 @@ static bool act_wait_launched(context *ctx, pid_t pid, int *signo)
 	struct user_regs_struct regs;
 	if (!get_registers(pid, &regs))
 		return false;
-	printf("********** LAUNCHED: pc: %llx, rax: %llx\n",
-	       regs.rip, regs.rax);
+	// The trap signal may be caused by other reason.
+	if (get_program_counter(&regs) !=
+	    ctx->launched_trap_addr + SIZE_INSTR_TRAP)
+		return true;
+
+	unsigned long ax = get_ax(&regs);
+	printf("Launch completed: ax: %lx\n", ax);
+
+	// moved the program counter to the original address
+	if (!set_registers(pid, &ctx->regs_on_install_trap))
+		return false;
+	*signo = 0; // suppress the signal injection
 	return false;
 }
 
