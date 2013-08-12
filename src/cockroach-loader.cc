@@ -460,9 +460,10 @@ static bool install_cockroach(context *ctx, pid_t pid)
 	return true;
 }
 
-static bool is_install_trap(context *ctx, pid_t pid, bool *is_expected)
+static bool caused_by_install_trap(context *ctx, pid_t pid,
+                                   bool *by_install_trap)
 {
-	*is_expected = false;
+	*by_install_trap = false;
 	struct user_regs_struct regs;
 	if (!get_registers(pid, &regs))
 		return false;
@@ -474,7 +475,7 @@ static bool is_install_trap(context *ctx, pid_t pid, bool *is_expected)
 		       program_counter);
 		return true;
 	}
-	*is_expected = true;
+	*by_install_trap = true;
 	return true;
 }
 
@@ -494,10 +495,10 @@ static bool remove_install_trap(context *ctx, pid_t pid)
 
 bool act_install_trap(context *ctx, pid_t pid, int *signo)
 {
-	bool expected = false;
-	if (!is_install_trap(ctx, pid, &expected))
+	bool by_install_trap = false;
+	if (!caused_by_install_trap(ctx, pid, &by_install_trap))
 		return false;
-	if (!expected)
+	if (!by_install_trap)
 		return true;
 	
 	if (!get_registers(pid, &ctx->regs_on_install_trap)) // save regs.
