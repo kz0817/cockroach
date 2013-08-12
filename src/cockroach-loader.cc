@@ -156,7 +156,7 @@ static bool wait_signal(pid_t pid, int *status = NULL,
 
 static bool attach(pid_t tid)
 {
-	if (ptrace(PTRACE_ATTACH, tid, NULL, NULL)) {
+	if (ptrace(PTRACE_ATTACH, tid, NULL, NULL) == -1) {
 		printf("Failed to attach the process: %d: %s\n",
 		       tid, strerror(errno));
 		return false;
@@ -277,7 +277,7 @@ static bool install_trap(context *ctx)
 	// install trap
 	long trap_code = orig_code;
 	*((uint8_t *)&trap_code) = TRAP_INSTRUCTION;
-	if (ptrace(PTRACE_POKETEXT, ctx->target_pid, addr, trap_code)) {
+	if (ptrace(PTRACE_POKETEXT, ctx->target_pid, addr, trap_code) == -1) {
 		printf("Failed to POKETEXT. target: %d: %s\n",
 		       ctx->target_pid, strerror(errno));
 		return false;
