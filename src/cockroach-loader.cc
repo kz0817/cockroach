@@ -461,13 +461,13 @@ static bool install_cockroach(context *ctx, pid_t pid)
 }
 
 static bool caused_by_install_trap(context *ctx, pid_t pid,
-                                   bool *by_install_trap)
+                                   bool *by_install_trap,
+                                   struct user_regs_struct *regs)
 {
 	*by_install_trap = false;
-	struct user_regs_struct regs;
-	if (!get_registers(pid, &regs))
+	if (!get_registers(pid, regs))
 		return false;
-	unsigned long program_counter = get_program_counter(&regs);
+	unsigned long program_counter = get_program_counter(regs);
 	unsigned long expected_addr =
 	   ctx->install_trap_addr + TRAP_INSTRUCTION_SIZE;
 	if (program_counter != expected_addr) {
@@ -493,16 +493,24 @@ static bool remove_install_trap(context *ctx, pid_t pid)
 	return true;
 }
 
-bool act_install_trap(context *ctx, pid_t pid, int *signo)
+static bool move_to_orig_install_trap_addr(context *ctx, pid_t pid,
+                                           struct user_regs_struct *regs)
+{
+	set_program_counter(regs, ctx->install_trap_addr);
+	if (!set_registers(pid, regs))
+		return false;
+	return true;
+}
+
+static bool act_install_trap(context *ctx, pid_t pid, int *signo)
 {
 	bool by_install_trap = false;
-	if (!caused_by_install_trap(ctx, pid, &by_install_trap))
+	if (!caused_by_install_trap(ctx, pid, &by_install_trap,
+	                            &ctx->regs_on_install_trap))
 		return false;
 	if (!by_install_trap)
 		return true;
 	
-	if (!get_registers(pid, &ctx->regs_on_install_trap)) // save regs.
-		return false;
 	ctx->launcher_tid = pid;
 	install_cockroach(ctx, pid);
 	ctx->loader_state = LOADER_WAIT_LAUNCH_DONE;
@@ -514,10 +522,18 @@ bool act_install_trap(context *ctx, pid_t pid, int *signo)
 	return true;
 }
 
-bool act_wait_launched(context *ctx, pid_t pid, int *signo)
+static bool act_wait_launched(context *ctx, pid_t pid, int *signo)
 {
 	if (pid != ctx->launcher_tid) {
-		printf("****** caught trap: %d\n", pid);
+		struct user_regs_struct regs;
+		bool by_install_trap = false;
+		if (!caused_by_install_trap(ctx, pid, &by_install_trap, &regs))
+			return false;
+		if (by_install_trap) {
+			if (!move_to_orig_install_trap_addr(ctx, pid, &regs))
+				return false;
+			*signo = 0; // suppress the signal injection
+		}
 		return true;
 	}
 
@@ -529,7 +545,7 @@ bool act_wait_launched(context *ctx, pid_t pid, int *signo)
 	return false;
 }
 
-wait_ret_action wait_ret_actions[NUM_LOADER_STATE] = {
+static wait_ret_action wait_ret_actions[NUM_LOADER_STATE] = {
 	act_install_trap,    // LOADER_INIT
 	act_wait_launched,   // LOADER_WAIT_LAUNCH_DONE,
 };
