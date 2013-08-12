@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <string>
 #include <set>
+#include <vector>
 #include <sstream>
 #include <errno.h>
 #include <string.h>
@@ -23,6 +24,7 @@ using namespace std;
 
 typedef set<pid_t>              thread_id_set;
 typedef thread_id_set::iterator thread_id_set_itr;
+typedef vector<uint8_t>         code_block;
 
 struct context {
 	string cockroach_lib_path;
@@ -32,10 +34,12 @@ struct context {
 	unsigned long install_trap_addr;
 	unsigned long install_trap_orig_code;
 	thread_id_set thread_ids;
+	bool wait_for_install_trap;
 
 	context(void)
 	: target_pid(0),
-	  install_trap_addr(0)
+	  install_trap_addr(0),
+	  wait_for_install_trap(false)
 	{
 	}
 };
@@ -58,20 +62,33 @@ do { \
 } while(0)
 
 #ifdef __x86_64__
-/*
-static void dlopen_template(void)
+void _cockroach_launcher_template(void)
 {
-	asm volatile("dlopen_template_start:");
+	asm volatile("cockroach_launcher_template_begin:");
+	asm volatile("cockroach_launcher_template_set_1st_arg:");
 	asm volatile("mov $0xfedcba987654321,%rdi"); // filename
+	asm volatile("cockroach_launcher_template_set_2nd_arg:");
 	asm volatile("mov $0xfedcba987654321,%rsi"); // flags
-	asm volatile("call ");    // call dlopen
+	asm volatile("call *0x1(%rip)");             // call dlopen()
 	asm volatile("int $3");
-	asm volatile("dlopen_template_data_end:");
+	asm volatile("cockroach_launcher_template_data:");
 	// The address of dlopen()      [8byte]
 	// The file name (cockroach.so)
-	asm volatile("dlopen_template_end:");
+	asm volatile("cockroach_launcher_template_end:");
 }
-*/
+extern "C" void cockroach_launcher_template_begin(void);
+extern "C" void cockroach_launcher_template_set_1st_arg(void);
+extern "C" void cockroach_launcher_template_set_2nd_arg(void);
+extern "C" void cockroach_launcher_template_data(void);
+
+static void get_launcher_code(code_block &code)
+{
+}
+
+static unsigned long get_cockroach_launcher_addr(void)
+{
+	return 0x400000;
+}
 #endif // __x86_64__
 
 /*
@@ -131,7 +148,7 @@ static bool wait_signal(pid_t pid, int *status = NULL,
 	}
 	if (changed_pid)
 		*changed_pid = result;
-	printf("wait result: %d, changed: %d, status: %08x (sig: %d)\n",
+	printf("wait result: target: %d, changed: %d, status: %08x (sig: %d)\n",
 	       pid, result, *status, WSTOPSIG(*status));
 
 	return true;
@@ -255,7 +272,7 @@ static bool install_trap(context *ctx)
 		       ctx->target_pid, strerror(errno));
 		return false;
 	}
-	printf("code @ install trap point: %lx @ %p\n", orig_code, addr);
+	printf("code @ install-trap addr: %lx @ %p\n", orig_code, addr);
 
 	// install trap
 	long trap_code = orig_code;
@@ -292,16 +309,47 @@ static bool resume_all_thread(context *ctx)
 	return true;
 }
 
-static bool install_load_code(context *ctx)
+static bool replace_one_word(context *ctx, pid_t pid,
+                             unsigned long addr, unsigned long data)
 {
-	printf("install...\n");
-	return false;
+	if (ptrace(PTRACE_POKETEXT, pid, addr, data) == -1) {
+		printf("Failed to POKETEXT. target: %d: %s, "
+		       "addr: %lx, data: %lx\n",
+		       pid, strerror(errno), addr, data);
+		return false;
+	}
+	return true;
+}
+
+static bool install_cockroach(context *ctx, pid_t pid)
+{
+	unsigned long launcher_addr = get_cockroach_launcher_addr();
+	code_block launcher_code;
+	get_launcher_code(launcher_code);
+	printf("Install cockroach. launcher: %lx, code size: %zd\n",
+	       launcher_addr, launcher_code.size());
+
+	const size_t word_size = sizeof(long);
+	size_t written_size = 0;
+	while (written_size < launcher_code.size()) {
+		unsigned long addr = launcher_addr + written_size;
+		unsigned long data = 0;
+		for (size_t i = 0; i < word_size; i++) {
+			uint8_t *data8 = (uint8_t *)&data;
+			data8[i] = launcher_code[written_size + i];
+		}
+		if (!replace_one_word(ctx, pid, addr, data))
+			return false;
+		written_size += word_size;
+	}
+	return true;
 }
 
 static bool wait_install_trap(context *ctx)
 {
 	int status;
-	int changed_pid;
+	pid_t changed_pid;
+	ctx->wait_for_install_trap = true;
 	while (true) {
 		printf("waiting for SIGTRAP.\n");
 		int signo = 0;
@@ -309,8 +357,10 @@ static bool wait_install_trap(context *ctx)
 			return false;
 		if (WIFSTOPPED(status)) {
 			signo = WSTOPSIG(status);
-			if (signo == SIGTRAP)
-				return install_load_code(ctx);
+			if (ctx->wait_for_install_trap && signo == SIGTRAP) {
+				ctx->wait_for_install_trap = false;
+				return install_cockroach(ctx, changed_pid);
+			}
 		} else if (WIFEXITED(status)) {
 			int exit_code = WEXITSTATUS(status);
 			printf("The target exited: exit code: %d\n", exit_code);
