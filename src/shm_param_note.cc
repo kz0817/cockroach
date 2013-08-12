@@ -15,11 +15,13 @@ const int shm_param_note::LEN_RECIPE_FILE_PATH_SZ = 2;
 // --------------------------------------------------------------------------
 // private functions
 // --------------------------------------------------------------------------
-string shm_param_note::get_shm_name(void)
+string shm_param_note::get_shm_name(pid_t pid)
 {
+	if (pid == 0)
+		pid = getpid();
 	stringstream ss;
 	ss << "cockroach-shm-param-note-";
-	ss << getpid();
+	ss << pid;
 	return ss.str();
 }
 
@@ -27,7 +29,7 @@ bool shm_param_note::shm_write(int fd, const void *buf, size_t count)
 {
 	int remain_count = count;
 	uint8_t *ptr = (uint8_t *)buf;
-	while (remain_count >= 0) {
+	while (remain_count > 0) {
 		int written_bytes = write(fd, ptr, remain_count);
 		if (written_bytes == -1) {
 			if (errno == EINTR)
@@ -36,7 +38,7 @@ bool shm_param_note::shm_write(int fd, const void *buf, size_t count)
 			          remain_count,  strerror(errno));
 			return false;
 		} else if (written_bytes == 0) {
-			ROACH_ERR("write reteurned 0\n");
+			ROACH_ERR("write reteurned 0: %zd\n", remain_count);
 			return false;
 		}
 		ptr += written_bytes;
@@ -49,7 +51,7 @@ bool shm_param_note::shm_read(int fd, void *buf, size_t count)
 {
 	int remain_count = count;
 	uint8_t *ptr = (uint8_t *)buf;
-	while (remain_count >= 0) {
+	while (remain_count > 0) {
 		int read_bytes = write(fd, ptr, remain_count);
 		if (read_bytes == -1) {
 			if (errno == EINTR)
@@ -111,9 +113,9 @@ void shm_param_note::open(void)
 	m_has_error = false;
 }
 
-bool shm_param_note::create(const string &recipe_file_path)
+bool shm_param_note::create(const string &recipe_file_path, pid_t target_pid)
 {
-	string shm_name = get_shm_name();
+	string shm_name = get_shm_name(target_pid);
 	int fd = shm_open(shm_name.c_str(), O_RDWR|O_CREAT|O_TRUNC, 0644);
 	if (fd == -1) {
 		ROACH_ERR("Failed to call shm_open: %s\n", strerror(errno));

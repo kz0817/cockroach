@@ -1,4 +1,4 @@
-AM_CXXFLAGS = -Wall -g
+AM_CXXFLAGS = -Wall -g3
 
 #
 # lib
@@ -30,7 +30,7 @@ bin_PROGRAMS = \
 
 # cockroach-loader
 cockroach_loader_SOURCES = cockroach-loader.cc
-cockroach_loader_LDFLAGS = -ldl
+cockroach_loader_LDFLAGS = -ldl -lcockroach
 
 # cockroach-time-measure-tool
 cockroach_time_measure_tool_SOURCES = cockroach-time-measure-tool.cc

@@ -767,7 +767,7 @@ int main(int argc, char *argv[])
 	printf("=== Start ===\n");
 
 	shm_param_note param_note;
-	if (!param_note.create(ctx.recipe_path))
+	if (!param_note.create(ctx.recipe_path, ctx.target_pid))
 		return EXIT_FAILURE;
 
 	// try to find the address of dlopen()

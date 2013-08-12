@@ -10,7 +10,7 @@ class shm_param_note {
 	bool   m_has_error;
 	string m_recipe_file_path;
 
-	string get_shm_name(void);
+	string get_shm_name(pid_t pid = 0);
 	bool shm_write(int fd, const void *buf, size_t count);
 	bool shm_read(int fd, void *buf, size_t count);
 public:
@@ -20,7 +20,7 @@ public:
 	void open(void);
 	bool remove(void);
 	bool has_error(void) const;
-	bool create(const string &recipe_file_path);
+	bool create(const string &recipe_file_path, pid_t target_pid);
 	const string &get_recipe_file_path(void) const;
 };
 
