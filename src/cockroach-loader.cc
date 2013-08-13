@@ -613,7 +613,7 @@ static bool wait_loop(context *ctx)
 	}
 }
 
-static bool disassemble_map_line(const string &line, map_region *region)
+static bool parse_proc_map_line(const string &line, map_region *region)
 {
 	string str;
 	vector<string> tokens;
@@ -657,7 +657,7 @@ static string find_libdl_path(pid_t pid, unsigned long *addr)
 		getline(ifs, line);
 		if (line.empty())
 			continue;
-		if (!disassemble_map_line(line, &region))
+		if (!parse_proc_map_line(line, &region))
 			continue;
 		if (region.perm != "r-xp")
 			continue;
