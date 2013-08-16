@@ -143,7 +143,7 @@ static bool set_2nd_argument(struct user_regs_struct *regs, unsigned long arg)
 
 #endif // __x86_64__
 
-static bool read_with_retry(int fd, unsigned long addr, void *data, size_t size)
+static bool read_from_target(int fd, unsigned long addr, void *data, size_t size)
 {
 	// seek
 	if (lseek(fd, addr, SEEK_SET) == -1) {
@@ -177,7 +177,7 @@ static bool read_with_retry(int fd, unsigned long addr, void *data, size_t size)
 }
 
 
-static bool write_with_retry(int fd, unsigned long addr,
+static bool write_to_target(int fd, unsigned long addr,
                              const void *data, size_t size)
 {
 	// seek
@@ -216,7 +216,7 @@ static bool push_data_on_stack(context *ctx, user_regs_struct *regs,
 {
 	unsigned long start_addr = get_stack_pointer(regs) - size;
 	set_stack_pointer(regs, start_addr);
-	return write_with_retry(ctx->proc_mem_fd, start_addr, data, size);
+	return write_to_target(ctx->proc_mem_fd, start_addr, data, size);
 }
 
 /*
@@ -400,13 +400,13 @@ static bool install_trap(context *ctx)
 	unsigned long addr = ctx->install_trap_addr;
 	int fd = ctx->proc_mem_fd;
 	size_t size = SIZE_INSTR_TRAP;
-	if (!read_with_retry(fd, addr, &ctx->install_trap_orig_code, size))
+	if (!read_from_target(fd, addr, &ctx->install_trap_orig_code, size))
 		return false;
 	printf("code @ install-trap addr: %02x @ %lx\n",
 	       ctx->install_trap_orig_code, addr);
 
 	// install trap
-	if (!write_with_retry(fd, addr, &TRAP_INSTRUCTION, SIZE_INSTR_TRAP))
+	if (!write_to_target(fd, addr, &TRAP_INSTRUCTION, SIZE_INSTR_TRAP))
 		return false;
 
 	return true;
@@ -491,7 +491,7 @@ static bool remove_install_trap(context *ctx, pid_t pid)
 	unsigned long addr = ctx->install_trap_addr;
 	long orig_code = ctx->install_trap_orig_code;
 	int fd = ctx->proc_mem_fd;
-	if (!write_with_retry(fd, addr, &orig_code, SIZE_INSTR_TRAP))
+	if (!write_to_target(fd, addr, &orig_code, SIZE_INSTR_TRAP))
 		return false;
 	printf("Reverted install trap.\n");
 	return true;
