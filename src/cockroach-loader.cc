@@ -86,7 +86,6 @@ typedef bool (*wait_ret_action)(context *ctx, pid_t pid, int *signo);
 
 #define TRAP_INSTRUCTION 0xcc
 #define SIZE_INSTR_TRAP         1
-#define SIZE_INSTR_CALL_RIP_REL 6
 #define WAIT_ALL -1
 
 #define PRINT_USAGE_AND_EXIT_IF_THE_LAST(i, argc) \
