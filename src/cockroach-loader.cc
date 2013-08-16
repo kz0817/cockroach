@@ -28,6 +28,10 @@
 
 using namespace std;
 
+static const uint8_t TRAP_INSTRUCTION = 0xcc;
+#define SIZE_INSTR_TRAP         1
+#define WAIT_ALL -1
+
 typedef set<pid_t>              thread_id_set;
 typedef thread_id_set::iterator thread_id_set_itr;
 typedef vector<uint8_t>         code_block;
@@ -62,7 +66,7 @@ struct context {
 
 	int           proc_mem_fd;
 	unsigned long install_trap_addr;
-	uint8_t       install_trap_orig_code;
+	uint8_t       install_trap_orig_code[SIZE_INSTR_TRAP];
 	struct user_regs_struct regs_on_install_trap;
 	unsigned long dlopen_addr_offset;
 	unsigned long dlopen_addr; // addr. in the target space
@@ -83,10 +87,6 @@ struct context {
 };
 
 typedef bool (*wait_ret_action)(context *ctx, pid_t pid, int *signo);
-
-static const uint8_t TRAP_INSTRUCTION = 0xcc;
-#define SIZE_INSTR_TRAP         1
-#define WAIT_ALL -1
 
 #define PRINT_USAGE_AND_EXIT_IF_THE_LAST(i, argc) \
 do { \
@@ -448,8 +448,10 @@ static bool install_trap(context *ctx)
 	size_t size = SIZE_INSTR_TRAP;
 	if (!read_from_target(fd, addr, &ctx->install_trap_orig_code, size))
 		return false;
-	printf("code @ install-trap addr: %02x @ %lx\n",
-	       ctx->install_trap_orig_code, addr);
+	printf("code @ install-trap addr: ");
+	for (size_t i = 0; i < SIZE_INSTR_TRAP; i++)
+		printf("%02x ", ctx->install_trap_orig_code[i]);
+	printf(" @ %lx\n", addr);
 
 	// install trap
 	if (!write_to_target(fd, addr, &TRAP_INSTRUCTION, SIZE_INSTR_TRAP))
@@ -536,9 +538,9 @@ static bool caused_by_install_trap(context *ctx, pid_t pid,
 static bool remove_install_trap(context *ctx, pid_t pid)
 {
 	unsigned long addr = ctx->install_trap_addr;
-	long orig_code = ctx->install_trap_orig_code;
+	void *orig_code = ctx->install_trap_orig_code;
 	int fd = ctx->proc_mem_fd;
-	if (!write_to_target(fd, addr, &orig_code, SIZE_INSTR_TRAP))
+	if (!write_to_target(fd, addr, orig_code, SIZE_INSTR_TRAP))
 		return false;
 	printf("Reverted install trap.\n");
 	return true;
