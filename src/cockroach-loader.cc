@@ -129,6 +129,19 @@ static void set_program_counter(struct user_regs_struct *regs, unsigned long pc)
 {
 	regs->rip = pc;
 }
+
+static bool set_1st_argument(struct user_regs_struct *regs, unsigned long arg)
+{
+	regs->rdi = arg;
+	return true;
+}
+
+static bool set_2nd_argument(struct user_regs_struct *regs, unsigned long arg)
+{
+	regs->rsi = arg;
+	return true;
+}
+
 #endif // __x86_64__
 
 static bool write_with_retry(int fd, unsigned long addr,
@@ -401,16 +414,19 @@ static bool install_cockroach(context *ctx, pid_t pid)
 	struct user_regs_struct regs;
 	memcpy(&regs, &ctx->regs_on_install_trap, sizeof(regs));
 
-	// set arguments
+	// copy the body of the 1st argument (cockroach.so path)
 	size_t len = ctx->cockroach_lib_path.size() + 1; // +1: NULL term.
 	const char *lib_path = ctx->cockroach_lib_path.c_str();
 	if (!push_data_on_stack(ctx, &regs, lib_path, len))
 		return false;
-#if __x86_64__
-	regs.rdi = regs.rsp;  // 1st argument (filename)
-	regs.rsi = RTLD_LAZY; // 2nd argument (flag)
-	// push return address
-#endif // __x86_64__
+
+	// 1st argument (filename)
+	if (!set_1st_argument(&regs, get_stack_pointer(&regs)))
+		return false;
+
+	// 2nd argument (flag)
+	if (!set_2nd_argument(&regs, RTLD_LAZY))
+		return false;
 
 	// set the return address
 	// We know the the return by SIGSEGV, because no region is mapped
@@ -421,6 +437,7 @@ static bool install_cockroach(context *ctx, pid_t pid)
 	// set the program counter to dlopen()
 	set_program_counter(&regs, ctx->dlopen_addr);
 
+	// update registers
 	if (!set_registers(pid, &regs))
 		return false;
 	return true;
