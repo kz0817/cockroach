@@ -26,7 +26,13 @@ LIBS = $(CUTTER_LIBS) $(CPPCUTTER_LIBS)
 NORM_LIB_LDFLAGS = -rpath $(libdir)
 
 # Testers
-test_disassembler_la_SOURCES = test-disassembler.cc test-disassembler-target.S
+test_disassembler_la_SOURCES = test-disassembler.cc
+if I386
+endif
+if X86_64
+test_disassembler_la_SOURCES += test-disassembler.cc
+endif
+
 test_disassembler_la_LIBADD = ../src/libcockroach.la
 
 # Testees

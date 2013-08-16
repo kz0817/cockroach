@@ -40,6 +40,26 @@ if test "$have_cutter" = "yes"; then
   AC_LANG_POP([C++])
 fi
 
+AC_MSG_CHECKING([for supported architecture])
+case "$host_cpu" in
+i[[3456]]86|pentium)
+  arch=i386
+  AC_DEFINE([I386], 1, [Define for the i386 architecture.])
+  ;;
+x86?64*)
+  arch=x86_64
+  AC_DEFINE([X86_64], 1, [Define for the AMD x86-64 architecture.])
+  ;;
+*)
+  AC_MSG_RESULT([NO!])
+  AC_MSG_ERROR([architecture $host_cpu is not supported by strace])
+  ;;
+esac
+AC_MSG_RESULT($arch)
+AC_SUBST(arch)
+
+AM_CONDITIONAL([I386], [test x$arch = xi386])
+AM_CONDITIONAL([X86_64], [test x$arch = xx86_64])
 
 AC_OUTPUT([
 Makefile
