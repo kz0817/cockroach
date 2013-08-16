@@ -7,6 +7,8 @@ AC_PROG_CXX
 AM_PROG_AS
 AM_PROG_CC_C_O
 
+AM_SILENT_RULES([yes])
+
 dnl cutter
 CUTTER_REQUIRED=1.2.2
 have_cutter=no
