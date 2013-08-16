@@ -4,7 +4,7 @@
 #include "utils.h"
 #include "opecode.h"
 
-#ifdef __x86_64__
+#if defined(__x86_64__) || defined(__i386__)
 
 #define INSTR_2BYTE_0F 0x0f
 
@@ -1036,7 +1036,7 @@ static const instr_info *second_byte_instr_array_0f[0x100] =
 	NULL,                         // 0xff
 };
 
-#endif // __x86_64__
+#endif // defined(__x86_64__) || defined(__i386__)
 
 // --------------------------------------------------------------------------
 // private functions

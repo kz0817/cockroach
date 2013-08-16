@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#ifdef __x86_64__
+#if defined(__x86_64__) || defined(__i386__)
 class opecode_relocator;
 
 #define PREFIX_REX_B (1 << 1)
@@ -121,6 +121,6 @@ public:
 	const immediate &get_immediate(void) const;
 };
 
-#endif // __x86_64__
+#endif // defined(__x86_64__) || defined(__i386__)
 
 #endif

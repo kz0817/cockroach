@@ -102,6 +102,9 @@ do { \
 	arg = argv[i]; \
 } while(0)
 
+static bool push_data_on_stack(context *ctx, user_regs_struct *regs,
+                               const void *data, size_t size);
+
 #ifdef __x86_64__
 
 static unsigned long get_program_counter(struct user_regs_struct *regs)
@@ -129,19 +132,62 @@ static void set_program_counter(struct user_regs_struct *regs, unsigned long pc)
 	regs->rip = pc;
 }
 
-static bool set_1st_argument(struct user_regs_struct *regs, unsigned long arg)
+static bool set_1st_argument(context *ctx,
+                             struct user_regs_struct *regs, unsigned long arg)
 {
 	regs->rdi = arg;
 	return true;
 }
 
-static bool set_2nd_argument(struct user_regs_struct *regs, unsigned long arg)
+static bool set_2nd_argument(context *ctx,
+                             struct user_regs_struct *regs, unsigned long arg)
 {
 	regs->rsi = arg;
 	return true;
 }
 
 #endif // __x86_64__
+
+#ifdef __i386__
+
+static unsigned long get_program_counter(struct user_regs_struct *regs)
+{
+	return regs->eip;
+}
+
+static unsigned long get_ax(struct user_regs_struct *regs)
+{
+	return regs->eax;
+}
+
+static unsigned long get_stack_pointer(struct user_regs_struct *regs)
+{
+	return regs->esp;
+}
+
+static void set_stack_pointer(struct user_regs_struct *regs, unsigned long sp)
+{
+	regs->esp = sp;
+}
+
+static void set_program_counter(struct user_regs_struct *regs, unsigned long pc)
+{
+	regs->eip = pc;
+}
+
+static bool set_1st_argument(context *ctx,
+                             struct user_regs_struct *regs, unsigned long arg)
+{
+	return push_data_on_stack(ctx, regs, &arg, sizeof(unsigned long));
+}
+
+static bool set_2nd_argument(context *ctx,
+                             struct user_regs_struct *regs, unsigned long arg)
+{
+	return push_data_on_stack(ctx, regs, &arg, sizeof(unsigned long));
+}
+
+#endif // __i386__
 
 static bool read_from_target(int fd, unsigned long addr, void *data, size_t size)
 {
@@ -444,12 +490,13 @@ static bool install_cockroach(context *ctx, pid_t pid)
 	if (!push_data_on_stack(ctx, &regs, lib_path, len))
 		return false;
 
-	// 1st argument (filename)
-	if (!set_1st_argument(&regs, get_stack_pointer(&regs)))
+	unsigned long lib_path_head = get_stack_pointer(&regs);
+	// 2nd argument (flag)
+	if (!set_2nd_argument(ctx, &regs, RTLD_LAZY))
 		return false;
 
-	// 2nd argument (flag)
-	if (!set_2nd_argument(&regs, RTLD_LAZY))
+	// 1st argument (filename)
+	if (!set_1st_argument(ctx, &regs, lib_path_head))
 		return false;
 
 	// set the return address

@@ -15,6 +15,10 @@ using namespace std;
 #include "time_measure_probe.h"
 #include "cockroach-time-measure.h"
 
+#ifndef CLOCK_MONOTONIC_RAW
+#define CLOCK_MONOTONIC_RAW 4
+#endif // CLOCK_MONOTONIC_RAW
+
 #define SHM_ADD_UNIT_SIZE (1024*1024) // 1MiB
 #define SHM_WINDOW_SIZE   SHM_ADD_UNIT_SIZE
 

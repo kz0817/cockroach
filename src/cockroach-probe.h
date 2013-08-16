@@ -38,6 +38,25 @@ struct probe_arg_t {
 };
 #endif // __x86_64__
 
+#ifdef __i386__
+struct probe_arg_t {
+	void *priv_data;
+	unsigned long ebx;
+	unsigned long ecx;
+	unsigned long edx;
+	unsigned long esi;
+	unsigned long edi;
+	unsigned long ebp;
+	unsigned long eax;
+	unsigned long eflags;
+
+	unsigned long probe_ret_addr;
+
+	// Not valid in a return probe
+	unsigned long func_ret_addr;
+};
+#endif // __i386__
+
 struct probe_init_arg_t {
 	unsigned long target_addr;
 	void *priv_data; // set in init probe if needed.

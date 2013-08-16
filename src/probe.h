@@ -11,7 +11,7 @@ using namespace std;
 
 typedef void (*label_func_t)(void);
 
-#ifdef __x86_64__
+#if defined(__x86_64__) || defined(__i386__)
 // push %rax (1); mov $adrr,%rax (10); push *%rax (2);
 #define OPCODES_LEN_OVERWRITE_JUMP 13
 #define LEN_OPCODE_JMP_REL32 5
@@ -24,7 +24,7 @@ typedef void (*label_func_t)(void);
 #define OPCODE_JMP_ABS_RAX_0 0xff
 #define OPCODE_JMP_ABS_RAX_1 0xe0
 #define OPCODE_JMP_REL    0xe9
-#endif // __x86_64__
+#endif // defined(__x86_64__) || define(__i386__)
 
 enum probe_type_t {
 	PROBE_TYPE_UNKNOWN,

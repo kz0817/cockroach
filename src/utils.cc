@@ -128,7 +128,7 @@ utils::calc_func_distance(void (*func0)(void), void (*func1)(void))
 
 void utils::abort(void)
 {
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(__i386__)
 	asm volatile("int $3");
 #else
 #error "Not implemented"
