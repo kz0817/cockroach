@@ -58,7 +58,7 @@ uint8_t *side_code_area_manager::alloc(size_t size)
 	return alloc_region(region_size, size);
 }
 
-#ifdef __x86_64__
+#if defined(__x86_64__) || defined(__i386__)
 uint8_t *
 side_code_area_manager::alloc_within_rel32(size_t size, unsigned long ref_addr)
 {
@@ -117,7 +117,7 @@ side_code_area_manager::alloc_within_rel32(size_t size, unsigned long ref_addr)
 	                        reinterpret_cast<uint8_t *>(alloc_addr));
 	return new_addr;
 }
-#endif // __x86_64__
+#endif // defined(__x86_64__) || defined(__i386__)
 
 // ---------------------------------------------------------------------------
 // Private methods

@@ -541,7 +541,7 @@ const char *probe::get_target_lib_path(void)
 	return m_target_lib_path.c_str();
 }
 
-#ifdef __x86_64__
+#if defined(__x86_64__) || defined(__i386__)
 void probe::install(const mapped_lib_info *lib_info)
 {
 	ROACH_INFO("install: %s: func: %08lx, mapped addr: %016lx, "
@@ -704,7 +704,7 @@ bool probe::is_opecode_ret(const opecode *ope) const
 	return *ope->get_code() == OPCODE_RET;
 }
 
-#endif // __x86_64__
+#endif // defined(__x86_64__) || defined(__i386__)
 
 // ---------------------------------------------------------------------------
 // functions for a return probe 
