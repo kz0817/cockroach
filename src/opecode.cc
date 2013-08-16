@@ -1,10 +1,11 @@
 #include <cstdio>
 #include <cstring>
 #include "opecode.h"
+#include "opecode_relocator.h"
 #include "utils.h"
 #include "rip_relative_relocator.h"
 
-#ifdef __x86_64__
+#if defined(__x86_64__) || defined(__i386__)
 mod_rm::mod_rm(void)
 : mod(MOD_REG_UNKNOWN),
   reg(REG_UNKNOWN),
@@ -102,10 +103,12 @@ void opecode::set_disp(opecode_disp_t disp_type, uint32_t disp,
 		ROACH_BUG("Mod or R/M have not been set: %d, %d\n",
 		          m_mod_rm.mod, m_mod_rm.r_m == -1);
 	}
+#if __x86_64__
 	if (m_mod_rm.mod == 0 && m_mod_rm.r_m == 5) {
 		int offset = (int)(disp_orig_addr - m_original_addr);
 		m_relocator = new rip_relative_relocator(this, offset);
 	}
+#endif // __x86_64__
 
 	m_disp.type = disp_type;
 	m_disp.value = disp;
@@ -165,4 +168,4 @@ const immediate &opecode::get_immediate(void) const
 // --------------------------------------------------------------------------
 
 
-#endif // __x86_64__
+#endif // defined(__x86_64__) || defined(__i386__)

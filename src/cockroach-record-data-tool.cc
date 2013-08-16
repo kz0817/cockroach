@@ -103,7 +103,7 @@ check_data_size_consistency(primary_header_t *header_all_map,
 	if (item_header_tail_index > shm_size) {
 		printf("Inconsitency data size: SHM may be broken: "
 		       "count: %"PRIu64"/%"PRIu64", "
-		       "item_header_tail_index: %"PRIu64", "
+		       "item_header_tail_index: %ld, "
 		       "item_index: %ld, shm_size: %"PRIu64"\n",
 		       i, count, item_header_tail_index, item_index, shm_size);
 		return false;
@@ -114,7 +114,7 @@ check_data_size_consistency(primary_header_t *header_all_map,
 	if (item_data_tail_index > shm_size) {
 		printf("Inconsitency data size: SHM may be broken: "
 		       "count: %"PRIu64"/%"PRIu64", "
-		       "item_data_tail_index: %"PRIu64", "
+		       "item_data_tail_index: %ld, "
 		       "item_heder_index: %ld, shm_size: %"PRIu64"\n",
 		       i, count, item_data_tail_index, item_index, shm_size);
 		return false;

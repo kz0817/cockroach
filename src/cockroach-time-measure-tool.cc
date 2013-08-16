@@ -109,7 +109,7 @@ check_data_size_consistency(measured_time_shm_header *header_all_map,
 	if (slot_tail_index > shm_size) {
 		printf("Inconsitency data size: SHM may be broken: "
 		       "count: %"PRIu64"/%"PRIu64", "
-		       "slot_tail_index: %"PRIu64", "
+		       "slot_tail_index: %ld, "
 		       "slot_index: %ld, shm_size: %"PRIu64"\n",
 		       i, count, slot_tail_index, slot_index, shm_size);
 		return false;

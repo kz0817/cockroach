@@ -202,6 +202,162 @@ static void set_pseudo_push_parameter(uint8_t *code_addr, unsigned long param)
 
 #endif // __x86_64__
 
+#ifdef __i386__
+#define PUSH_ALL_REGS() \
+do { \
+	asm volatile("pushf"); \
+	asm volatile("push %eax"); \
+	asm volatile("push %ebp"); \
+	asm volatile("push %edi"); \
+	asm volatile("push %esi"); \
+	asm volatile("push %edx"); \
+	asm volatile("push %ecx"); \
+	asm volatile("push %ebx"); \
+} while(0)
+
+#define POP_ALL_REGS() \
+do { \
+	asm volatile("pop %ebx"); \
+	asm volatile("pop %ecx"); \
+	asm volatile("pop %edx"); \
+	asm volatile("pop %esi"); \
+	asm volatile("pop %edi"); \
+	asm volatile("pop %ebp"); \
+	asm volatile("pop %eax"); \
+	asm volatile("popf"); \
+} while(0)
+
+#define PSEUDO_PUSH(label) \
+do { \
+	asm volatile(label); \
+	asm volatile("sub $4,%esp"); \
+	asm volatile("movl $0x89abcdef,(%esp)"); \
+} while(0)
+
+void _bridge_template(void)
+{
+	asm volatile("bridge_begin:");
+	asm volatile("pop %eax");
+	asm volatile("bridge_begin_no_pop_ax:");
+
+	// the return address of the probe
+	PSEUDO_PUSH("bridge_set_post_probe_addr:");
+
+	// save registers
+	PUSH_ALL_REGS();
+
+	// private data
+	PSEUDO_PUSH("bridge_set_private_data:");
+
+	// set an argument for the probe
+	asm volatile("push %esp");
+
+	// push return address
+	PSEUDO_PUSH("probe_call_set_ret_addr:");
+	PSEUDO_PUSH("probe_call_set_probe_addr:");
+	asm volatile("ret"); // use 'ret' instread of 'call'
+
+	// restore stack
+	asm volatile("probe_ret_point:");
+	asm volatile("add $0x8,%esp"); // 8: argument(4) + private_data(4)
+
+	// restore registers
+	POP_ALL_REGS();
+
+	// go to the saved orignal code (actually placed soon after here)
+	// or the specifed address written in the probe.
+	asm volatile("ret");
+	asm volatile("bridge_end:");
+}
+extern "C" void bridge_begin(void);
+extern "C" void bridge_begin_no_pop_ax(void);
+extern "C" void bridge_set_post_probe_addr(void);
+extern "C" void bridge_set_private_data(void);
+extern "C" void probe_call_set_ret_addr(void);
+extern "C" void probe_call_set_probe_addr(void);
+extern "C" void probe_ret_point(void);
+extern "C" void probe_call(void);
+extern "C" void bridge_end(void);
+
+void _resume_template(void)
+{
+	PSEUDO_PUSH("resume_begin:");
+	asm volatile("ret"); // use 'ret' instread of 'call'
+	asm volatile("resume_end:");
+}
+extern "C" void resume_begin(void);
+extern "C" void resume_end(void);
+
+#define OFFSET_BRIDGE(label) \
+utils::calc_func_distance(get_bridge_begin_addr(), label)
+
+void _ret_probe_bridge_template(void)
+{
+	asm volatile("ret_probe_bridge_begin:");
+
+	// set original caller's return point
+	PSEUDO_PUSH("ret_probe_return_addr:");
+
+	// save registers
+	PUSH_ALL_REGS();
+
+	// set private data
+	PSEUDO_PUSH("ret_probe_set_private_data:");
+	asm volatile("mov %esp,%eax"); // save the ESP for the 1st argument
+
+	// 2nd argument: address of the return probe bridge block
+	// The address is used as an identifier.
+	asm volatile("ret_probe_set_bridge_addr:");
+	asm volatile("push $0x89abcdef");
+
+	// 1st argument: probe_arg_t *arg
+	asm volatile("push %eax");
+
+	// set the return address for the dispacher (return_ret_probe_bridge)
+	PSEUDO_PUSH("ret_probe_call_set_ret_addr:");
+
+	// call the dispacher
+	PSEUDO_PUSH("ret_probe_call_set_dispatcher_addr:");
+	asm volatile("ret"); // use 'ret' instread of 'call'
+	asm volatile("ret_probe_bridge_end:");
+}
+extern "C" void ret_probe_bridge_begin(void);
+extern "C" void ret_probe_return_addr(void);
+extern "C" void ret_probe_set_private_data(void);
+extern "C" void ret_probe_set_bridge_addr(void);
+extern "C" void ret_probe_call_set_ret_addr(void);
+extern "C" void ret_probe_call_set_dispatcher_addr(void);
+extern "C" void ret_probe_bridge_end(void);
+
+#define OFFSET_RET_BRIDGE(label) \
+utils::calc_func_distance(ret_probe_bridge_begin, label)
+
+void _return_ret_probe_bridge(void)
+{
+	// NOTE: function is not template, it is actually used as it is.
+	asm volatile("return_ret_probe_bridge:");
+	asm volatile("add $0x8,%esp"); // 8: 1st and 2nd argument
+	POP_ALL_REGS();
+	asm volatile("ret");
+}
+extern "C" void return_ret_probe_bridge(void);
+
+static void set_pseudo_push_parameter(uint8_t *code_addr, unsigned long param)
+{
+	// We assume the pseudo push as the followin form.
+	//   sub  $4,%esp
+	//   movl $0x89abcdef,(%esp)
+	// *** assembler code ***
+	//   48 83 ec 08               sub    $0x8,%esp
+	//   c7 04 24 ef cd ab 89      movl   $0x89abcdef,(%rsp)
+	static const int OFFSET_ADDR_LSB32 = 7;
+	uint32_t param_lsb32 = param & 0xffffffff;
+	uint32_t *code_addr_lsb32 = (uint32_t *)(code_addr + OFFSET_ADDR_LSB32);
+	*code_addr_lsb32 = param_lsb32;
+}
+
+#endif // __i386__
+
 // --------------------------------------------------------------------------
 // private functions
 // --------------------------------------------------------------------------
@@ -625,7 +781,7 @@ static void ret_probe_dispatcher(probe_arg_t *arg,
 	release_ret_probe_bridge(ret_probe_bridge);
 }
 
-#ifdef __x86_64__
+#if defined(__x86_64__) || defined(__i386__)
 static uint8_t *create_ret_probe_bridge(void)
 {
 	static const int RET_PROBE_BRIDGE_LENGTH =
@@ -693,4 +849,4 @@ void cockroach_set_return_probe(probe_func_t probe, probe_arg_t *arg)
 	ret_probe_func_map[ret_probe_bridge] = probe;
 	pthread_mutex_unlock(&g_ret_probe_func_map_mutex);
 }
-#endif // __x86_64__
+#endif // defined(__x86_64__) || defined(__i386__)
