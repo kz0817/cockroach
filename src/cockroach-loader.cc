@@ -627,6 +627,7 @@ static bool dispatch_stop_signal(context *ctx, pid_t pid, int *signo)
 		if (launched) {
 			bring_back_original_path(ctx, pid);
 			*signo = 0;
+			return false; // to exit this program
 		}
 	}
 	return true;
