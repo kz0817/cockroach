@@ -84,7 +84,7 @@ struct context {
 
 typedef bool (*wait_ret_action)(context *ctx, pid_t pid, int *signo);
 
-#define TRAP_INSTRUCTION 0xcc
+static const uint8_t TRAP_INSTRUCTION = 0xcc;
 #define SIZE_INSTR_TRAP         1
 #define WAIT_ALL -1
 
@@ -363,7 +363,7 @@ static bool send_signal_and_wait(context *ctx)
 static bool install_trap(context *ctx)
 {
 	// get the original code where the trap instruction is installed.
-	void *addr = (void *)ctx->install_trap_addr;
+	unsigned long addr = ctx->install_trap_addr;
 	errno = 0;
 	long orig_code = ptrace(PTRACE_PEEKTEXT, ctx->target_pid, addr, NULL);
 	if (errno && orig_code == -1) {
@@ -371,18 +371,12 @@ static bool install_trap(context *ctx)
 		       ctx->target_pid, strerror(errno));
 		return false;
 	}
-	printf("code @ install-trap addr: %lx @ %p\n", orig_code, addr);
+	printf("code @ install-trap addr: %lx @ %lx\n", orig_code, addr);
 
 	// install trap
-	long trap_code = orig_code;
-	*((uint8_t *)&trap_code) = TRAP_INSTRUCTION;
-	if (ptrace(PTRACE_POKETEXT, ctx->target_pid, addr, trap_code) == -1) {
-		printf("Failed to POKETEXT. target: %d: %s\n",
-		       ctx->target_pid, strerror(errno));
+	int fd = ctx->proc_mem_fd;
+	if (!write_with_retry(fd, addr, &TRAP_INSTRUCTION, SIZE_INSTR_TRAP))
 		return false;
-	}
-
-	ctx->install_trap_orig_code = orig_code;
 
 	return true;
 }
