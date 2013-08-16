@@ -463,14 +463,11 @@ static bool caused_by_install_trap(context *ctx, pid_t pid,
 
 static bool remove_install_trap(context *ctx, pid_t pid)
 {
-	void *addr = (void *)ctx->install_trap_addr;
+	unsigned long addr = ctx->install_trap_addr;
 	long orig_code = ctx->install_trap_orig_code;
-	if (ptrace(PTRACE_POKETEXT, pid, addr, orig_code) == -1) {
-		printf("Failed to POKETEXT for reverting install trap. "
-		       "target: %d: %s\n",
-		       ctx->target_pid, strerror(errno));
+	int fd = ctx->proc_mem_fd;
+	if (!write_with_retry(fd, addr, &orig_code, SIZE_INSTR_TRAP))
 		return false;
-	}
 	printf("Reverted install trap.\n");
 	return true;
 }
