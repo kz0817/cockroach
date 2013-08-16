@@ -62,7 +62,7 @@ struct context {
 
 	int           proc_mem_fd;
 	unsigned long install_trap_addr;
-	unsigned long install_trap_orig_code;
+	uint8_t       install_trap_orig_code;
 	struct user_regs_struct regs_on_install_trap;
 	unsigned long dlopen_addr_offset;
 	unsigned long dlopen_addr; // addr. in the target space
@@ -142,6 +142,40 @@ static bool set_2nd_argument(struct user_regs_struct *regs, unsigned long arg)
 }
 
 #endif // __x86_64__
+
+static bool read_with_retry(int fd, unsigned long addr, void *data, size_t size)
+{
+	// seek
+	if (lseek(fd, addr, SEEK_SET) == -1) {
+		printf("Failed to lseek(), fd: %d, addr: %lx, %s\n",
+		       fd, addr, strerror(errno));
+		return false;
+	}
+
+	// read
+	ssize_t ret;
+	size_t count = size;
+	uint8_t *buf = (uint8_t *)data;
+	while (true) {
+		ret = read(fd, buf, count);
+		if (ret == -1) {
+			if (errno == EINTR)
+				continue;
+			printf("Failed to read: fd: %d, count: %zd, %s\n",
+			       fd, count, strerror(errno));
+			return false;
+		} else if (ret == 0) {
+			printf("read returns 0\n");
+			return false;
+		}
+		if ((size_t)ret >= count)
+			break;
+		count -= ret;
+		buf += ret;
+	}
+	return true;
+}
+
 
 static bool write_with_retry(int fd, unsigned long addr,
                              const void *data, size_t size)
@@ -364,17 +398,14 @@ static bool install_trap(context *ctx)
 {
 	// get the original code where the trap instruction is installed.
 	unsigned long addr = ctx->install_trap_addr;
-	errno = 0;
-	long orig_code = ptrace(PTRACE_PEEKTEXT, ctx->target_pid, addr, NULL);
-	if (errno && orig_code == -1) {
-		printf("Failed to PEEK_TEXT. target: %d: %s\n",
-		       ctx->target_pid, strerror(errno));
+	int fd = ctx->proc_mem_fd;
+	size_t size = SIZE_INSTR_TRAP;
+	if (!read_with_retry(fd, addr, &ctx->install_trap_orig_code, size))
 		return false;
-	}
-	printf("code @ install-trap addr: %lx @ %lx\n", orig_code, addr);
+	printf("code @ install-trap addr: %02x @ %lx\n",
+	       ctx->install_trap_orig_code, addr);
 
 	// install trap
-	int fd = ctx->proc_mem_fd;
 	if (!write_with_retry(fd, addr, &TRAP_INSTRUCTION, SIZE_INSTR_TRAP))
 		return false;
 
