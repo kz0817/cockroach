@@ -21,6 +21,8 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "shm_param_note.h"
 
@@ -29,6 +31,12 @@ using namespace std;
 typedef set<pid_t>              thread_id_set;
 typedef thread_id_set::iterator thread_id_set_itr;
 typedef vector<uint8_t>         code_block;
+
+static const int POINTER_SIZE = sizeof(void *);
+
+// We assume that a memory region is not mapped on the following address.
+// When the dlopen as an installer returns, SEGV will happen at this addr.
+static const unsigned long INSTALL_RET_ADDR = 0x123;
 
 enum loader_state_t {
 	LOADER_INIT,
@@ -52,6 +60,7 @@ struct context {
 
 	thread_id_set thread_ids;
 
+	int           proc_mem_fd;
 	unsigned long install_trap_addr;
 	unsigned long install_trap_orig_code;
 	struct user_regs_struct regs_on_install_trap;
@@ -63,6 +72,7 @@ struct context {
 	context(void)
 	: loader_state(LOADER_INIT),
 	  target_pid(0),
+	  proc_mem_fd(0),
 	  install_trap_addr(0),
 	  dlopen_addr_offset(0),
 	  dlopen_addr(0),
@@ -105,102 +115,63 @@ static unsigned long get_ax(struct user_regs_struct *regs)
 	return regs->rax;
 }
 
+static unsigned long get_stack_pointer(struct user_regs_struct *regs)
+{
+	return regs->rsp;
+}
+
+static void set_stack_pointer(struct user_regs_struct *regs, unsigned long sp)
+{
+	regs->rsp = sp;
+}
+
 static void set_program_counter(struct user_regs_struct *regs, unsigned long pc)
 {
 	regs->rip = pc;
 }
-
-void _cockroach_launcher_template(void)
-{
-	asm volatile("cockroach_launcher_template_begin:");
-	asm volatile("cockroach_launcher_template_set_1st_arg:");
-	asm volatile("mov $0xfedcba9876543210,%rdi"); // filename
-	asm volatile("cockroach_launcher_template_set_2nd_arg:");
-	asm volatile("mov $0xfedcba9876543210,%rsi"); // flags
-	asm volatile("cockroach_launcher_template_call:");
-	asm volatile("call *0x1(%rip)"); // 1 means sizeof (int $3)
-	asm volatile("cockroach_launcher_template_launched_trap:");
-	asm volatile("int $3"); // To tell me (cockroach-loader) the completion
-	asm volatile("cockroach_launcher_template_data:");
-	// The address of dlopen()      [8byte]
-	// The file name (cockroach.so)
-	asm volatile("cockroach_launcher_template_end:");
-}
-extern "C" void cockroach_launcher_template_begin(void);
-extern "C" void cockroach_launcher_template_set_1st_arg(void);
-extern "C" void cockroach_launcher_template_set_2nd_arg(void);
-extern "C" void cockroach_launcher_template_call(void);
-extern "C" void cockroach_launcher_template_launched_trap(void);
-extern "C" void cockroach_launcher_template_data(void);
-
-static unsigned long calc_distance(void (*func0)(void), void (*func1)(void))
-{
-	return (unsigned long)(func1) - (unsigned long)(func0);
-}
-
-static void add_code_mov_imm64(code_block &code, void *code_addr,
-                               unsigned long data)
-{
-	// example:
-	//   48 bf 10 32 54 76 98 ba dc fe: movabs $0xfedcba9876543210,%rdi
-	static const size_t LEN_MOV_IMM64_CODE = 2;
-	uint8_t *ptr8 = (uint8_t *)code_addr;
-	for (size_t i = 0; i < LEN_MOV_IMM64_CODE; i++)
-		code.push_back(ptr8[i]);
-	ptr8 = (uint8_t *)&data;
-	for (size_t i = 0; i < sizeof(unsigned long); i++)
-		code.push_back(ptr8[i]);
-}
-
-static void add_code_copy(code_block &code,
-                          void (*func0)(void), void (*func1)(void))
-{
-	size_t size = calc_distance(func0, func1);
-	uint8_t *ptr8 = (uint8_t *)func0;
-	for (size_t i = 0; i < size; i++)
-		code.push_back(ptr8[i]);
-}
-
-static void generate_launcher_code(context *ctx, code_block &code,
-                                   unsigned long launcher_addr)
-{
-	uint8_t *ptr8;
-	code.clear();
-
-	// 1st arg (filename)
-	size_t ofs_filename = calc_distance(cockroach_launcher_template_begin,
-	                                    cockroach_launcher_template_data)
-	                      + sizeof(unsigned long);
-	add_code_mov_imm64(code,
-	                   (void*)cockroach_launcher_template_set_1st_arg,
-	                   launcher_addr + ofs_filename);
-
-	// 2nd arg (flags)
-	unsigned long flag = RTLD_LAZY;
-	add_code_mov_imm64(code,
-	                   (void*)cockroach_launcher_template_set_2nd_arg,
-	                   flag);
-
-	// call and cleanup
-	add_code_copy(code,
-	              cockroach_launcher_template_call,
-	              cockroach_launcher_template_data);
-
-	// address of dlopen
-	ptr8 = (uint8_t *)&ctx->dlopen_addr;
-	for (size_t i = 0; i < sizeof(unsigned long); i++)
-		code.push_back(ptr8[i]);
-
-	// pointer of the cockrach path
-	for (size_t i = 0; i < ctx->cockroach_lib_path.size(); i++)
-		code.push_back(ctx->cockroach_lib_path.c_str()[i]);
-}
-
-static unsigned long get_cockroach_launcher_addr(void)
-{
-	return 0x400000;
-}
 #endif // __x86_64__
+
+static bool write_with_retry(int fd, unsigned long addr,
+                             const void *data, size_t size)
+{
+	// seek
+	if (lseek(fd, addr, SEEK_SET) == -1) {
+		printf("Failed to lseek(), fd: %d, addr: %lx, %s\n",
+		       fd, addr, strerror(errno));
+		return false;
+	}
+
+	// write
+	ssize_t ret;
+	size_t count = size;
+	uint8_t *buf = (uint8_t *)data;
+	while (true) {
+		ret = write(fd, buf, count);
+		if (ret == -1) {
+			if (errno == EINTR)
+				continue;
+			printf("Failed to write: fd: %d, count: %zd, %s\n",
+			       fd, count, strerror(errno));
+			return false;
+		} else if (ret == 0) {
+			printf("write returns 0\n");
+			return false;
+		}
+		if ((size_t)ret >= count)
+			break;
+		count -= ret;
+		buf += ret;
+	}
+	return true;
+}
+
+static bool push_data_on_stack(context *ctx, user_regs_struct *regs,
+                               const void *data, size_t size)
+{
+	unsigned long start_addr = get_stack_pointer(regs) - size;
+	set_stack_pointer(regs, start_addr);
+	return write_with_retry(ctx->proc_mem_fd, start_addr, data, size);
+}
 
 /*
 static int tkill(int tid, int signo)
@@ -236,8 +207,7 @@ static string get_child_code_string(int code)
 	case CLD_CONTINUED:
 		str = "CLD_CONTINUED";
 		break;
-	default:
-		stringstream ss;
+	default: stringstream ss;
 		ss << "Unknown child code: " << code;
 		str = ss.str();
 		break;
@@ -426,52 +396,31 @@ static bool resume_all_thread(context *ctx)
 	return true;
 }
 
-static bool replace_one_word(context *ctx, pid_t pid,
-                             unsigned long addr, unsigned long data)
-{
-	if (ptrace(PTRACE_POKETEXT, pid, addr, data) == -1) {
-		printf("Failed to POKETEXT. target: %d: %s, "
-		       "addr: %lx, data: %lx\n",
-		       pid, strerror(errno), addr, data);
-		return false;
-	}
-	return true;
-}
-
 static bool install_cockroach(context *ctx, pid_t pid)
 {
-	unsigned long launcher_addr = get_cockroach_launcher_addr();
-	code_block launcher_code;
-	generate_launcher_code(ctx, launcher_code, launcher_addr);
-	ctx->launched_trap_addr
-	  = launcher_addr +
-	    calc_distance(cockroach_launcher_template_begin,
-	                  cockroach_launcher_template_launched_trap);
-	printf("Install cockroach. launcher: %lx, code size: %zd, "
-	       "completion trap: %lx\n",
-	       launcher_addr, launcher_code.size(), ctx->launched_trap_addr);
-
-	const size_t word_size = sizeof(long);
-	size_t written_size = 0;
-	while (written_size < launcher_code.size()) {
-		unsigned long addr = launcher_addr + written_size;
-		unsigned long data = 0;
-		for (size_t i = 0; i < word_size; i++) {
-			size_t idx = written_size + i;
-			if (idx >= launcher_code.size())
-				break;
-			uint8_t *data8 = (uint8_t *)&data;
-			data8[i] = launcher_code[idx];
-		}
-		if (!replace_one_word(ctx, pid, addr, data))
-			return false;
-		written_size += word_size;
-	}
-
-	// set the program counter
 	struct user_regs_struct regs;
 	memcpy(&regs, &ctx->regs_on_install_trap, sizeof(regs));
-	set_program_counter(&regs, launcher_addr);
+
+	// set arguments
+	size_t len = ctx->cockroach_lib_path.size() + 1; // +1: NULL term.
+	const char *lib_path = ctx->cockroach_lib_path.c_str();
+	if (!push_data_on_stack(ctx, &regs, lib_path, len))
+		return false;
+#if __x86_64__
+	regs.rdi = regs.rsp;  // 1st argument (filename)
+	regs.rsi = RTLD_LAZY; // 2nd argument (flag)
+	// push return address
+#endif // __x86_64__
+
+	// set the return address
+	// We know the the return by SIGSEGV, because no region is mapped
+	// at the address.
+	if (!push_data_on_stack(ctx, &regs, &INSTALL_RET_ADDR, POINTER_SIZE))
+		return false;
+
+	// set the program counter to dlopen()
+	set_program_counter(&regs, ctx->dlopen_addr);
+
 	if (!set_registers(pid, &regs))
 		return false;
 	return true;
@@ -519,17 +468,11 @@ static bool move_to_orig_install_trap_addr(context *ctx, pid_t pid,
 	return true;
 }
 
-static bool act_install_trap(context *ctx, pid_t pid, int *signo)
+static bool set_install_trap(context *ctx, pid_t pid, int *signo)
 {
-	bool by_install_trap = false;
-	if (!caused_by_install_trap(ctx, pid, &by_install_trap,
-	                            &ctx->regs_on_install_trap))
-		return false;
-	if (!by_install_trap)
-		return true;
-	
 	ctx->launcher_tid = pid;
-	install_cockroach(ctx, pid);
+	if (!install_cockroach(ctx, pid))
+		return false;
 	ctx->loader_state = LOADER_WAIT_LAUNCH_DONE;
 	*signo = 0; // suppress the signal injection
 
@@ -539,6 +482,7 @@ static bool act_install_trap(context *ctx, pid_t pid, int *signo)
 	return true;
 }
 
+/*
 static bool act_wait_launched(context *ctx, pid_t pid, int *signo)
 {
 	if (pid != ctx->launcher_tid) {
@@ -570,12 +514,85 @@ static bool act_wait_launched(context *ctx, pid_t pid, int *signo)
 		return false;
 	*signo = 0; // suppress the signal injection
 	return false;
+}*/
+
+static bool save_involved_thread(context *ctx, pid_t pid, bool *involved)
+{
+	*involved = false;
+	if (pid == ctx->launcher_tid)
+		return true;
+
+	// If the other thread is trapped by the installed trap
+	// instruction, we set the program counter.
+	// In this point code itself should be the original.
+	// The SIGTRAP is notified behind time.
+	struct user_regs_struct regs;
+	bool by_install_trap = false;
+	if (!caused_by_install_trap(ctx, pid, &by_install_trap, &regs))
+		return false;
+	if (by_install_trap) {
+		if (!move_to_orig_install_trap_addr(ctx, pid, &regs))
+			return false;
+		*involved = true;
+	}
+	return true;
 }
 
-static wait_ret_action wait_ret_actions[NUM_LOADER_STATE] = {
-	act_install_trap,    // LOADER_INIT
-	act_wait_launched,   // LOADER_WAIT_LAUNCH_DONE,
-};
+static bool is_launched(context *ctx, pid_t pid, bool *launched)
+{
+	*launched = false;
+	if (ctx->launcher_tid != pid)
+		return true;
+
+	struct user_regs_struct regs;
+	if (!get_registers(pid, &regs))
+		return false;
+	*launched = get_program_counter(&regs) == INSTALL_RET_ADDR;
+	if (*launched) {
+		unsigned long ax = get_ax(&regs);
+		printf("Launch completed: ax: %lx\n", ax);
+	}
+	return true;
+}
+
+static bool bring_back_original_path(context *ctx, pid_t pid)
+{
+	// moved the program counter to the original address
+	if (!set_registers(pid, &ctx->regs_on_install_trap))
+		return false;
+	return true;
+}
+
+static bool dispatch_stop_signal(context *ctx, pid_t pid, int *signo)
+{
+	struct user_regs_struct regs;
+	if (*signo == SIGTRAP && ctx->loader_state == LOADER_INIT) {
+		bool by_install_trap = false;
+		if (!caused_by_install_trap(ctx, pid, &by_install_trap, &regs))
+			return false;
+		if (!by_install_trap)
+			return true;
+		// save the register set on the trap
+		memcpy(&ctx->regs_on_install_trap, &regs, sizeof(regs));
+		if (!set_install_trap(ctx, pid, signo))
+			return false;
+	} else if (*signo == SIGTRAP) {
+		bool involved = false;
+		if (!save_involved_thread(ctx, pid, &involved))
+			return false;
+		if (involved)
+			*signo = 0;
+	} else if (*signo == SIGSEGV) {
+		bool launched = false;
+		if (!is_launched(ctx, pid, &launched))
+			return false;
+		if (launched) {
+			bring_back_original_path(ctx, pid);
+			*signo = 0;
+		}
+	}
+	return true;
+}
 
 static bool wait_loop(context *ctx)
 {
@@ -588,12 +605,8 @@ static bool wait_loop(context *ctx)
 			return false;
 		if (WIFSTOPPED(status)) {
 			signo = WSTOPSIG(status);
-			if (signo == SIGTRAP) {
-				wait_ret_action action =
-				   wait_ret_actions[ctx->loader_state];
-				if (!(*action)(ctx, changed_pid, &signo))
-					return false;
-			}
+			if (!dispatch_stop_signal(ctx, changed_pid, &signo))
+				return false;
 		} else if (WIFEXITED(status)) {
 			int exit_code = WEXITSTATUS(status);
 			printf("The target exited: exit code: %d\n", exit_code);
@@ -641,9 +654,7 @@ static bool parse_proc_map_line(const string &line, map_region *region)
 static string find_libdl_path(pid_t pid, unsigned long *addr)
 {
 	stringstream map_path;
-	map_path << "/proc/";
-	map_path << pid;
-	map_path << "/maps";
+	map_path << "/proc/" << pid << "/maps";
 	ifstream ifs(map_path.str().c_str());
 	if (!ifs) {
 		printf("Failed to open: %s\n", map_path.str().c_str());
@@ -710,6 +721,20 @@ static bool find_dlopen_addr(context *ctx)
 	ctx->dlopen_addr = map_addr + ctx->dlopen_addr_offset;
 	printf("dlopen addr (target): %lx\n", ctx->dlopen_addr);
 
+	return true;
+}
+
+static bool open_proc_mem(context *ctx)
+{
+	ostringstream proc_mem_path;
+	proc_mem_path << "/proc/" << ctx->target_pid << "/mem";
+
+	ctx->proc_mem_fd = open(proc_mem_path.str().c_str(), O_RDWR);
+	if (ctx->proc_mem_fd == -1) {
+		printf("Failed to open: %s, %s\n",
+		       proc_mem_path.str().c_str(), strerror(errno));
+		return false;
+	}
 	return true;
 }
 
@@ -784,6 +809,9 @@ int main(int argc, char *argv[])
 
 	if (!attach_all_threads(&ctx))
 		return EXIT_FAILURE;
+	if (!open_proc_mem(&ctx))
+		return EXIT_FAILURE;
+
 	if (!install_trap(&ctx))
 		return EXIT_FAILURE;
 	if (!resume_all_thread(&ctx))
