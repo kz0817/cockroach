@@ -1,2 +1,5 @@
+* How to set the load test times.
+LOOP_TEST_CALL_TIMES=100 ./run-test.sh
+
 Ex.)
 sudo ../src/cockroach-loader --install-trap-addr 401010 --recipe fixtures/test-user-probe-with-loader.recipe `pidof target-exe`
