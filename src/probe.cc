@@ -230,8 +230,7 @@ do { \
 #define PSEUDO_PUSH(label) \
 do { \
 	asm volatile(label); \
-	asm volatile("sub $4,%esp"); \
-	asm volatile("movl $0x89abcdef,(%esp)"); \
+	asm volatile("push $0x89abcdef"); \
 } while(0)
 
 void _bridge_template(void)
@@ -345,15 +344,10 @@ extern "C" void return_ret_probe_bridge(void);
 static void set_pseudo_push_parameter(uint8_t *code_addr, unsigned long param)
 {
 	// We assume the pseudo push as the followin form.
-	//   sub  $4,%esp
-	//   movl $0x89abcdef,(%esp)
-	// *** assembler code ***
-	//   48 83 ec 08               sub    $0x8,%esp
-	//   c7 04 24 ef cd ab 89      movl   $0x89abcdef,(%rsp)
-	static const int OFFSET_ADDR_LSB32 = 7;
-	uint32_t param_lsb32 = param & 0xffffffff;
-	uint32_t *code_addr_lsb32 = (uint32_t *)(code_addr + OFFSET_ADDR_LSB32);
-	*code_addr_lsb32 = param_lsb32;
+	//   68 ef cd ab 89          push   $0x89abcdef
+	static const int OFFSET = 1;
+	uint32_t *code_addr32 = (uint32_t *)(code_addr + OFFSET);
+	*code_addr32 = param;
 }
 
 #endif // __i386__
