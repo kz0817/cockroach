@@ -385,7 +385,7 @@ void probe::change_page_permission_all(void *addr, int len)
 		change_page_permission((void *)(addr_aligned + page_size));
 }
 
-#ifdef __x86_64__
+#if defined(__x86_64__) || defined(__i386__)
 void probe::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
                                 int copy_code_size)
 {
@@ -486,7 +486,7 @@ int probe::get_overwrite_code_length(void)
 }
 
 
-#endif // __x86_64__
+#endif // defined(__x86_64__) || defined(__i386__)
 
 int probe::get_minimum_overwrite_length(void)
 {

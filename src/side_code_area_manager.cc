@@ -122,7 +122,7 @@ side_code_area_manager::alloc_within_rel32(size_t size, unsigned long ref_addr)
 // ---------------------------------------------------------------------------
 // Private methods
 // ---------------------------------------------------------------------------
-#ifdef __x86_64__
+#if defined(__x86_64__) || defined(__i386__)
 bool
 side_code_area_manager::is_within_rel32(unsigned long addr,
                                         unsigned long ref_addr)
@@ -167,7 +167,7 @@ side_code_area_manager::find_region_within_rel32(unsigned long addr0,
 
 	return REGION_NOT_FOUND;
 }
-#endif // __x86_64__
+#endif // defined(__x86_64__) || defined(__i386__)
 
 bool
 side_code_area_manager::extract_address(string &line,
