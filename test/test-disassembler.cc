@@ -20,6 +20,18 @@ void teardown(void)
 	}
 }
 
+static void _assert_opecode(
+  opecode *ope, int expected_len, mod_type mod, register_type reg,
+  register_type r_m = REG_NONE)
+{
+	cppcut_assert_equal(mod, g_ope->get_mod_rm().mod);
+	cppcut_assert_equal(reg, g_ope->get_mod_rm().reg);
+	cppcut_assert_equal(r_m, g_ope->get_mod_rm().r_m);
+	cppcut_assert_equal(expected_len, g_ope->get_length());
+}
+#define assert_opecode(OPE, LEN, MOD_TYPE, REG, ...) \
+cut_trace(_assert_opecode(OPE, LEN, MOD_TYPE, REG, ##__VA_ARGS__))
+
 // ---------------------------------------------------------------------------
 // Test code
 // ---------------------------------------------------------------------------
@@ -69,17 +81,13 @@ void test_mov_Gv_Ev(void)
 void test_mov_pop_rAX_r8(void)
 {
 	g_ope = disassembler::parse((uint8_t *)target_pop_rAX_r8);
-	cppcut_assert_equal(MOD_REG_NONE, g_ope->get_mod_rm().mod);
-	cppcut_assert_equal(REG_AX, g_ope->get_mod_rm().reg);
-	cppcut_assert_equal(1, g_ope->get_length());
+	assert_opecode(g_ope, 1, MOD_REG_NONE, REG_AX);
 }
 
 void test_mov_pop_rBP_r8(void)
 {
 	g_ope = disassembler::parse((uint8_t *)target_pop_rBP_r13);
-	cppcut_assert_equal(MOD_REG_NONE, g_ope->get_mod_rm().mod);
-	cppcut_assert_equal(REG_BP, g_ope->get_mod_rm().reg);
-	cppcut_assert_equal(1, g_ope->get_length());
+	assert_opecode(g_ope, 1, MOD_REG_NONE, REG_BP);
 }
 
 #endif // defined(__x86_64__) || defined(__i386__)
