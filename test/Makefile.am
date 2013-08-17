@@ -18,7 +18,7 @@ libimplicitdlopener.la libimplicitopentarget.la
 
 endif
 
-AM_CFLAGS = -g -Wall $(GLIB_CFLAGS) $(CUTTER_CFLAGS) -I../src
+AM_CFLAGS = -g3 -Wall $(GLIB_CFLAGS) $(CUTTER_CFLAGS) -I../src
 AM_CXXFLAGS = $(AM_CFLAGS)
 AM_LDFLAGS = -module -rpath $(libdir) -avoid-version -no-undefined
 LIBS = $(CUTTER_LIBS) $(CPPCUTTER_LIBS)
