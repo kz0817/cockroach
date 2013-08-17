@@ -850,7 +850,7 @@ int32_t probe::get_rel_addr32_for_jump(void *curr, void *dest)
 {
 	// calculate relative address
 	int64_t rel_addr =
-	   (uint64_t)dest - (uint64_t)((uint8_t *)code + LEN_OPCODE_JMP_REL32);
+	   (uint64_t)dest - (uint64_t)((uint8_t *)curr + LEN_OPCODE_JMP_REL32);
 	if (rel_addr > INT32_MAX || rel_addr < INT32_MIN) {
 		ROACH_ERR("Invalid: rel_addr: %"PRIx64"\n", rel_addr);
 		ROACH_ABORT();
