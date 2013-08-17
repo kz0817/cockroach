@@ -131,6 +131,8 @@ pid_t target_probe_info::get_pid(void)
 // ---------------------------------------------------------------------------
 // Public methods
 // ---------------------------------------------------------------------------
+map<int, string> testutil::signal_name_map;
+
 void testutil::exec_command(exec_command_info *arg)
 {
 	// exec
@@ -172,7 +174,8 @@ void testutil::exec_command(exec_command_info *arg)
 	cppcut_assert_equal(0, errno_stdout);
 	cppcut_assert_equal(0, errno_stderr);
 	cut_assert_equal_int(1, WIFEXITED(arg->status),
-	                    cut_message("%s", stderr_buf.c_str()));
+	                    cut_message("%s\n%s", stderr_buf.c_str(),
+	                                get_exit_info(arg->status).c_str()));
 	cppcut_assert_equal(EXIT_SUCCESS, WEXITSTATUS(arg->status),
 	                    cut_message("%s", stderr_buf.c_str()));
 }
@@ -342,6 +345,54 @@ void testutil::reset_record_data(void)
 {
 	exec_command_info exec_info;
 	exec_record_data_tool("reset", &exec_info);
+}
+
+string testutil::get_exit_info(int status)
+{
+	ostringstream ss;
+	ss << "<< Exit information>>" << endl;
+	if (WIFEXITED(status))
+		ss << "Normal exit: Yes, code: " << WEXITSTATUS(status) << endl;
+	else
+		ss << "Normal exit: No" << endl;
+
+	if (WIFSIGNALED(status)) {
+		int signo = WTERMSIG(status);
+		ss << "Signal: Yes, signal no.: " << signo << " ("
+		   << get_signal_name(signo) << ")" << endl;
+	} else
+		ss << "Signal: No" << endl;
+	return ss.str();
+}
+
+const string &testutil::get_signal_name(int signo)
+{
+	if (signal_name_map.empty()) {
+		signal_name_map[SIGHUP]  = "SIGHUP";
+		signal_name_map[SIGINT]  = "SIGINT";
+		signal_name_map[SIGQUIT] = "SIGQUIT";
+		signal_name_map[SIGILL]  = "SIGILL";
+		signal_name_map[SIGTRAP] = "SIGTRAP";
+		signal_name_map[SIGABRT] = "SIGABRT";
+		signal_name_map[SIGBUS]  = "SIGBUS";
+		signal_name_map[SIGFPE]  = "SIGFPE";
+		signal_name_map[SIGKILL] = "SIGKILL";
+		signal_name_map[SIGUSR1] = "SIGUSR1";
+		signal_name_map[SIGSEGV] = "SIGSEGV";
+		signal_name_map[SIGUSR2] = "SIGUSR2";
+		signal_name_map[SIGPIPE] = "SIGPIPE";
+		signal_name_map[SIGALRM] = "SIGALRM";
+		signal_name_map[SIGTERM] = "SIGTERM";
+		signal_name_map[SIGCHLD] = "SIGCHLD";
+		signal_name_map[SIGCONT] = "SIGCONT";
+		signal_name_map[SIGSTOP] = "SIGSTOP";
+	}
+	map<int,string>::iterator it = signal_name_map.find(signo);
+	if (it == signal_name_map.end()) {
+		static string unknown = "Unknown";
+		return unknown;
+	}
+	return it->second;
 }
 
 // ---------------------------------------------------------------------------

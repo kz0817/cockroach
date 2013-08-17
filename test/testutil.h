@@ -3,6 +3,7 @@
 
 #include <string>
 #include <list>
+#include <map>
 using namespace std;
 
 #include <glib.h>
@@ -51,7 +52,7 @@ public:
 };
 
 class testutil {
-	
+	static map<int, string> signal_name_map;
 	static void add_test_libs_dir_to_ld_library_path_if_needed(void);
 
 public:
@@ -76,6 +77,8 @@ public:
 	static void exec_record_data_tool(const char *arg,
 	                                  exec_command_info *exec_info);
 	static void reset_record_data(void);
+	static string get_exit_info(int status);
+	static const string &get_signal_name(int signo);
 };
 
 #endif
