@@ -28,6 +28,7 @@ NORM_LIB_LDFLAGS = -rpath $(libdir)
 # Testers
 test_disassembler_la_SOURCES = test-disassembler.cc
 if I386
+test_disassembler_la_SOURCES += test-disassembler-target-i386.S
 endif
 if X86_64
 test_disassembler_la_SOURCES += test-disassembler-target.S

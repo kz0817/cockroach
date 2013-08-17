@@ -23,7 +23,7 @@ void teardown(void)
 // ---------------------------------------------------------------------------
 // Test code
 // ---------------------------------------------------------------------------
-#ifdef __x86_64__
+#if defined(__x86_64__) || defined(__i386__)
 
 void test_mov_Ev_Iz(void)
 {
@@ -40,7 +40,7 @@ void test_mov_Ev_Iz(void)
 	cppcut_assert_equal(7, g_ope->get_length());
 }
 
-#endif //  __x86_64__
+#endif // defined(__x86_64__) || defined(__i386__)
 
 } // namespace test_disassember
 
