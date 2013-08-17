@@ -16,6 +16,7 @@ enum mod_type {
 	MOD_REG_INDIRECT_DISP8,
 	MOD_REG_INDIRECT_DISP32,
 	MOD_REG_DIRECT,
+	MOD_REG_NONE,
 };
 
 enum register_type {
@@ -28,6 +29,7 @@ enum register_type {
 	REG_BP,
 	REG_SI,
 	REG_DI,
+	REG_NONE,
 };
 
 enum opecode_disp_t {

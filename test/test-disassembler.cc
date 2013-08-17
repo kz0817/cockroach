@@ -66,6 +66,14 @@ void test_mov_Gv_Ev(void)
 	cppcut_assert_equal(expected_len, g_ope->get_length());
 }
 
+void test_mov_pop_rAX_r8(void)
+{
+	g_ope = disassembler::parse((uint8_t *)target_pop_rAX_r8);
+	cppcut_assert_equal(MOD_REG_NONE, g_ope->get_mod_rm().mod);
+	cppcut_assert_equal(REG_AX, g_ope->get_mod_rm().reg);
+	cppcut_assert_equal(1, g_ope->get_length());
+}
+
 #endif // defined(__x86_64__) || defined(__i386__)
 
 } // namespace test_disassember

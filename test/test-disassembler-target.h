@@ -7,6 +7,8 @@ extern "C" {
 
 void target_mov_Ev_Iz(void);
 void target_mov_Gv_Ev(void);
+void target_pop_rAX_r8(void);
+void target_pop_rBP_r13(void);
 
 #ifdef __cplusplus
 }
