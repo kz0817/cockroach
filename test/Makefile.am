@@ -31,7 +31,7 @@ if I386
 test_disassembler_la_SOURCES += test-disassembler-target-i386.S
 endif
 if X86_64
-test_disassembler_la_SOURCES += test-disassembler-target.S
+test_disassembler_la_SOURCES += test-disassembler-target-x86_64.S
 endif
 
 test_disassembler_la_LIBADD = ../src/libcockroach.la
