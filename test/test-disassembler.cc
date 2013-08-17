@@ -54,9 +54,9 @@ void test_mov_Gv_Ev(void)
 
 	cppcut_assert_equal(MOD_REG_INDIRECT_DISP8, g_ope->get_mod_rm().mod);
 	cppcut_assert_equal(REG_BP, g_ope->get_mod_rm().r_m);
-	cppcut_assert_equal(REG_DX, g_ope->get_mod_rm().reg);
 	cppcut_assert_equal(DISP8, g_ope->get_disp().type);
 	cppcut_assert_equal((uint32_t)0x8, g_ope->get_disp().value);
+	cppcut_assert_equal(REG_DX, g_ope->get_mod_rm().reg);
 #if __x86_64__
 	int expected_len = 4;
 #endif
