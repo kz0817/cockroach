@@ -177,7 +177,8 @@ void testutil::exec_command(exec_command_info *arg)
 	                    cut_message("%s\n%s", stderr_buf.c_str(),
 	                                get_exit_info(arg->status).c_str()));
 	cppcut_assert_equal(EXIT_SUCCESS, WEXITSTATUS(arg->status),
-	                    cut_message("%s", stderr_buf.c_str()));
+	                    cut_message("%s\n%s", stderr_buf.c_str(),
+	                                get_exit_info(arg->status).c_str()));
 }
 
 void
