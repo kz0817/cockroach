@@ -40,6 +40,19 @@ void test_mov_Ev_Iz(void)
 	cppcut_assert_equal(7, g_ope->get_length());
 }
 
+void test_mov_Gv_Ev(void)
+{
+	g_ope = disassembler::parse((uint8_t *)target_mov_Gv_Ev);
+
+	// mov    0x8(%ebp),%edx
+	// 8b 55 08 
+	cppcut_assert_equal(MOD_REG_INDIRECT_DISP8, g_ope->get_mod_rm().mod);
+	cppcut_assert_equal(REG_BP, g_ope->get_mod_rm().r_m);
+	cppcut_assert_equal(DISP8, g_ope->get_disp().type);
+	cppcut_assert_equal((uint32_t)0x8, g_ope->get_disp().value);
+	cppcut_assert_equal(3, g_ope->get_length());
+}
+
 #endif // defined(__x86_64__) || defined(__i386__)
 
 } // namespace test_disassember

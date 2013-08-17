@@ -6,6 +6,7 @@ extern "C" {
 #endif // __cplusplus
 
 void target_mov_Ev_Iz(void);
+void target_mov_Gv_Ev(void);
 
 #ifdef __cplusplus
 }
