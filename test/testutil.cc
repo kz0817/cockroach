@@ -359,9 +359,9 @@ string testutil::get_exit_info(int status)
 
 	if (WIFSIGNALED(status)) {
 		int signo = WTERMSIG(status);
-		ss << "Signal: Yes, signal no.: " << signo << " ("
+		ss << "Signal: " << signo << " ("
 		   << get_signal_name(signo) << "), "
-		   << "Core dumped: " << (WCOREDUMP(status) ? "Yes" : "No")
+		   << "Core: " << (WCOREDUMP(status) ? "dumped" : "No")
 		   << endl;
 	} else
 		ss << "Signal: No" << endl;
