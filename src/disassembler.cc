@@ -210,11 +210,6 @@ static uint8_t *parse_operand(opecode *op, uint8_t *code)
 	return code;
 }
 
-static void parser_no_operand(opecode *op, uint8_t *code)
-{
-	// no operand
-}
-
 // 0x01 ADD (MR)
 static void parser_add_Ev_Gv(opecode *op, uint8_t *code)
 {
@@ -344,9 +339,14 @@ static const instr_info instr_info_pop_rAXr8 = {
 };
 
 // 0x5d POP
+static void parser_pop_rBPr13(opecode *op, uint8_t *code)
+{
+	op->set_mod_rm(MOD_REG_NONE, REG_BP, REG_NONE);
+}
+
 static const instr_info instr_info_pop_rBPr13 = {
 	1,
-	parser_no_operand,
+	parser_pop_rBPr13,
 };
 
 // 0x7e Jcc, jb- Short displacement jump on condition
