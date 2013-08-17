@@ -420,13 +420,7 @@ void probe::overwrite_jump_code(void *target_addr, void *jump_abs_addr,
 uint8_t *probe::overwrite_jump_rel32(uint8_t *code, void *jump_abs_addr,
                                      int copy_code_size)
 {
-	// calculate relative address
-	int64_t rel_addr = (uint64_t)jump_abs_addr
-	                   - (uint64_t)(code + LEN_OPCODE_JMP_REL32);
-	if (rel_addr > INT32_MAX || rel_addr < INT32_MIN) {
-		ROACH_ERR("Invalid: rel_addr: %"PRIx64"\n", rel_addr);
-		ROACH_ABORT();
-	}
+	int32_t rel_addr = get_rel_addr32_for_jump(code, jump_abs_addr);
 
 	// fill jump instruction
 	*code = OPCODE_JMP_REL;
@@ -850,3 +844,26 @@ void cockroach_set_return_probe(probe_func_t probe, probe_arg_t *arg)
 	pthread_mutex_unlock(&g_ret_probe_func_map_mutex);
 }
 #endif // defined(__x86_64__) || defined(__i386__)
+
+#if __x86_64__
+int32_t probe::get_rel_addr32_for_jump(void *curr, void *dest)
+{
+	// calculate relative address
+	int64_t rel_addr =
+	   (uint64_t)dest - (uint64_t)((uint8_t *)code + LEN_OPCODE_JMP_REL32);
+	if (rel_addr > INT32_MAX || rel_addr < INT32_MIN) {
+		ROACH_ERR("Invalid: rel_addr: %"PRIx64"\n", rel_addr);
+		ROACH_ABORT();
+	}
+	return (int32_t)rel_addr;
+}
+#endif // __x86_64__
+
+#if __i386__
+int32_t probe::get_rel_addr32_for_jump(void *curr, void *dest)
+{
+	return (int32_t)dest -
+	       (uint32_t)((uint8_t *)curr + LEN_OPCODE_JMP_REL32);
+}
+#endif // __i386__
+

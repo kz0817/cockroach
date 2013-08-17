@@ -67,6 +67,7 @@ class probe {
 	int get_overwrite_code_length(void);
 	void install_core(unsigned long target_addr);
 	bool is_opecode_ret(const opecode *ope) const;
+	int32_t get_rel_addr32_for_jump(void *curr, void *dest);
 
 public:
 	probe(probe_type_t probe_type, install_type_t install_type);
