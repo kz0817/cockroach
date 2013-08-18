@@ -244,8 +244,10 @@ void testutil::assert_measured_time_format(string &line,
 	// target address (just compare below a page file size)
 	unsigned long expected_target_addr = probe_info->get_target_addr();
 	expected_target_addr &= (get_page_size() - 1);
-	unsigned long actual_target_addr =
-	  strtol(tokens[IDX_TARGET_ADDR_MEASURED_TIME_LIST].c_str(), NULL, 16);
+	unsigned long actual_target_addr;
+	cppcut_assert_equal(1,
+	  sscanf(tokens[IDX_TARGET_ADDR_MEASURED_TIME_LIST].c_str(),
+	         "%lx", &actual_target_addr));
 	actual_target_addr &= (get_page_size() - 1);
 	cppcut_assert_equal(expected_target_addr, actual_target_addr);
 
