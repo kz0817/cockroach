@@ -74,11 +74,13 @@ void test_save_instr_size_6(void)
 	assert_func("func1b", "3");
 }
 
+#if __x86_64__
 // abs 64bit
 void test_abs64(void)
 {
 	assert_func("func2", "3");
 }
+#endif // __x86_64__
 
 // symbol in the executable
 void test_target_in_exe(void)
