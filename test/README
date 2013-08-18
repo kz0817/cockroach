@@ -1,5 +1,9 @@
 * How to set the load test times.
 LOOP_TEST_CALL_TIMES=100 ./run-test.sh
 
-Ex.)
+* An example to execute cockroach manually. This is useful to debug with GDB.
+LD_PRELOAD=../src/.libs/cockroach.so COCKROACH_RECIPE=fixtures/test-measure-time.recipe LD_LIBRARY_PATH=../src/.libs:.libs .libs/target-exe func1
+
+* An example to use cockroach-loader
 sudo ../src/cockroach-loader --install-trap-addr 401010 --recipe fixtures/test-user-probe-with-loader.recipe `pidof target-exe`
+
