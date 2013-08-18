@@ -764,7 +764,7 @@ static void ret_probe_dispatcher(probe_arg_t *arg,
 	if (it == ret_probe_func_map.end()) {
 		ROACH_ERR("Not found : ret_probe_bridge: %p\n",
 		          ret_probe_bridge);
-		abort();
+		ROACH_ABORT();
 	}
 	probe_func_t probe = it->second;
 	ret_probe_func_map.erase(it);
