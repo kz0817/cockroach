@@ -92,6 +92,7 @@ unsigned long cockroach_get_target_func_arg(probe_arg_t *arg, size_t nth);
  * Get the top stack address of the function that calls the target function.
  *
  * The address is typically the top address of the caller's stack.
+ * It is just below the return address of the target function.
  *
  * @param arg A probe_arg_t pointer
  * @return The stack address of the caller.
