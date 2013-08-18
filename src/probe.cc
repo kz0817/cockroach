@@ -841,7 +841,7 @@ void cockroach_set_return_probe(probe_func_t probe, probe_arg_t *arg)
 	if (it != ret_probe_func_map.end()) {
 		ROACH_ERR("Already registered: ret_probe_bridge: %p\n",
 		          ret_probe_bridge);
-		abort();
+		ROACH_ABORT();
 	}
 	ret_probe_func_map[ret_probe_bridge] = probe;
 	pthread_mutex_unlock(&g_ret_probe_func_map_mutex);
