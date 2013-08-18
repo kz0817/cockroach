@@ -81,7 +81,7 @@ void _bridge_template(void)
 	// see. overwrite_jump_abs64().
 	asm volatile("pop %rax");
 
-	// When install type is REL32, the bridge begins code from here
+	// When install type is REL32, the bridge code begins from here
 	asm volatile("bridge_begin_no_pop_ax:");
 
 	// the return address of the probe
@@ -240,12 +240,12 @@ do { \
 
 void _bridge_template(void)
 {
-	asm volatile("bridge_begin:");
-	// This will not be needed, because ABS64_JUMP is not necessary
+	// This will not be needed, because ABS64_JUMP shall not be used
 	// on i386.
+	asm volatile("bridge_begin:");
 	asm volatile("pop %eax");
 
-	// When install type is REL32, the bridge begins code from here
+	// When install type is REL32, the bridge code begins from here
 	asm volatile("bridge_begin_no_pop_ax:");
 
 	// the return address of the probe
