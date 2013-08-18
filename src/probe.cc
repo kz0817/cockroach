@@ -315,8 +315,7 @@ void _ret_probe_bridge_template(void)
 
 	// 2nd argument: address of the return probe bridge block
 	// The address is used as an identifier.
-	asm volatile("ret_probe_set_bridge_addr:");
-	asm volatile("push $0x89abcdef");
+	PSEUDO_PUSH("ret_probe_set_bridge_addr:");
 
 	// 1st argument: probe_arg_t *arg
 	asm volatile("push %eax");
@@ -793,10 +792,18 @@ static uint8_t *create_ret_probe_bridge(void)
 	       RET_PROBE_BRIDGE_LENGTH);
 
 	// set the head address of this area (2nd arguemnt of dispatcher)
+#if __x86_64__
 	//   48 be ef cd ab 89 67 45 23 01 movabs $0x123456789abcdef,%rsi
 	side_code_ptr = 
 	  side_code_area + OFFSET_RET_BRIDGE(ret_probe_set_bridge_addr) + 2;
 	*((unsigned long *)side_code_ptr) = (unsigned long)side_code_area;
+#endif // __x86_64__
+#if __i386__
+	side_code_ptr =
+	  side_code_area + OFFSET_RET_BRIDGE(ret_probe_set_bridge_addr);
+	set_pseudo_push_parameter(side_code_ptr,
+	                          (unsigned long)return_ret_probe_bridge);
+#endif // __i386__
 
 	// set the address to the 'retrun_ret_probe_bridge'
 	side_code_ptr =
