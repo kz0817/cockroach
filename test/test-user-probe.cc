@@ -56,7 +56,7 @@ static void assert_exec_data_record(size_t num_call = 1)
 		cppcut_assert_equal(sizeof(user_record_t), tool_out.size);
 		user_record_t *record
 		  = reinterpret_cast<user_record_t *>(tool_out.data);
-		cppcut_assert_equal(record->arg0, arg_num);
+		cppcut_assert_equal(arg_num, record->arg0);
 	}
 }
 
