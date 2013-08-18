@@ -389,14 +389,9 @@ unsigned long cockroach_get_target_func_arg(probe_arg_t *arg, size_t nth_arg)
 		ROACH_ERR("nth_arg 0: is invalid\n");
 		return 0;
 	}
-	uint8_t *func_arg = (uint8_t *)arg;
-
-	// The top address of function arguments
-	func_arg += sizeof(probe_arg_t);
-
-	// calculate the n-th argument
-	unsigned long *func_arg_ul = (unsigned long *)func_arg;
-	return *func_arg_ul;
+	unsigned long *caller_stack = 
+	   cockroach_get_stack_addr_of_target_caller(arg);
+	return caller_stack[nth_arg - 1];
 }
 
 #endif // __i386__
