@@ -343,7 +343,7 @@ void _return_ret_probe_bridge(void)
 {
 	// NOTE: function is not template, it is actually used as it is.
 	asm volatile("return_ret_probe_bridge:");
-	asm volatile("add $0x8,%esp"); // 8: 1st and 2nd argument
+	asm volatile("add $0xc,%esp"); // c: 1st, 2nd argument, and priv data
 	POP_ALL_REGS();
 	asm volatile("ret");
 }
@@ -802,7 +802,7 @@ static uint8_t *create_ret_probe_bridge(void)
 	side_code_ptr =
 	  side_code_area + OFFSET_RET_BRIDGE(ret_probe_set_bridge_addr);
 	set_pseudo_push_parameter(side_code_ptr,
-	                          (unsigned long)return_ret_probe_bridge);
+	                          (unsigned long)side_code_area);
 #endif // __i386__
 
 	// set the address to the 'retrun_ret_probe_bridge'
