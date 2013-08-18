@@ -203,7 +203,7 @@ uint8_t *side_code_area_manager::alloc_region(size_t region_size,
 	//        thread allocates memory region we will allocate.
 	if (ptr == MAP_FAILED) {
 		ROACH_ERR("Failed to mmap: %d\n", errno);
-		abort();
+		ROACH_ABORT();
 	}
 
 	unsigned long addr = reinterpret_cast<unsigned long>(ptr);

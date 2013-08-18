@@ -370,7 +370,7 @@ void probe::change_page_permission(void *addr)
 	if (mprotect(addr, page_size, prot) == -1) {
 		ROACH_ERR("Failed to mprotect: %p, %d, %x (%d)\n",
 		          addr, page_size, prot, errno);
-		abort();
+		ROACH_ABORT();
 	}
 }
 
@@ -762,8 +762,8 @@ static void ret_probe_dispatcher(probe_arg_t *arg,
 	pthread_mutex_lock(&g_ret_probe_func_map_mutex);
 	it = ret_probe_func_map.find(ret_probe_bridge);
 	if (it == ret_probe_func_map.end()) {
-		ROACH_ERR("Not found : ret_probe_bridge: %p\n",
-		          ret_probe_bridge);
+		ROACH_ERR("Not found : arg: %p, ret_probe_bridge: %p\n",
+		          arg, ret_probe_bridge);
 		ROACH_ABORT();
 	}
 	probe_func_t probe = it->second;
