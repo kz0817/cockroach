@@ -358,6 +358,22 @@ static void set_pseudo_push_parameter(uint8_t *code_addr, unsigned long param)
 	*code_addr32 = param;
 }
 
+unsigned long cockroach_get_target_func_arg(probe_arg_t *arg, size_t nth_arg)
+{
+	if (nth_arg == 0) {
+		ROACH_ERR("nth_arg 0: is invalid\n");
+		return 0;
+	}
+	uint8_t *func_arg = (uint8_t *)arg;
+
+	// The top address of function arguments
+	func_arg += sizeof(probe_arg_t);
+
+	// calculate the n-th argument
+	unsigned long *func_arg_ul = (unsigned long *)func_arg;
+	return *func_arg_ul;
+}
+
 #endif // __i386__
 
 // --------------------------------------------------------------------------

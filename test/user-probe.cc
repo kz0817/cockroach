@@ -33,9 +33,7 @@ void data_recorder(probe_arg_t *arg)
 	record.arg0 = arg->rdi;
 #endif // __x86_64__
 #ifdef __i386__
-	// TODO: get rsp
-	//record.arg0 = *((unsigned long *)arg->esp);
-	record.arg0 = 0;
+	record.arg0 = cockroach_get_target_func_arg(arg, 1);
 #endif // __i386__
 	cockroach_record_data_on_shm(priv->id, sizeof(user_record_t), &record);
 }

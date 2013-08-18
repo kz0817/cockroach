@@ -73,6 +73,20 @@ void
 cockroach_record_data_on_shm_with_func(uint32_t id, size_t size,
                                        record_data_func_t record_data_func,
                                        void *priv);
+/**
+ * Get the argumet of the hooked function.
+ *
+ * NOTE: The result is valid only when a probe is installed at the top of
+ * the function. Currently only the integer and pointer type arguments
+ * are supported.
+ *
+ * @param arg A probe_arg_t object.
+ * @param nth_arg The arugment number. It begins from one.
+ * @return
+ * The value of argument. In fact, it is the value of rdi, rsi, ... on x86_64.
+ * The value in the stack for argument on i386.
+ */
+unsigned long cockroach_get_target_func_arg(probe_arg_t *arg, size_t nth);
 
 #ifdef __cplusplus
 }
