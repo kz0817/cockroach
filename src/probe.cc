@@ -205,6 +205,31 @@ static void set_pseudo_push_parameter(uint8_t *code_addr, unsigned long param)
 	*code_addr_msb32 = param_msb32;
 }
 
+unsigned long cockroach_get_target_func_arg(probe_arg_t *arg, size_t nth_arg)
+{
+	if (nth_arg == 0) {
+		ROACH_ERR("nth_arg 0: is invalid\n");
+		return 0;
+	}
+
+	if (nth_arg == 1)
+		return arg->rdi;
+	else if (nth_arg == 2)
+		return arg->rsi;
+	else if (nth_arg == 3)
+		return arg->rdx;
+	else if (nth_arg == 4)
+		return arg->rcx;
+	else if (nth_arg == 5)
+		return arg->r8;
+	else if (nth_arg == 6)
+		return arg->r9;
+
+	unsigned long *caller_stack =
+	   cockroach_get_stack_addr_of_target_caller(arg);
+	return caller_stack[nth_arg - 7];
+}
+
 #endif // __x86_64__
 
 #ifdef __i386__
@@ -869,6 +894,12 @@ void cockroach_set_return_probe(probe_func_t probe, probe_arg_t *arg)
 	ret_probe_func_map[ret_probe_bridge] = probe;
 	pthread_mutex_unlock(&g_ret_probe_func_map_mutex);
 }
+
+unsigned long *cockroach_get_stack_addr_of_target_caller(probe_arg_t *arg)
+{
+	return (unsigned long *)(arg + 1);
+}
+
 #endif // defined(__x86_64__) || defined(__i386__)
 
 #if __x86_64__
