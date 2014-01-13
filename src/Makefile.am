@@ -34,7 +34,7 @@ cockroach_loader_LDFLAGS = -ldl -lcockroach
 
 # cockroach-time-measure-tool
 cockroach_time_measure_tool_SOURCES = cockroach-time-measure-tool.cc
-cockroach_time_measure_tool_LDFLAGS = -lcockroach -lrt -ldl
+cockroach_time_measure_tool_LDFLAGS = -lcockroach -lrt -ldl -pthread
 
 # cockroach-record-data-tool
 cockroach_record_data_tool_SOURCES = cockroach-record-data-tool.cc
